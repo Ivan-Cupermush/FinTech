@@ -1,0 +1,21 @@
+{
+  "name": "offix",
+  "private": true,
+  "version": "0.1.0",
+  "description": "offix — система управления результатом: цели, KPI, дорожная карта и узкие места процессов",
+  "workspaces": [
+    "packages/core",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build -w @offix/core && npm run build -w server && npm run build -w web",
+    "test": "npm run test -w @offix/core && npm run test -w server && npm run test -w web",
+    "typecheck": "npm run typecheck -w @offix/core && npm run typecheck -w server && npm run typecheck -w web",
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
