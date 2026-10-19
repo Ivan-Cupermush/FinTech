@@ -16,3 +16,4 @@ export * from './effect';
 export * from './import';
 export * from './report';
 export * from './push';
+export * from './report-mail';
