@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './app/Shell';
 import { LoginPage } from './features/auth/LoginPage';
 import { GoalNewPage } from './features/goals/GoalTemplates';
+import { NotePage, NotesPage } from './features/notes/NotesPage';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { LandingPage } from './features/landing/LandingPage';
@@ -55,6 +56,8 @@ export function AppRoutes() {
         <Route path="report" element={<ReportPage />} />
         <Route path="org" element={<OrgPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notes" element={<NotesPage />} />
+        <Route path="notes/:id" element={<NotePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

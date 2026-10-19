@@ -155,7 +155,7 @@ export function parseMarkdown(md: string): Block[] {
       const ordered = num.test(t);
       const re = ordered ? num : bullet;
       const items: Inline[][] = [];
-      for (; i < lines.length && re.test(lines[i]!.trim()); i++) items.push(parseInline(re.exec(lines[i]!.trim())![1]!));
+      for (; i < lines.length && re.test(lines[i]!.trim()) && !check.test(lines[i]!.trim()); i++) items.push(parseInline(re.exec(lines[i]!.trim())![1]!));
       i--;
       blocks.push({ kind: 'list', ordered, items });
       continue;

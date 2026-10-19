@@ -9,6 +9,7 @@ import { Field } from '../../ui/Field';
 import { Dialog, Panel, Skeleton } from '../../ui/Misc';
 import { TaskStatusPill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
+import { Discussion } from '../discussion/Discussion';
 
 const ACTIONS: { to: TaskStatus; label: string; icon: React.ReactNode; variant: 'primary' | 'secondary' | 'danger' }[] = [
   { to: 'in_progress', label: 'Взять в работу', icon: <CircleDot size={16} />, variant: 'primary' },
@@ -185,6 +186,11 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
               ))}
             </div>
           )}
+
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Обсуждение</div>
+            <Discussion type="task" id={t.id} compact />
+          </div>
 
           <div>
             <div className="eyebrow" style={{ marginBottom: 8 }}>История</div>

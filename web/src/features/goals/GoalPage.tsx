@@ -1,10 +1,9 @@
-import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, MessageSquare, Pencil, Plus, Rocket, Send, Sheet, Undo2 } from 'lucide-react';
+import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, Pencil, Plus, Rocket, Sheet, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { formatDate, GOAL_TYPE_LABELS, KPI_STATE_LABELS, type Risk } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
-import { useInvalidateWork, useRoadmap } from '../../lib/queries';
-import { useQuery } from '@tanstack/react-query';
+import { useInvalidateWork, useMe, useRoadmap } from '../../lib/queries';
 import type { GoalCard, Roadmap } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -13,13 +12,15 @@ import { Dialog, Empty, Segmented, Skeleton } from '../../ui/Misc';
 import { GoalStatusPill, Pill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
 import { TaskPanel } from '../tasks/TaskPanel';
+import { Discussion, useDiscussionSummary } from '../discussion/Discussion';
+import { GoalNotes } from '../notes/NotesPage';
 import { AddKpiDialog, AddTaskDialog, EditGoalDialog, ObservationDialog } from './goalDialogs';
 import { ImportDialog } from './ImportDialog';
 import { DueLabel, RiskList } from './parts';
 import { RoadmapAnalytics, RoadmapTimeline, RoadmapTree } from './roadmapViews';
 import './goals.css';
 
-type View = 'tree' | 'timeline' | 'analytics' | 'discussion';
+type View = 'tree' | 'timeline' | 'analytics' | 'discussion' | 'notes';
 type DialogKind = 'observe' | 'import' | 'edit' | 'kpi' | 'task' | 'cancel' | null;
 
 /** Рабочее пространство цели: результат сверху, путь к нему ниже. */
@@ -29,6 +30,8 @@ export function GoalPage() {
   const [view, setView] = useState<View>('tree');
   const [taskId, setTaskId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
+  const summary = useDiscussionSummary('goal', id);
+  const me = useMe();
 
   if (q.isLoading)
     return (
@@ -146,7 +149,8 @@ export function GoalPage() {
             { value: 'tree', label: 'Карта' },
             { value: 'timeline', label: 'Таймлайн' },
             { value: 'analytics', label: 'Аналитика' },
-            { value: 'discussion', label: 'Обсуждение' },
+            { value: 'discussion', label: <>Обсуждение{!!summary.data?.unread && view !== 'discussion' && <span className="tab-badge" aria-label={`новых: ${summary.data.unread}`}>{summary.data.unread}</span>}</> },
+            { value: 'notes', label: 'Заметки' },
           ]}
         />
         {g.permissions.edit && (view === 'tree' || view === 'timeline') && (
@@ -159,7 +163,8 @@ export function GoalPage() {
       {view === 'tree' && <RoadmapTree roadmap={r} onTask={setTaskId} />}
       {view === 'timeline' && <RoadmapTimeline roadmap={r} onTask={setTaskId} />}
       {view === 'analytics' && <RoadmapAnalytics roadmap={r} />}
-      {view === 'discussion' && <Comments goalId={g.id} />}
+      {view === 'discussion' && <Discussion type="goal" id={g.id} />}
+      {view === 'notes' && <GoalNotes goalId={g.id} canWrite={!!me.data && me.data.role !== 'observer'} />}
 
       {taskId && <TaskPanel id={taskId} onClose={() => setTaskId(null)} />}
       {dialog === 'observe' && primary && <ObservationDialog goalId={g.id} metric={primary} onClose={() => setDialog(null)} />}
@@ -366,69 +371,5 @@ function RescheduleAction({ goalId, risk, roadmap }: { goalId: string; risk: Ris
         </Dialog>
       )}
     </>
-  );
-}
-
-interface CommentRow {
-  id: string;
-  body: string;
-  created_at: string;
-  author_id: string;
-  author_name: string;
-}
-
-function Comments({ goalId }: { goalId: string }) {
-  const q = useQuery({ queryKey: ['comments', goalId], queryFn: () => api<CommentRow[]>(`/goals/${goalId}/comments`) });
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
-  const toast = useToast();
-  const send = async () => {
-    if (!text.trim()) return;
-    setSending(true);
-    try {
-      await api(`/goals/${goalId}/comments`, { body: { body: text } });
-      setText('');
-      await q.refetch();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setSending(false);
-    }
-  };
-  return (
-    <section className="card stack" style={{ maxWidth: 760 }}>
-      {q.data?.length ? (
-        <div className="stack" style={{ '--gap': '16px' } as React.CSSProperties}>
-          {q.data.map((c) => (
-            <div key={c.id} className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
-              <Avatar name={c.author_name} size={30} />
-              <div className="stack" style={{ '--gap': '2px' } as React.CSSProperties}>
-                <span style={{ fontSize: 13.5 }}>
-                  <b>{c.author_name}</b> <span className="faint">{formatDate(c.created_at.slice(0, 10), { short: true })}</span>
-                </span>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{c.body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        !q.isLoading && <Empty icon={<MessageSquare size={22} />} title="Обсуждения пока нет">Вопросы по цели лучше задавать здесь, а не в мессенджере: контекст останется рядом с целью.</Empty>
-      )}
-      <div className="row" style={{ alignItems: 'flex-end', gap: 8 }}>
-        <textarea
-          className="textarea grow"
-          rows={2}
-          aria-label="Комментарий"
-          placeholder="Написать комментарий…"
-          value={text}
-          maxLength={4000}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
-          }}
-        />
-        <Button variant="primary" icon={<Send size={15} />} loading={sending} disabled={!text.trim()} onClick={send} aria-label="Отправить" />
-      </div>
-    </section>
   );
 }

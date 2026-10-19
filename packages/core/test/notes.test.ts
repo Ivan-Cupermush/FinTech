@@ -23,6 +23,10 @@ describe('разметка', () => {
     expect(blocks[6]).toEqual({ kind: 'code', text: 'SELECT 1;' });
   });
 
+  it('чек-лист сразу после списка — отдельный блок', () => {
+    expect(parseMarkdown(['- раз', '- [x] готово'].join('\n')).map((b) => b.kind)).toEqual(['list', 'checklist']);
+  });
+
   it('внутри строки: жирный, курсив, код, ссылка', () => {
     expect(parseInline('**Срок** — *5 дней*, `код` и [СЭД](https://sed.example)')).toEqual([
       { kind: 'bold', text: 'Срок' },
