@@ -72,12 +72,12 @@ export function Panel({ title, subtitle, onClose, children }: { title: ReactNode
   );
 }
 
-export function Dialog({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export function Dialog({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEscape(onClose);
   return (
     <>
       <div className="overlay" onClick={onClose} />
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={wide ? 'dialog dialog-wide' : 'dialog'} role="dialog" aria-modal="true" aria-label={title}>
         <div className="spread" style={{ marginBottom: 16 }}>
           <h2 style={{ fontSize: 20 }}>{title}</h2>
           <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={onClose} aria-label="Закрыть" />

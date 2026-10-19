@@ -769,3 +769,11 @@ kbd {
   background: var(--surface-2);
   color: var(--ink-2);
 }
+.dialog-wide {
+  width: min(720px, calc(100vw - 32px));
+}
+@media (max-width: 640px) {
+  .dialog-wide {
+    width: 100%;
+  }
+}
