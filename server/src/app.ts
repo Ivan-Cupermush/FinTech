@@ -14,6 +14,7 @@ import { orgRouter } from './routes/org';
 import { pushRouter } from './routes/push';
 import { roadmapRouter } from './routes/roadmap';
 import { tasksRouter } from './routes/tasks';
+import { templatesRouter } from './routes/templates';
 import { usersRouter } from './routes/users';
 
 export interface AppOptions {
@@ -61,6 +62,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit }: App
   v1.use('/metrics', metricsRouter(db, now));
   v1.use('/report', reportRouter(db, now, { mailAvailable: !!config.mail?.enabled }));
   v1.use('/push', pushRouter(db));
+  v1.use('/templates', templatesRouter(db, now));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));
