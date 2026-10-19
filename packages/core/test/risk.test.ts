@@ -27,7 +27,7 @@ describe('analyzeRisks', () => {
     expect(r.severity).toBe('critical');
     expect(r.explanation).toContain('Ждём согласования: юристы');
     expect(r.explanation).toContain('5 дней');
-    expect(r.explanation).toContain('Ждут 1 задача');
+    expect(r.explanation).toContain('Ждёт 1 задача');
     expect(r.suggestion).toContain('Дмитрий');
     expect(r.task_ids).toEqual(['t1', 't2']);
   });

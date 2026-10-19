@@ -66,7 +66,7 @@ export function analyzeRisks(input: RiskInput): Risk[] {
     const waiting = downstream(edges, t.id).filter((id) => byId.has(id));
     const reason = t.blocked_reason ? BLOCKER_LABELS[t.blocked_reason] : 'Причина не указана';
     const parts = [`${reason}${t.blocked_note ? `: ${t.blocked_note}` : ''}.`, `Заблокирована ${long > 0 ? days(long) : 'сегодня'}.`];
-    if (waiting.length) parts.push(`Ждут ${waiting.length} ${plural(waiting.length, ['задача', 'задачи', 'задач'])}.`);
+    if (waiting.length) parts.push(`${waiting.length === 1 ? 'Ждёт' : 'Ждут'} ${waiting.length} ${plural(waiting.length, ['задача', 'задачи', 'задач'])}.`);
     risks.push({
       id: `blocked:${t.id}`,
       kind: 'blocked',
