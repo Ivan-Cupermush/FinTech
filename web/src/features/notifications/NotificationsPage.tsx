@@ -9,6 +9,7 @@ import type { Notification } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
 import { TaskPanel } from '../tasks/TaskPanel';
+import { PushSettings } from './PushSettings';
 
 const ICONS: Record<string, typeof Bell> = {
   blocked: OctagonAlert,
@@ -97,6 +98,9 @@ export function NotificationsPage() {
           </Empty>
         </div>
       )}
+      <div style={{ marginTop: 28 }}>
+        <PushSettings />
+      </div>
       {taskId && <TaskPanel id={taskId} onClose={() => setTaskId(null)} />}
     </div>
   );
