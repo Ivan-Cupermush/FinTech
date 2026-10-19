@@ -10,7 +10,9 @@ import {
   canViewGoal,
   checkUnitRange,
   GOAL_STATUS_LABELS,
+  IMPORT_MAX_ROWS,
   kpiProgress,
+  observationDay,
   todayIso,
   validateGoal,
   validateMetric,
@@ -443,6 +445,86 @@ export function goalsRouter(db: Db, now: () => Date): Router {
       return { observation_id: rows[0]!.id, metric: after };
     });
     res.status(201).json({ data });
+  });
+
+  /**
+   * Импорт замеров из таблицы. За один день у KPI — один замер: строки за дни,
+   * где замер уже есть, пропускаются, поэтому повторный импорт файла ничего
+   * не задваивает. Всё в одной транзакции: либо добавлены все строки, либо ни одной.
+   */
+  r.post('/:id/metrics/:mid/observations/import', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const mid = idParam(req.params.mid);
+    const body = parseBody(
+      z.object({
+        rows: z.array(z.object({ observed_at: z.string().max(40), value: z.number() })).min(1).max(IMPORT_MAX_ROWS),
+        note: z.string().max(1000).nullable().optional(),
+      }),
+      req.body,
+    );
+    const out = await db.tx((q) =>
+      withIdempotency(q, { userId: actor.id, scope: 'metrics.import', key: req.header('Idempotency-Key'), body: { id, mid, ...body } }, async () => {
+        const { goal, org } = await getVisibleGoal(q, actor, id);
+        if (!canRecordObservation(actor, await effectiveAccess(q, actor.company_id, goal), org)) throw forbidden('Недостаточно прав для внесения измерений');
+        if (goal.row.status === 'cancelled') throw conflict('В отменённую цель нельзя вносить измерения');
+        const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
+        if (!m) throw notFound('KPI не найден');
+
+        const errors: Record<string, string> = {};
+        const rows: { at: string; day: string; value: number }[] = [];
+        body.rows.forEach((row, i) => {
+          const label = `Строка ${i + 1}`;
+          const t = Date.parse(row.observed_at);
+          if (!Number.isFinite(row.value)) errors[`rows.${i}.value`] = `${label}: укажите числовое значение`;
+          else {
+            const e = checkUnitRange(m.unit, row.value);
+            if (e) errors[`rows.${i}.value`] = `${label}: ${e}`;
+          }
+          if (Number.isNaN(t)) errors[`rows.${i}.observed_at`] = `${label}: некорректная дата измерения`;
+          else if (t > now().getTime() + 60_000) errors[`rows.${i}.observed_at`] = `${label}: измерение не может быть из будущего`;
+          else {
+            const at = new Date(t).toISOString();
+            rows.push({ at, day: observationDay(at), value: row.value });
+          }
+        });
+        if (Object.keys(errors).length) throw invalid(`Не удалось импортировать замеры: ${Object.values(errors)[0]}`, errors);
+
+        // Блокируем KPI, чтобы параллельный импорт не добавил тот же день дважды.
+        await q.query(`SELECT id FROM goal_metrics WHERE id = $1 FOR UPDATE`, [mid]);
+        const existing = await q.query<{ observed_at: Date | string }>(`SELECT observed_at FROM goal_metric_observations WHERE metric_id = $1`, [mid]);
+        const days = new Set(existing.rows.map((r) => observationDay(new Date(r.observed_at))));
+        const fresh = rows.filter((r) => (days.has(r.day) ? false : (days.add(r.day), true)));
+        const note = body.note?.trim() || null;
+        for (const r of fresh) {
+          await q.query(
+            `INSERT INTO goal_metric_observations (metric_id, value, observed_at, source, recorded_by, note) VALUES ($1, $2, $3, 'import', $4, $5)`,
+            [mid, r.value, r.at, actor.id, note],
+          );
+        }
+        const skipped = body.rows.length - fresh.length;
+        const before = kpiProgress({ baseline: m.baseline, target: m.target_value, direction: m.direction, range_min: m.range_min, range_max: m.range_max }, m.current_value);
+        const [reloaded] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
+        const metric = serializeMetric(reloaded!);
+        if (fresh.length) {
+          const sorted = fresh.map((r) => r.day).sort();
+          await audit(q, {
+            company_id: actor.company_id,
+            entity_type: 'metric',
+            entity_id: mid,
+            goal_id: id,
+            actor_id: actor.id,
+            event_type: 'metric.imported',
+            new_values: { count: fresh.length, skipped, from: sorted[0], to: sorted.at(-1) },
+          });
+          if (metric.progress.state === 'achieved' && before.state !== 'achieved' && goal.row.owner_id) {
+            await notify(q, { company_id: actor.company_id, user_id: goal.row.owner_id, kind: 'kpi_achieved', title: `KPI «${m.name}» достиг цели`, goal_id: id }, actor.id);
+          }
+        }
+        return { status: fresh.length ? 201 : 200, body: { data: { imported: fresh.length, skipped, metric } } };
+      }),
+    );
+    res.status(out.status).json(out.body);
   });
 
   r.get('/:id/metrics/:mid/observations', async (req, res) => {
