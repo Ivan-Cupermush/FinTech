@@ -28,6 +28,7 @@ import { Empty, Segmented, Skeleton } from '../../ui/Misc';
 import { Pill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
 import { copyText, downloadFile } from './files';
+import { MailSubscription } from './MailSubscription';
 import './report.css';
 
 function usePeriod(): [ReportPeriod, (p: ReportPeriod) => void] {
@@ -115,6 +116,8 @@ export function ReportPage() {
       )}
 
       {r && <Sheet r={r} />}
+
+      <MailSubscription />
     </div>
   );
 }

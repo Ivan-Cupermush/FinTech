@@ -309,6 +309,12 @@
   }
 }
 
+/* Подписка на письмо — под листом той же ширины. */
+.report-mail {
+  max-width: 920px;
+  margin: 16px auto 0;
+}
+
 /* Печать: только лист, светлая палитра, без интерфейса вокруг. */
 @page {
   size: A4;
@@ -344,7 +350,8 @@
   .sidebar,
   .tabbar,
   .toast-host,
-  .report-toolbar {
+  .report-toolbar,
+  .report-mail {
     display: none !important;
   }
   .shell {
