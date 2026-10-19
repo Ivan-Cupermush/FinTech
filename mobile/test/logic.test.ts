@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canTransitionTask, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections } from '../src/lib/logic';
+import { canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -119,5 +119,19 @@ describe('pushCard', () => {
       expect(c.title.length).toBeGreaterThan(0);
       if (c.action) expect(c.label).toBeTruthy();
     }
+  });
+});
+
+describe('шаблоны целей', () => {
+  it('KPI шаблона одной строкой', () => {
+    expect(templateKpiText(findTemplate('application-time')!)).toBe('40 → 30 мин');
+    expect(templateKpiText(findTemplate('student-nps')!)).toBe('15 → 35 п.');
+  });
+  it('срок «по плану» первым, даты без повторов', () => {
+    const c = templateDueChoices({ plan_days: 73 }, TODAY);
+    expect(c[0]).toEqual({ label: 'По плану', value: '2026-12-31' });
+    // 19 октября + 73 дня = 31 декабря — совпадает с «Конец квартала»/«Конец года», повтор убран.
+    expect(new Set(c.map((d) => d.value)).size).toBe(c.length);
+    expect(c.map((d) => d.value)).toEqual(['2026-12-31', '2026-10-31']);
   });
 });

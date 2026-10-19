@@ -21,6 +21,7 @@ import {
   UNITS,
   type GoalCard,
   type GoalFormState,
+  type GoalTemplate,
   type Member,
 } from '@offix/core';
 import { ApiError, newIdempotencyKey } from '../../lib/client';
@@ -28,8 +29,13 @@ import { useInvalidateWork, useMe } from '../../lib/queries';
 import { api } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
 import { Avatar, Button, Card, Input, Screen, Text } from '../../ui/primitives';
+import { TemplateApply, TemplateList } from '../../ui/templates';
 
-/** Мастер цели в одну прокрутку: результат → KPI → ответственность. Та же проверка, что на сайте и сервере. */
+/**
+ * Новая цель: «С нуля» — мастер в одну прокрутку (результат → KPI →
+ * ответственность), «Из шаблона» — типовая цель вуза с KPI и планом.
+ * Та же проверка, что на сайте и сервере.
+ */
 export default function NewGoal() {
   const p = usePalette();
   const me = useMe();
@@ -51,6 +57,9 @@ export default function NewGoal() {
   const t = parseNumber(f.target);
   const change = b !== null && t !== null && Number.isFinite(b) && Number.isFinite(t) ? plannedChange(b, t) : null;
   const types = GOAL_TYPES.filter((x) => !me.data || canCreateGoal(me.data, x));
+  const canTemplate = !me.data || canCreateGoal(me.data, 'operational');
+  const [mode, setMode] = useState<'scratch' | 'template'>('template');
+  const [tpl, setTpl] = useState<GoalTemplate | null>(null);
 
   const save = async (status: 'draft' | 'active') => {
     const e = status === 'active' ? activeErrors : draftErrors;
@@ -75,8 +84,50 @@ export default function NewGoal() {
 
   const chip = (selected: boolean) => ({ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: selected ? p.ink : p.line, backgroundColor: selected ? p.ink : p.surface });
 
+  const start = (
+    <View accessibilityRole="radiogroup" accessibilityLabel="С чего начать" style={{ flexDirection: 'row', padding: 3, gap: 2, borderRadius: 999, backgroundColor: p.surface2 }}>
+      {(
+        [
+          ['scratch', 'С нуля'],
+          ['template', 'Из шаблона'],
+        ] as const
+      ).map(([m, label]) => {
+        const on = (canTemplate ? mode : 'scratch') === m;
+        return (
+          <Pressable key={m} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: m === 'template' && !canTemplate }} disabled={m === 'template' && !canTemplate} onPress={() => (setMode(m), setTpl(null))} style={{ flex: 1, paddingVertical: 9, borderRadius: 999, alignItems: 'center', backgroundColor: on ? p.surface : 'transparent', opacity: m === 'template' && !canTemplate ? 0.4 : 1 }}>
+            <Text variant="small" style={{ fontFamily: on ? font.semibold : font.medium, color: on ? p.ink : p.ink2 }}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  if (canTemplate && mode === 'template') {
+    return (
+      <Screen>
+        {start}
+        {tpl ? (
+          <TemplateApply
+            t={tpl}
+            me={me.data}
+            onBack={() => setTpl(null)}
+            onCreated={async (goal) => {
+              await invalidate();
+              router.replace(`/goal/${goal.id}`);
+            }}
+          />
+        ) : (
+          <TemplateList onPick={setTpl} />
+        )}
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
+      {start}
       {banner && (
         <View accessibilityRole="alert" style={{ backgroundColor: p.warnSoft, padding: 12, borderRadius: 12 }}>
           <Text variant="small" tone="warn">

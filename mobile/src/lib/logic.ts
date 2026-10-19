@@ -1,4 +1,4 @@
-import { diffDays, formatDate, isOverdue, plural, type EffectTarget, type Task } from '@offix/core';
+import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -103,4 +103,16 @@ export function pushCard(perm: PushPermission): { title: string; text: string; a
     default:
       return { title: 'Push работают в приложении на телефоне', text: 'Здесь уведомления видны во «Входящих».', action: null };
   }
+}
+
+/** «40 → 30 мин» — KPI шаблона в строке списка. */
+export function templateKpiText(t: Pick<GoalTemplate, 'kpi'>): string {
+  const u = UNITS[t.kpi.unit];
+  return `${formatNumber(t.kpi.baseline, u.decimals)} → ${formatNumber(t.kpi.target, u.decimals)} ${u.short}`;
+}
+
+/** Сроки для цели из шаблона: сначала «по плану шаблона», затем обычные, без повторов дат. */
+export function templateDueChoices(t: Pick<GoalTemplate, 'plan_days'>, today: string): { label: string; value: string }[] {
+  const all = [{ label: 'По плану', value: templateDueDate(t, today) }, ...duePresets(today)];
+  return all.filter((d, i) => all.findIndex((x) => x.value === d.value) === i);
 }
