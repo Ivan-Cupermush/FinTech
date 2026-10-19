@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
-import type { Dashboard, GoalCard, GoalSummary, Me, Member, MetricsReport, Notification, OrgUnitRow, Roadmap, Task, TaskDetail } from './types';
+import type { Dashboard, GoalCard, GoalSummary, Me, Member, MetricsReport, Notification, OrgUnitRow, Report, Roadmap, Task, TaskDetail } from './types';
 
 export const qk = {
   me: ['me'] as const,
@@ -14,6 +14,7 @@ export const qk = {
   units: ['units'] as const,
   notifications: ['notifications'] as const,
   metrics: ['metrics'] as const,
+  report: (days: number) => ['report', days] as const,
 };
 
 export const useMe = (enabled = true) => useQuery({ queryKey: qk.me, queryFn: () => api<Me>('/users/me'), enabled, staleTime: 60_000 });
@@ -26,6 +27,7 @@ export const useTask = (id: string | null) => useQuery({ queryKey: qk.task(id ??
 export const useUsers = (search = '') => useQuery({ queryKey: qk.users(search), queryFn: () => api<Member[]>(`/users?search=${encodeURIComponent(search)}`), staleTime: 30_000 });
 export const useUnits = () => useQuery({ queryKey: qk.units, queryFn: () => api<OrgUnitRow[]>('/org/units'), staleTime: 30_000 });
 export const useMetrics = () => useQuery({ queryKey: qk.metrics, queryFn: () => api<MetricsReport>('/metrics'), staleTime: 30_000 });
+export const useReport = (days: number) => useQuery({ queryKey: qk.report(days), queryFn: () => api<Report>(`/report?days=${days}`), staleTime: 30_000 });
 export const useNotifications = () => useQuery({ queryKey: qk.notifications, queryFn: () => api<Notification[]>('/notifications') });
 
 /** После изменения — обновляем всё, что зависит от целей и задач. */
@@ -33,7 +35,7 @@ export function useInvalidateWork() {
   const qc = useQueryClient();
   return () =>
     Promise.all(
-      ['dashboard', 'goals', 'goal', 'roadmap', 'tasks', 'task', 'notifications', 'metrics'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+      ['dashboard', 'goals', 'goal', 'roadmap', 'tasks', 'task', 'notifications', 'metrics', 'report'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
     );
 }
 

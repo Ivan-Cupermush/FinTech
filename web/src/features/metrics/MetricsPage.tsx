@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, CircleGauge, Clock3, Rocket, Sparkles, Timer } from 'lucide-react';
+import { Activity, ArrowRight, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MOVEMENT_LABELS, MOVEMENT_TONES, formatDelta, formatHours, formatPercent as percent, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
@@ -30,6 +30,9 @@ export function MetricsPage() {
           <h1 style={{ marginTop: 6 }}>Эффект</h1>
           <p className="muted">Двигает ли работа показатели. Считается по замерам и истории задач, без ручных отчётов.</p>
         </div>
+        <Link to="/app/report" className="btn btn-secondary">
+          <FileText size={16} /> Отчёт для руководства
+        </Link>
       </div>
 
       {q.isLoading && (
