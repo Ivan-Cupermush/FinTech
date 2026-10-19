@@ -1,0 +1,305 @@
+/* ───────── Эффект ───────── */
+.effect-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 32px;
+  align-items: end;
+  padding: 28px;
+}
+.effect-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.effect-big {
+  font-size: clamp(64px, 9vw, 104px);
+  font-weight: 680;
+  letter-spacing: -0.055em;
+  line-height: 0.9;
+}
+.effect-big-unit {
+  font-size: 0.42em;
+  letter-spacing: -0.02em;
+  margin-left: 0.08em;
+  color: var(--ink-3);
+}
+.effect-caption {
+  font-size: 16px;
+  color: var(--ink-2);
+  max-width: 420px;
+}
+.effect-hero-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.effect-axis {
+  font-size: 12.5px;
+}
+
+.effect-bar {
+  display: flex;
+  gap: 3px;
+  height: 10px;
+}
+.effect-bar > span {
+  border-radius: 999px;
+  min-width: 10px;
+}
+.effect-bar-improved {
+  background: var(--good);
+}
+.effect-bar-flat {
+  background: var(--line-strong);
+}
+.effect-bar-worse {
+  background: var(--bad);
+}
+.effect-bar-stale {
+  background: repeating-linear-gradient(-45deg, var(--surface-2) 0 4px, var(--surface-3) 4px 8px);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.effect-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.effect-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.effect-legend li.zero {
+  color: var(--ink-3);
+}
+.effect-legend b {
+  font-weight: 650;
+  color: var(--ink);
+}
+.effect-legend li.zero b {
+  color: var(--ink-3);
+}
+.effect-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.effect-goal {
+  padding: 12px 4px;
+  border-top: 1px solid var(--line);
+  color: inherit;
+}
+.effect-goal:first-child {
+  border-top: 0;
+}
+.effect-goal:hover .grow {
+  color: var(--accent);
+}
+.effect-delta {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.effect-delta.good {
+  color: var(--good);
+}
+.effect-delta.bad {
+  color: var(--bad);
+}
+
+.effect-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.effect-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.effect-tile-value {
+  font-size: 40px;
+  font-weight: 660;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+.effect-tile-caption {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  min-height: 2.8em;
+}
+.effect-tile-trend {
+  font-size: 12.5px;
+}
+.effect-how {
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.effect-how summary {
+  cursor: pointer;
+  width: max-content;
+  list-style: none;
+}
+.effect-how summary::-webkit-details-marker {
+  display: none;
+}
+.effect-how summary::after {
+  content: ' ›';
+}
+.effect-how[open] summary::after {
+  content: ' ˅';
+}
+.effect-how p {
+  margin-top: 6px;
+  color: var(--ink-2);
+}
+
+.effect-action {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  align-items: flex-start;
+}
+.effect-action:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.effect-action .btn {
+  flex: none;
+}
+.effect-action-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ink-3);
+}
+.effect-action-dot.bad {
+  background: var(--bad);
+}
+.effect-action-dot.warn {
+  background: var(--warn);
+}
+
+/* Сводка на Пульсе */
+.effect-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  color: inherit;
+}
+.effect-strip-value {
+  font-size: 44px;
+  font-weight: 680;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.effect-strip-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.effect-strip-facts b {
+  color: var(--ink);
+  font-weight: 620;
+}
+
+@media (max-width: 1100px) {
+  .effect-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .effect-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 20px;
+  }
+  .effect-strip {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .effect-strip > :last-child {
+    display: none;
+  }
+  .effect-goal {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .effect-goal .grow {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+  .effect-action {
+    flex-wrap: wrap;
+  }
+  .effect-action .btn {
+    margin-left: 20px;
+  }
+}
+@media (max-width: 520px) {
+  .effect-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Мини-график */
+.spark {
+  position: relative;
+  width: 100%;
+}
+.spark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.spark-area {
+  fill: color-mix(in srgb, var(--spark) 12%, transparent);
+}
+.spark-line {
+  fill: none;
+  stroke: var(--spark);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.spark-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.spark-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2.5px solid var(--spark);
+}
+.spark-empty {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(-45deg, var(--surface-2) 0 6px, var(--surface-3) 6px 12px);
+  opacity: 0.6;
+}
+.spark-accent {
+  --spark: var(--accent);
+}
+.spark-good {
+  --spark: var(--good);
+}
+.spark-ink {
+  --spark: var(--ink-2);
+}

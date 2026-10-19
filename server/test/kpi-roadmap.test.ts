@@ -155,7 +155,8 @@ describe('дорожная карта', () => {
     const a = (await olga.get(`/api/v1/goals/${ctx.demo.goals.main}/roadmap`)).body.data.analytics;
     expect(a.bottlenecks[0].key).toBe('data');
     expect(a.bottlenecks.map((b: { key: string }) => b.key)).toEqual(expect.arrayContaining(['approval', 'colleague', 'review']));
-    expect(a.on_time_share).toBe(100);
+    // «Интервью» закрыты на два дня позже срока — из-за блокера.
+    expect(a.on_time_share).toBe(67);
     expect(a.finished).toBe(3);
   });
 

@@ -6,6 +6,7 @@ import { GoalCreatePage } from './features/goals/GoalCreatePage';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { LandingPage } from './features/landing/LandingPage';
+import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
 import { PulsePage } from './features/pulse/PulsePage';
@@ -49,6 +50,7 @@ export function AppRoutes() {
         <Route path="goals/new" element={<GoalCreatePage />} />
         <Route path="goals/:id" element={<GoalPage />} />
         <Route path="tasks" element={<TasksPage />} />
+        <Route path="metrics" element={<MetricsPage />} />
         <Route path="org" element={<OrgPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>

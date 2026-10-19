@@ -1,5 +1,6 @@
 import { ListChecks, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { isOverdue, todayIso, type TaskStatus } from '@offix/core';
 import { useTasks } from '../../lib/queries';
 import type { Task } from '../../lib/types';
@@ -31,7 +32,8 @@ export function groupTasks(tasks: Task[], today: string) {
 }
 
 export function TasksPage() {
-  const [scope, setScope] = useState<Scope>('mine');
+  const [params] = useSearchParams();
+  const [scope, setScope] = useState<Scope>(params.get('scope') === 'all' ? 'all' : 'mine');
   const [search, setSearch] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
   const q = useTasks(scope === 'mine' ? 'mine=1' : '');

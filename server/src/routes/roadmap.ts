@@ -65,7 +65,8 @@ export async function goalRisks(q: Queryable, companyId: string, goal: LoadedGoa
   return { risks, tasks, edges, goalIds, metrics };
 }
 
-async function visibleGoals(q: Queryable, actor: AuthedActor) {
+/** Цели, которые видит актор: свои по правам и подцели видимых целей. */
+export async function visibleGoals(q: Queryable, actor: AuthedActor) {
   const org = await loadOrg(q, actor.company_id);
   const all = await loadGoals(q, actor.company_id);
   const byId = new Map(all.map((g) => [g.row.id, g]));

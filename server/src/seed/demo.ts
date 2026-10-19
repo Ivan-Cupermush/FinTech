@@ -84,15 +84,28 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
     await member('maria', 'quality', true);
     await member('elena', 'hr', true);
 
-    const goal = async (g: { title: string; description: string; type: string; owner: DemoUser; by: DemoUser; status: string; due: string; parent?: string; position?: number }) =>
-      (
-        await one(
-          q,
-          `INSERT INTO goals (company_id, parent_goal_id, title, description, goal_type, owner_id, created_by, status, due_at, position, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-          [companyId, g.parent ?? null, g.title, g.description, g.type, users[g.owner], users[g.by], g.status, g.due, g.position ?? 0, ts(-30)],
-        )
-      ).id;
+    // Цели заводятся черновиком и запускаются позже: журнал хранит обе даты,
+    // по ним считается метрика «Запуск целей».
+    const goal = async (g: { title: string; description: string; type: string; owner: DemoUser; by: DemoUser; status: string; due: string; parent?: string; position?: number; activated?: number }) => {
+      const { id } = await one(
+        q,
+        `INSERT INTO goals (company_id, parent_goal_id, title, description, goal_type, owner_id, created_by, status, due_at, position, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        [companyId, g.parent ?? null, g.title, g.description, g.type, users[g.owner], users[g.by], g.status, g.due, g.position ?? 0, ts(-30)],
+      );
+      const event = (type: string, values: object, at: string) =>
+        q.query(`INSERT INTO audit_events (company_id, entity_type, entity_id, goal_id, actor_id, event_type, new_values, created_at) VALUES ($1, 'goal', $2, $2, $3, $4, $5, $6)`, [
+          companyId,
+          id,
+          users[g.by],
+          type,
+          JSON.stringify(values),
+          at,
+        ]);
+      await event('goal.created', { title: g.title, status: 'draft' }, ts(-30));
+      if (g.activated !== undefined) await event('goal.status_changed', { status: 'active' }, ts(g.activated, 12));
+      return id;
+    };
     const metric = async (goalId: string, m: { name: string; unit: string; baseline: number; target: number; direction: string }, obs: [number, number][]) => {
       const { id } = await one(q, `INSERT INTO goal_metrics (goal_id, name, unit, baseline, target_value, direction, is_primary) VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING id`, [
         goalId,
@@ -121,6 +134,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       by: 'director',
       status: 'active',
       due: d(73),
+      activated: -29,
     });
     await metric(goals.main, { name: 'Среднее время обработки', unit: 'minutes', baseline: 40, target: 30, direction: 'decrease' }, [
       [-28, 40],
@@ -134,9 +148,9 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       ['automation', 'executor'],
       ['quality', 'approver'],
     ]);
-    goals.approvals = await goal({ title: 'Убрать лишние согласования', description: 'Найти этапы, которые не добавляют ценности, и предложить новый регламент.', type: 'operational', owner: 'olga', by: 'olga', status: 'active', due: d(20), parent: goals.main, position: 1 });
-    goals.automation = await goal({ title: 'Автоматизировать проверку данных', description: 'Сократить ручной ввод и сверку одних и тех же данных в разных системах.', type: 'operational', owner: 'igor', by: 'olga', status: 'active', due: d(45), parent: goals.main, position: 2 });
-    goals.quality = await goal({ title: 'Сохранить качество обработки', description: 'Определить контрольные показатели и подтвердить, что ошибок не стало больше.', type: 'operational', owner: 'maria', by: 'olga', status: 'active', due: d(70), parent: goals.main, position: 3 });
+    goals.approvals = await goal({ title: 'Убрать лишние согласования', description: 'Найти этапы, которые не добавляют ценности, и предложить новый регламент.', type: 'operational', owner: 'olga', by: 'olga', status: 'active', due: d(20), parent: goals.main, position: 1, activated: -28 });
+    goals.automation = await goal({ title: 'Автоматизировать проверку данных', description: 'Сократить ручной ввод и сверку одних и тех же данных в разных системах.', type: 'operational', owner: 'igor', by: 'olga', status: 'active', due: d(45), parent: goals.main, position: 2, activated: -28 });
+    goals.quality = await goal({ title: 'Сохранить качество обработки', description: 'Определить контрольные показатели и подтвердить, что ошибок не стало больше.', type: 'operational', owner: 'maria', by: 'olga', status: 'active', due: d(70), parent: goals.main, position: 3, activated: -27 });
 
     goals.contracts = await goal({
       title: 'Сократить срок согласования договоров',
@@ -146,6 +160,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       by: 'director',
       status: 'active',
       due: d(120),
+      activated: -27,
     });
     await metric(goals.contracts, { name: 'Срок согласования договора', unit: 'days', baseline: 12, target: 5, direction: 'decrease' }, [
       [-20, 12],
@@ -161,6 +176,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       by: 'director',
       status: 'active',
       due: d(150),
+      activated: -12,
     });
     await metric(goals.onboarding, { name: 'Время до первой самостоятельной задачи', unit: 'days', baseline: 30, target: 14, direction: 'decrease' }, []);
     await goalUnits(goals.onboarding, [['hr', 'owner']]);
@@ -222,7 +238,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
 
     const tasks: Record<string, string> = {};
     tasks.map = await task({ title: 'Описать текущий маршрут заявки', goal: 'approvals', assignee: 'sergey', unit: 'office', team: 'intake', start: -25, due: -18, status: 'done', doneAt: -19, dod: 'Схема из всех этапов со временем на каждом', history: [[-25, 'todo'], [-24, 'in_progress'], [-19, 'done']] });
-    tasks.interviews = await task({ title: 'Интервью с сотрудниками приёма', goal: 'approvals', assignee: 'anna', unit: 'office', team: 'intake', start: -20, due: -12, status: 'done', doneAt: -12, history: [[-20, 'todo'], [-19, 'in_progress'], [-17, 'blocked', 'colleague'], [-15, 'in_progress'], [-12, 'done']] });
+    tasks.interviews = await task({ title: 'Интервью с сотрудниками приёма', goal: 'approvals', assignee: 'anna', unit: 'office', team: 'intake', start: -20, due: -14, status: 'done', doneAt: -12, history: [[-20, 'todo'], [-19, 'in_progress'], [-17, 'blocked', 'colleague'], [-15, 'in_progress'], [-12, 'done']] });
     tasks.regulation = await task({ title: 'Предложить новый регламент согласования', goal: 'approvals', assignee: 'olga', unit: 'office', start: -10, due: 8, status: 'in_progress', dod: 'Регламент согласован с правовым управлением', history: [[-10, 'todo'], [-9, 'in_progress']] });
     tasks.api = await task({ title: 'Подключить проверку данных к реестру студентов', goal: 'automation', assignee: 'dima', unit: 'it', team: 'automation', start: -14, due: -3, status: 'in_progress', dod: 'Номер студенческого проверяется автоматически', history: [[-14, 'todo'], [-13, 'in_progress'], [-9, 'blocked', 'approval'], [-6, 'in_progress']] });
     tasks.autofill = await task({

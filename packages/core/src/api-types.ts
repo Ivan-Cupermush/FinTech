@@ -5,6 +5,7 @@ import type { Risk } from './risk';
 import type { BlockerReason, TaskStatus } from './task';
 import type { UnitId } from './units';
 import type { UnitType } from './org';
+import type { ProductMetrics } from './metrics';
 
 /** Формы ответов API /api/v1 — общие для сайта и приложения. */
 
@@ -183,3 +184,9 @@ export interface Notification {
   read_at: string | null;
   created_at: string;
 }
+
+/** GET /metrics: продуктовые метрики в зоне видимости человека. */
+export type MetricsReport = ProductMetrics & {
+  /** company — вся компания (владелец, администратор), visible — цели в зоне человека. */
+  scope: 'company' | 'visible';
+};

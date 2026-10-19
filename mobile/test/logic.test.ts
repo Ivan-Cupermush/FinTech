@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionTask, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, greeting, taskActions, taskSections } from '../src/lib/logic';
+import { dueText, effectRoute, greeting, sparkSegments, taskActions, taskSections } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -67,4 +67,31 @@ describe('taskSections', () => {
 
 it('приветствие по времени суток', () => {
   expect([3, 9, 14, 21].map(greeting)).toEqual(['Доброй ночи', 'Доброе утро', 'Добрый день', 'Добрый вечер']);
+});
+
+describe('effectRoute', () => {
+  it('шаг ведёт на экран приложения', () => {
+    expect(effectRoute({ kind: 'goal', id: 'g1' })).toBe('/goal/g1');
+    expect(effectRoute({ kind: 'blocked_tasks' })).toBe('/tasks');
+    expect(effectRoute({ kind: 'goals' })).toBe('/goals');
+  });
+});
+
+describe('sparkSegments', () => {
+  it('пропуски рвут линию, точки ложатся по всей ширине', () => {
+    const segs = sparkSegments([0, 100, null, 50], 300, 46, 100);
+    expect(segs).toHaveLength(2);
+    expect(segs[0]).toEqual([{ x: 0, y: 43 }, { x: 100, y: 3 }]);
+    expect(segs[1]).toEqual([{ x: 300, y: 23 }]);
+  });
+  it('значения за пределами шкалы прижимаются к краю', () => {
+    expect(sparkSegments([150, -10], 10, 46, 100)[0]!.map((p) => p.y)).toEqual([3, 43]);
+  });
+  it('без данных — пусто; одна точка — по центру', () => {
+    expect(sparkSegments([null, null], 100, 40)).toEqual([]);
+    expect(sparkSegments([5], 100, 40)[0]![0]!.x).toBe(50);
+  });
+  it('отступ по краям не даёт обрезать крайние точки', () => {
+    expect(sparkSegments([1, 2], 100, 40, 2, 0, 5)[0]!.map((p) => p.x)).toEqual([5, 95]);
+  });
 });

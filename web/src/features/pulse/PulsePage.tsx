@@ -6,6 +6,7 @@ import { useDashboard, useMe } from '../../lib/queries';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
 import { GoalTile, RiskList } from '../goals/parts';
+import { EffectStrip } from '../metrics/EffectStrip';
 import { TaskPanel } from '../tasks/TaskPanel';
 import { TaskRow } from '../tasks/parts';
 
@@ -80,6 +81,8 @@ export function PulsePage() {
               </Empty>
             </div>
           )}
+
+          <EffectStrip />
 
           <div className="grid-2">
             <section className="card" aria-labelledby="risk-h">
