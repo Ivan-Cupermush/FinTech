@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, MessageSquare, Pencil, Plus, Rocket, Send, Undo2 } from 'lucide-react';
+import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, MessageSquare, Pencil, Plus, Rocket, Send, Sheet, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { formatDate, GOAL_TYPE_LABELS, KPI_STATE_LABELS, type Risk } from '@offix/core';
@@ -14,12 +14,13 @@ import { GoalStatusPill, Pill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
 import { TaskPanel } from '../tasks/TaskPanel';
 import { AddKpiDialog, AddTaskDialog, EditGoalDialog, ObservationDialog } from './goalDialogs';
+import { ImportDialog } from './ImportDialog';
 import { DueLabel, RiskList } from './parts';
 import { RoadmapAnalytics, RoadmapTimeline, RoadmapTree } from './roadmapViews';
 import './goals.css';
 
 type View = 'tree' | 'timeline' | 'analytics' | 'discussion';
-type DialogKind = 'observe' | 'edit' | 'kpi' | 'task' | 'cancel' | null;
+type DialogKind = 'observe' | 'import' | 'edit' | 'kpi' | 'task' | 'cancel' | null;
 
 /** Рабочее пространство цели: результат сверху, путь к нему ниже. */
 export function GoalPage() {
@@ -92,14 +93,19 @@ export function GoalPage() {
             <>
               <div className="eyebrow">{primary.name}</div>
               <KpiTrack baseline={primary.baseline} target={primary.target} current={primary.current_value} unit={primary.unit} progress={primary.progress} name={primary.name} size="xl" />
-              <div className="spread" style={{ fontSize: 13 }}>
+              <div className="spread" style={{ fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
                 <span className="faint">
                   {primary.last_observed_at ? `Замер ${formatDate(primary.last_observed_at.slice(0, 10), { today: r.timeline.today })} · ${KPI_STATE_LABELS[primary.progress.state]}` : 'Фактических замеров ещё не было'}
                 </span>
                 {g.permissions.record && g.status !== 'draft' && (
-                  <Button size="sm" variant="accent" onClick={() => setDialog('observe')}>
-                    Внести значение
-                  </Button>
+                  <span className="row wrap" style={{ gap: 6 }}>
+                    <Button size="sm" variant="ghost" icon={<Sheet size={14} />} onClick={() => setDialog('import')}>
+                      Импорт из таблицы
+                    </Button>
+                    <Button size="sm" variant="accent" onClick={() => setDialog('observe')}>
+                      Внести значение
+                    </Button>
+                  </span>
                 )}
               </div>
             </>
@@ -157,6 +163,7 @@ export function GoalPage() {
 
       {taskId && <TaskPanel id={taskId} onClose={() => setTaskId(null)} />}
       {dialog === 'observe' && primary && <ObservationDialog goalId={g.id} metric={primary} onClose={() => setDialog(null)} />}
+      {dialog === 'import' && primary && <ImportDialog goalId={g.id} metrics={g.metrics} onClose={() => setDialog(null)} />}
       {dialog === 'edit' && <EditGoalDialog goal={g} onClose={() => setDialog(null)} />}
       {dialog === 'kpi' && <AddKpiDialog goalId={g.id} onClose={() => setDialog(null)} />}
       {dialog === 'task' && <AddTaskDialog roadmap={r} onClose={() => setDialog(null)} />}

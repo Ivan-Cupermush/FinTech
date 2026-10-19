@@ -438,3 +438,93 @@
     display: none;
   }
 }
+
+/* Импорт замеров из таблицы */
+.import-paste {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.import-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.import-summary b {
+  color: var(--ink);
+  font-weight: 650;
+}
+.import-bad,
+.import-bad b {
+  color: var(--bad);
+}
+.import-table-wrap {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.import-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.import-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 560;
+  text-align: left;
+  padding: 8px 10px;
+}
+.import-table td {
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.import-table .import-line {
+  width: 52px;
+}
+.import-status {
+  display: block;
+  font-weight: 560;
+}
+.import-reason {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.import-ok .import-status {
+  color: var(--good);
+}
+.import-duplicate .import-status {
+  color: var(--ink-3);
+}
+.import-error .import-status,
+.import-error .import-reason {
+  color: var(--bad);
+}
+@media (max-width: 640px) {
+  .import-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .import-table .import-line {
+    width: 36px;
+  }
+  .import-table th,
+  .import-table td {
+    padding: 8px 6px;
+  }
+}
