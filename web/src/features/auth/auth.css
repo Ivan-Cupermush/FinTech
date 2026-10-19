@@ -1,0 +1,83 @@
+.auth {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  min-height: 100vh;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px clamp(20px, 6vw, 88px);
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+.auth-art {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(28px, 5vw, 64px);
+}
+.auth-art .big {
+  font-size: clamp(56px, 8vw, 112px);
+  font-weight: 680;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.auth-art .big .dim {
+  color: color-mix(in srgb, var(--bg) 38%, transparent);
+}
+.auth-art .big .acc {
+  color: var(--accent);
+}
+.auth-art .ring {
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--bg) 14%, transparent);
+}
+.auth-art .ring.r2 {
+  right: -40px;
+  top: -40px;
+  width: 360px;
+  height: 360px;
+}
+.demo-people {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.demo-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color var(--dur),
+    box-shadow var(--dur);
+}
+.demo-person:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
+}
+@media (max-width: 900px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth-art {
+    display: none;
+  }
+}
