@@ -9,6 +9,7 @@ import { api } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
 import { KpiTrack, RiskItem, TaskRow } from '../../ui/domain';
 import { Avatar, Button, Card, Empty, Input, Pill, Screen, SectionTitle, Text } from '../../ui/primitives';
+import { DiscussionLink } from '../../ui/discussion';
 
 export default function GoalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -134,6 +135,8 @@ export default function GoalScreen() {
           </Card>
         </>
       )}
+
+      <DiscussionLink type="goal" id={g.id} />
 
       <SectionTitle title="Дорожная карта" />
       {groups.length ? (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText } from '../src/lib/logic';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -133,5 +133,17 @@ describe('шаблоны целей', () => {
     // 19 октября + 73 дня = 31 декабря — совпадает с «Конец квартала»/«Конец года», повтор убран.
     expect(new Set(c.map((d) => d.value)).size).toBe(c.length);
     expect(c.map((d) => d.value)).toEqual(['2026-12-31', '2026-10-31']);
+  });
+});
+
+describe('строка «Обсуждение»', () => {
+  it('пусто — приглашение', () => {
+    expect(discussionLine(undefined)).toEqual({ text: 'Пока нет комментариев — задайте вопрос здесь, а не в мессенджере', unread: 0 });
+    expect(discussionLine({ total: 0, unread: 0 }).unread).toBe(0);
+  });
+  it('число комментариев и новых с согласованием', () => {
+    expect(discussionLine({ total: 1, unread: 0 }).text).toBe('1 комментарий');
+    expect(discussionLine({ total: 5, unread: 2 })).toEqual({ text: '5 комментариев · 2 новых', unread: 2 });
+    expect(discussionLine({ total: 21, unread: 1 }).text).toBe('21 комментарий · 1 новый');
   });
 });

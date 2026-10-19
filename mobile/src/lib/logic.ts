@@ -1,4 +1,4 @@
-import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
+import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -115,4 +115,11 @@ export function templateKpiText(t: Pick<GoalTemplate, 'kpi'>): string {
 export function templateDueChoices(t: Pick<GoalTemplate, 'plan_days'>, today: string): { label: string; value: string }[] {
   const all = [{ label: 'По плану', value: templateDueDate(t, today) }, ...duePresets(today)];
   return all.filter((d, i) => all.findIndex((x) => x.value === d.value) === i);
+}
+
+/** Подпись строки «Обсуждение» на экране цели и задачи. */
+export function discussionLine(s: DiscussionSummary | undefined): { text: string; unread: number } {
+  if (!s || !s.total) return { text: 'Пока нет комментариев — задайте вопрос здесь, а не в мессенджере', unread: 0 };
+  const total = `${s.total} ${plural(s.total, ['комментарий', 'комментария', 'комментариев'])}`;
+  return { text: s.unread ? `${total} · ${s.unread} ${plural(s.unread, ['новый', 'новых', 'новых'])}` : total, unread: s.unread };
 }

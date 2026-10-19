@@ -7,6 +7,7 @@ import { useTask, useTaskStatus } from '../../lib/queries';
 import { font, usePalette } from '../../lib/theme';
 import { TaskStatusPill } from '../../ui/domain';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
+import { DiscussionLink } from '../../ui/discussion';
 
 /** Задача: главный вопрос — что мешает и что делать дальше. Блокер без причины поставить нельзя. */
 export default function TaskScreen() {
@@ -141,6 +142,8 @@ export default function TaskScreen() {
           ))}
         </Card>
       )}
+
+      <DiscussionLink type="task" id={t.id} />
 
       {t.history.length > 0 && (
         <Card style={{ gap: 8 }}>

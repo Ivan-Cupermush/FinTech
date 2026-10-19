@@ -273,6 +273,57 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       'Больше всего времени уходит на сверку номера студенческого с реестром — до 12 минут на заявку.',
       ts(-15, 14),
     ]);
+    // Обсуждение: ответ с упоминанием и вопрос в задаче — чтобы в демо было что открыть.
+    const first = await q.query<{ id: string }>(`SELECT id FROM comments WHERE entity_id = $1 ORDER BY created_at LIMIT 1`, [goals.main]);
+    await q.query(`INSERT INTO comments (company_id, entity_type, entity_id, author_id, body, parent_id, mention_ids, created_at) VALUES ($1, 'goal', $2, $3, $4, $5, $6::uuid[], $7)`, [
+      companyId,
+      goals.main,
+      users.olga,
+      '@Дмитрий Орлов, сверку можно автоматизировать через API реестра? Это самый долгий этап.',
+      first.rows[0]!.id,
+      [users.dima],
+      ts(-15, 16),
+    ]);
+    await q.query(`INSERT INTO comments (company_id, entity_type, entity_id, author_id, body, created_at) VALUES ($1, 'task', $2, $3, $4, $5)`, [
+      companyId,
+      tasks.autofill,
+      users.dima,
+      'Ждём доступ к справочнику подразделений. Заявку в ИБ подали, номер 4412.',
+      ts(-4, 12),
+    ]);
+
+    // База знаний: общая методика и заметка цели.
+    await q.query(`INSERT INTO notes (company_id, goal_id, title, body, created_by, created_at, updated_at) VALUES ($1, NULL, $2, $3, $4, $5, $5), ($1, $6, $7, $8, $9, $10, $10)`, [
+      companyId,
+      'Как мы считаем время обработки заявки',
+      [
+        '## Что считаем',
+        '',
+        'От регистрации заявки в СЭД до ответа студенту. Выходные не исключаем: студент ждёт и в выходные.',
+        '',
+        '## Как замеряем',
+        '',
+        '- выборка — **30 заявок** за неделю',
+        '- источник — журнал СЭД, поля «Зарегистрирована» и «Ответ отправлен»',
+        '- замер вносит владелец цели по понедельникам',
+        '',
+        '> Цифра без источника в KPI не попадает.',
+      ].join('\n'),
+      users.olga,
+      ts(-20, 10),
+      goals.main,
+      'Решения встречи по маршруту заявки',
+      [
+        '- [x] Убрать согласование с деканатом для типовых заявок',
+        '- [x] Автозаполнение формы — делает IT, срок 31 октября',
+        '- [ ] Проверить, не выросла ли доля ошибок',
+        '',
+        'Следующая встреча — после пилота автопроверки.',
+      ].join('\n'),
+      users.olga,
+      ts(-9, 15),
+    ]);
+
     await q.query(`INSERT INTO notifications (company_id, user_id, kind, title, body, goal_id, task_id, created_at, push_state) VALUES ($1, $2, 'task_blocked', $3, $4, $5, $6, $7, 'skipped')`, [
       companyId,
       users.olga,
