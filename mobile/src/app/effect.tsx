@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, FileText } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import {
   MOVEMENT_LABELS,
@@ -34,6 +34,7 @@ export default function Effect() {
         </Text>
         <Text tone="muted">Двигает ли работа показатели. Считается по замерам и истории задач, без ручных отчётов.</Text>
       </View>
+      <ReportLink />
       {q.isError && (
         <Card>
           <Empty title="Не удалось посчитать метрики" text={(q.error as Error).message} action={<Button title="Повторить" variant="secondary" onPress={() => q.refetch()} />} />
@@ -48,6 +49,11 @@ export default function Effect() {
       ))}
     </Screen>
   );
+}
+
+function ReportLink() {
+  const p = usePalette();
+  return <Button title="Отчёт для руководства" variant="secondary" icon={<FileText size={18} color={p.ink} />} onPress={() => router.push('/report')} />;
 }
 
 const ORDER: Movement[] = ['improved', 'flat', 'worse', 'stale'];

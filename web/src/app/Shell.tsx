@@ -1,4 +1,4 @@
-import { Bell, Building2, LayoutGrid, ListChecks, LogOut, Moon, Plus, Sun, Target, TrendingUp } from 'lucide-react';
+import { Bell, Building2, FileText, LayoutGrid, ListChecks, LogOut, Moon, Plus, Sun, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
@@ -12,8 +12,9 @@ const NAV = [
   { to: '/app', label: 'Пульс', icon: LayoutGrid, end: true },
   { to: '/app/goals', label: 'Цели', icon: Target },
   { to: '/app/tasks', label: 'Задачи', icon: ListChecks },
-  // На телефоне вкладок пять: «Эффект» открывается из сводки на Пульсе.
+  // На телефоне вкладок пять: «Эффект» открывается из сводки на Пульсе, отчёт — с экрана «Эффект».
   { to: '/app/metrics', label: 'Эффект', icon: TrendingUp, tab: false },
+  { to: '/app/report', label: 'Отчёт', icon: FileText, tab: false },
   { to: '/app/org', label: 'Организация', icon: Building2 },
   { to: '/app/notifications', label: 'Уведомления', icon: Bell },
 ];

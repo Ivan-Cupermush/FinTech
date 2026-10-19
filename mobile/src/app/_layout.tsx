@@ -42,6 +42,7 @@ export default function RootLayout() {
             <Stack.Screen name="goal/new" options={{ title: 'Новая цель', presentation: 'modal' }} />
             <Stack.Screen name="task/[id]" options={{ title: 'Задача', presentation: 'modal' }} />
             <Stack.Screen name="effect" options={{ title: 'Эффект' }} />
+            <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
           </Stack>
         </SessionProvider>
       </QueryClientProvider>

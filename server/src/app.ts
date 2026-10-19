@@ -8,6 +8,7 @@ import { errorHandler, notFound } from './http/errors';
 import { authRouter } from './routes/auth';
 import { goalsRouter } from './routes/goals';
 import { metricsRouter } from './routes/metrics';
+import { reportRouter } from './routes/report';
 import { notificationsRouter } from './routes/notifications';
 import { orgRouter } from './routes/org';
 import { roadmapRouter } from './routes/roadmap';
@@ -57,6 +58,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit }: App
   v1.use('/tasks', tasksRouter(db, now));
   v1.use('/notifications', notificationsRouter(db));
   v1.use('/metrics', metricsRouter(db, now));
+  v1.use('/report', reportRouter(db, now));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));

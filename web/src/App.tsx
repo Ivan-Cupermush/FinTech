@@ -10,6 +10,7 @@ import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
 import { PulsePage } from './features/pulse/PulsePage';
+import { ReportPage } from './features/report/ReportPage';
 import { TasksPage } from './features/tasks/TasksPage';
 import { ApiError } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -51,6 +52,7 @@ export function AppRoutes() {
         <Route path="goals/:id" element={<GoalPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="metrics" element={<MetricsPage />} />
+        <Route path="report" element={<ReportPage />} />
         <Route path="org" element={<OrgPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
