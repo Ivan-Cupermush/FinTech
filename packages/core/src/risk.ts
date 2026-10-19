@@ -73,7 +73,7 @@ export function analyzeRisks(input: RiskInput): Risk[] {
       severity: critical.has(t.id) || long >= 3 ? 'critical' : 'warning',
       title: `${name(t.id)} заблокирована`,
       explanation: parts.join(' '),
-      suggestion: t.assignee_name ? `Помогите ${t.assignee_name}: снимите причину блокировки или назначьте следующий шаг` : 'Назначьте ответственного за снятие блокировки',
+      suggestion: t.assignee_name ? `Снимите причину блокировки вместе с исполнителем (${t.assignee_name}) или назначьте следующий шаг` : 'Назначьте ответственного за снятие блокировки',
       task_ids: [t.id, ...waiting],
     });
   }
