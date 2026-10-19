@@ -22,7 +22,7 @@ describe('заметки', () => {
     const one = (await (await ctx.as('dima')).get(`/api/v1/notes/${r.body.data.id}`)).body.data;
     expect(one).toMatchObject({ title: 'Как мы считаем KPI', can_edit: false });
     const items = await list('dima');
-    expect(items.find((n) => n.id === r.body.data.id)?.excerpt).toBe('Правило Замер — раз в неделю, источник — СЭД.');
+    expect(items.find((n) => n.id === r.body.data.id)?.excerpt).toBe('Правило. Замер — раз в неделю, источник — СЭД.');
   });
 
   it('заметка цели видна только тем, кто видит цель', async () => {

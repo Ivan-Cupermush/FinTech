@@ -166,27 +166,41 @@ export function parseMarkdown(md: string): Block[] {
   return blocks;
 }
 
-/** Текст без разметки — для поиска, превью и push. */
+/** Конец фразы: если блок не закончен знаком препинания — ставим точку, чтобы блоки не слипались. */
+const terminate = (s: string) => {
+  const t = s.trim();
+  return !t || /[.!?:;…]$/.test(t) ? t : `${t}.`;
+};
+
+/**
+ * Текст без разметки — для поиска, превью и push. Блоки не слипаются:
+ * между ними — точка, если блок не закончен знаком препинания, пункты
+ * списка разделены « · ».
+ */
 export function plainText(md: string): string {
-  return parseMarkdown(md)
+  const inl = (x: Inline[]) => x.map((i) => i.text).join('').trim();
+  const list = (items: string[]) => items.filter(Boolean).map((i) => i.replace(/[.;]$/, '')).join(' · ');
+  const parts = parseMarkdown(md)
     .map((b) => {
-      const inl = (x: Inline[]) => x.map((i) => i.text).join('');
       switch (b.kind) {
         case 'heading':
         case 'paragraph':
         case 'quote':
           return inl(b.inline);
         case 'list':
-          return b.items.map(inl).join(' ');
+          return list(b.items.map(inl));
         case 'checklist':
-          return b.items.map((x) => inl(x.inline)).join(' ');
+          return list(b.items.map((x) => inl(x.inline)));
         case 'code':
           return b.text;
         default:
           return '';
       }
     })
-    .filter(Boolean)
+    .filter(Boolean);
+  // Точку ставим между блоками, а не в конце: «коротко» остаётся «коротко».
+  return parts
+    .map((t, i) => (i < parts.length - 1 ? terminate(t) : t))
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();

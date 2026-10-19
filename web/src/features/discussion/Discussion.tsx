@@ -235,8 +235,8 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
                 }}
               >
                 <Avatar name={u.display_name} size={22} />
-                <span className="grow clip">{u.display_name}</span>
-                {u.position && <span className="faint clip" style={{ fontSize: 12 }}>{u.position}</span>}
+                <span className="dsc-suggest-name">{u.display_name}</span>
+                {u.position && <span className="faint clip dsc-suggest-pos">{u.position}</span>}
               </button>
             ))}
           </div>
