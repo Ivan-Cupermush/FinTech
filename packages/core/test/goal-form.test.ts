@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duePresets, emptyForm, formErrors, hasKpi, parseNumber, stepErrors, toPayload, type GoalFormState } from '../src/features/goals/goalForm';
+import { duePresets, emptyForm, formErrors, hasKpi, parseNumber, stepErrors, toPayload, type GoalFormState } from '../src/goal-form';
 
 const TODAY = '2026-10-19';
 const filled = (over: Partial<GoalFormState> = {}): GoalFormState => ({

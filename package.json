@@ -13,7 +13,12 @@
     "test": "npm run test -w @offix/core && npm run test -w server && npm run test -w web",
     "typecheck": "npm run typecheck -w @offix/core && npm run typecheck -w server && npm run typecheck -w web",
     "dev:server": "npm run dev -w server",
-    "dev:web": "npm run dev -w web"
+    "dev:web": "npm run dev -w web",
+    "dev:demo": "npm run dev:memory -w server",
+    "mobile:install": "npm install --prefix mobile",
+    "mobile:start": "npm start --prefix mobile",
+    "mobile:test": "npm test --prefix mobile",
+    "mobile:typecheck": "npm run typecheck --prefix mobile"
   },
   "engines": {
     "node": ">=22"
