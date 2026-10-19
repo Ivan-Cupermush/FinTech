@@ -1,20 +1,20 @@
 import { Router } from 'express';
-import { buildReport, isReportPeriod, productMetrics, reportCsv, reportFileName, todayIso, type ReportGoalInput } from '@offix/core';
-import { actorOf } from '../auth/auth';
+import { z } from 'zod';
+import { REPORT_SCHEDULES, isReportPeriod, nextReportSlot, reportCsv, reportFileName, type ReportSchedule, type ReportSubscription } from '@offix/core';
+import { actorOf, type AuthedActor } from '../auth/auth';
 import type { Db } from '../db/db';
 import { ApiError } from '../http/errors';
-import { loadMetricsInput } from '../services/metrics';
-import { goalRisks } from './roadmap';
-
-const REPORTED = new Set(['active', 'on_hold', 'completed']);
+import { parseBody } from '../http/validate';
+import { buildActorReport } from '../services/report';
 
 /**
  * Отчёт для руководства за неделю, месяц или квартал. Собирается из тех же
  * данных, что Пульс и «Эффект», в зоне видимости человека: руководитель
  * получает отчёт по своим целям, администратор — по всей компании.
- * `format=csv` отдаёт таблицу для Excel.
+ * `format=csv` отдаёт таблицу для Excel. `/subscription` — тот же отчёт
+ * письмом по расписанию.
  */
-export function reportRouter(db: Db, now: () => Date): Router {
+export function reportRouter(db: Db, now: () => Date, opts: { mailAvailable?: boolean } = {}): Router {
   const r = Router();
 
   r.get('/', async (req, res) => {
@@ -25,46 +25,7 @@ export function reportRouter(db: Db, now: () => Date): Router {
     const format = req.query.format ?? 'json';
     if (format !== 'json' && format !== 'csv') throw new ApiError('BAD_REQUEST', 'Неизвестный формат отчёта', { format: 'Доступны json и csv' });
 
-    const at = now().toISOString();
-    const today = todayIso(now());
-    const input = await loadMetricsInput(db, actor, at);
-    const visibleIds = new Set(input.visible.map((g) => g.row.id));
-    // Верхний уровень для человека — цели, родителя которых он не видит.
-    const top = input.visible.filter((g) => REPORTED.has(g.row.status) && !(g.row.parent_goal_id && visibleIds.has(g.row.parent_goal_id)));
-
-    const people = await db.query<{ id: string; display_name: string }>(`SELECT id, display_name FROM users WHERE id = ANY($1::uuid[])`, [
-      [actor.id, ...top.map((g) => g.row.owner_id).filter((id): id is string => !!id)],
-    ]);
-    const nameOf = new Map(people.rows.map((u) => [u.id, u.display_name]));
-    const company = await db.query<{ name: string }>(`SELECT name FROM companies WHERE id = $1`, [actor.company_id]);
-
-    const goals: ReportGoalInput[] = [];
-    for (const g of top) {
-      const { risks, tasks } = await goalRisks(db, actor.company_id, g, today);
-      const history = input.goals.find((h) => h.id === g.row.id);
-      const meta = input.kpis.find((k) => k.goal_id === g.row.id);
-      goals.push({
-        id: g.row.id,
-        title: g.row.title,
-        status: g.row.status,
-        owner_name: g.row.owner_id ? (nameOf.get(g.row.owner_id) ?? null) : null,
-        due_at: g.row.due_at,
-        completed_at: g.row.status === 'completed' ? (history?.closed_at ?? null) : null,
-        kpi: history?.kpi && meta ? { ...history.kpi, name: meta.name, unit: meta.unit } : null,
-        risks,
-        tasks: tasks.map((t) => ({ id: t.id, status: t.status, due_at: t.due_at, done_at: t.done_at })),
-      });
-    }
-
-    const report = buildReport({
-      company: company.rows[0]?.name ?? '',
-      scope: actor.role === 'owner' || actor.role === 'admin' ? 'company' : 'visible',
-      author: nameOf.get(actor.id) ?? '',
-      at,
-      days,
-      goals,
-      metrics: productMetrics(input, at, { windowDays: days, weeks: 1 }),
-    });
+    const report = await buildActorReport(db, actor, days, now());
 
     if (format === 'csv') {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -74,6 +35,46 @@ export function reportRouter(db: Db, now: () => Date): Router {
       return;
     }
     res.json({ data: report });
+  });
+
+  const subscription = async (actor: AuthedActor): Promise<ReportSubscription> => {
+    const { rows } = await db.query<{ enabled: boolean; schedule: ReportSchedule; last_sent_at: string | null; email: string }>(
+      `SELECT s.enabled, s.schedule, s.last_sent_at, u.email
+         FROM users u LEFT JOIN report_subscriptions s ON s.user_id = u.id AND s.company_id = $2
+        WHERE u.id = $1`,
+      [actor.id, actor.company_id],
+    );
+    const row = rows[0];
+    const enabled = !!row?.enabled;
+    const schedule = row?.schedule ?? 'weekly';
+    return {
+      enabled,
+      schedule,
+      email: row?.email ?? '',
+      last_sent_at: row?.last_sent_at ?? null,
+      next_at: enabled ? nextReportSlot(schedule, now().toISOString()) : null,
+      mail_available: !!opts.mailAvailable,
+    };
+  };
+
+  r.get('/subscription', async (req, res) => {
+    res.json({ data: await subscription(actorOf(req)) });
+  });
+
+  r.put('/subscription', async (req, res) => {
+    const actor = actorOf(req);
+    const body = parseBody(z.object({ enabled: z.boolean(), schedule: z.enum(REPORT_SCHEDULES) }), req.body);
+    // Включили или сменили частоту — расписание считаем с этого момента,
+    // чтобы письмо не ушло сразу за уже прошедший понедельник или 1-е число.
+    await db.query(
+      `INSERT INTO report_subscriptions (user_id, company_id, enabled, schedule, since_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5)
+       ON CONFLICT (user_id, company_id) DO UPDATE SET
+         since_at = CASE WHEN (EXCLUDED.enabled AND NOT report_subscriptions.enabled) OR EXCLUDED.schedule <> report_subscriptions.schedule
+                         THEN EXCLUDED.since_at ELSE report_subscriptions.since_at END,
+         enabled = EXCLUDED.enabled, schedule = EXCLUDED.schedule, last_error = NULL, updated_at = EXCLUDED.updated_at`,
+      [actor.id, actor.company_id, body.enabled, body.schedule, now().toISOString()],
+    );
+    res.json({ data: await subscription(actor) });
   });
 
   return r;

@@ -18,7 +18,7 @@ import { usersRouter } from './routes/users';
 
 export interface AppOptions {
   db: Db;
-  config: Pick<Config, 'jwtSecret' | 'corsOrigins'>;
+  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'> };
   now?: () => Date;
   rateLimit?: boolean;
 }
@@ -59,7 +59,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit }: App
   v1.use('/tasks', tasksRouter(db, now));
   v1.use('/notifications', notificationsRouter(db));
   v1.use('/metrics', metricsRouter(db, now));
-  v1.use('/report', reportRouter(db, now));
+  v1.use('/report', reportRouter(db, now, { mailAvailable: !!config.mail?.enabled }));
   v1.use('/push', pushRouter(db));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
