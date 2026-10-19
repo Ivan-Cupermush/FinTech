@@ -6,6 +6,7 @@ import {
   canEditGoal,
   canViewGoal,
   criticalPath,
+  formatDate,
   isValidIsoDate,
   onTimeShare,
   processSummary,
@@ -169,7 +170,7 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
         const start = c.start_at === undefined ? task.start_at : c.start_at;
         await q.query(`UPDATE tasks SET start_at = $2, due_at = $3, updated_at = NOW() WHERE id = $1`, [task.id, start, c.due_at]);
         await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: task.id, goal_id: id, actor_id: actor.id, event_type: 'task.rescheduled', old_values: { start_at: task.start_at, due_at: task.due_at }, new_values: { start_at: start, due_at: c.due_at } });
-        if (task.assignee_id) await notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'reschedule', title: `Новый срок задачи «${task.title}»`, body: `Срок перенесён на ${c.due_at}`, task_id: task.id, goal_id: id }, actor.id);
+        if (task.assignee_id) await notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'reschedule', title: `Новый срок задачи «${task.title}»`, body: `Срок перенесён на ${formatDate(c.due_at, { today: today() })}`, task_id: task.id, goal_id: id }, actor.id);
       }
       return { updated: body.changes.length };
     });

@@ -3,6 +3,8 @@ export interface Config {
   jwtSecret: string;
   port: number;
   corsOrigins: string[];
+  /** Push на телефоны через Expo. Выключен, пока не задан PUSH_ENABLED=1. */
+  push: { enabled: boolean; accessToken?: string };
   /** Дата «сегодня» для тестов и демо; в продакшене — системная. */
   now?: () => Date;
 }
@@ -17,5 +19,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     jwtSecret: jwtSecret || 'dev-only-secret-change-me-dev-only-secret',
     port: Number(env.PORT ?? 4000),
     corsOrigins: (env.CORS_ORIGINS ?? 'http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean),
+    push: { enabled: env.PUSH_ENABLED === '1', accessToken: env.EXPO_ACCESS_TOKEN || undefined },
   };
 }

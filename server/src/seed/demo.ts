@@ -273,7 +273,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       'Больше всего времени уходит на сверку номера студенческого с реестром — до 12 минут на заявку.',
       ts(-15, 14),
     ]);
-    await q.query(`INSERT INTO notifications (company_id, user_id, kind, title, body, goal_id, task_id, created_at) VALUES ($1, $2, 'task_blocked', $3, $4, $5, $6, $7)`, [
+    await q.query(`INSERT INTO notifications (company_id, user_id, kind, title, body, goal_id, task_id, created_at, push_state) VALUES ($1, $2, 'task_blocked', $3, $4, $5, $6, $7, 'skipped')`, [
       companyId,
       users.olga,
       '«Автозаполнение формы заявки» заблокирована',

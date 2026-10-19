@@ -1,16 +1,20 @@
+import type { NotificationKind } from '@offix/core';
 import type { Queryable } from '../db/db';
 
 export interface NewNotification {
   company_id: string;
   user_id: string;
-  kind: 'goal_assigned' | 'task_assigned' | 'task_blocked' | 'task_unblocked' | 'reschedule' | 'kpi_achieved' | 'comment' | 'goal_activated';
+  kind: NotificationKind;
   title: string;
   body?: string | null;
   goal_id?: string | null;
   task_id?: string | null;
 }
 
-/** Уведомление человеку. Себе самому уведомления не шлём. */
+/**
+ * Уведомление человеку. Себе самому уведомления не шлём. Push на телефон
+ * отправит фоновая рассылка (services/push.ts), когда транзакция завершится.
+ */
 export async function notify(q: Queryable, n: NewNotification, actorId: string | null): Promise<void> {
   if (n.user_id === actorId) return;
   await q.query(
