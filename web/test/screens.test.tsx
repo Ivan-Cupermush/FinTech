@@ -109,14 +109,14 @@ describe('Вход', () => {
 describe('Мастер цели', () => {
   it('не пускает на шаг 2 без названия и показывает ошибку у поля', async () => {
     mockApi({ ...base, 'GET /org/units': [], 'GET /users?search=': [] });
-    renderApp('/app/goals/new');
+    renderApp('/app/goals/new?from=scratch');
     await userEvent.click(await screen.findByRole('button', { name: /Далее/ }));
     expect(screen.getByRole('button', { name: /Шаг 1/ })).toHaveAttribute('aria-current', 'step');
     expect(await screen.findByText(/Введите название|Сформулируйте/)).toBeInTheDocument();
   });
   it('считает плановое изменение KPI и подсказывает, что это не прогресс', async () => {
     mockApi({ ...base, 'GET /org/units': [], 'GET /users?search=': [] });
-    renderApp('/app/goals/new');
+    renderApp('/app/goals/new?from=scratch');
     await userEvent.type(await screen.findByLabelText(/Сейчас/), '40');
     await userEvent.type(screen.getByLabelText(/Цель к сроку/), '30');
     expect((await screen.findAllByText(/−25\s%/)).length).toBeGreaterThan(0);
@@ -124,13 +124,13 @@ describe('Мастер цели', () => {
   });
   it('подсказывает, если название звучит как задача', async () => {
     mockApi({ ...base, 'GET /org/units': [], 'GET /users?search=': [] });
-    renderApp('/app/goals/new');
+    renderApp('/app/goals/new?from=scratch');
     await userEvent.type(await screen.findByLabelText(/^Название цели/), 'Провести анализ процессов');
     expect(await screen.findByText(/Похоже на задачу/)).toBeInTheDocument();
   });
   it('черновик сохраняется и ведёт на карточку цели', async () => {
     const calls = mockApi({ ...base, 'GET /org/units': [], 'GET /users?search=': [], 'POST /goals': goalCard({ id: 'new1', status: 'draft' }), 'GET /goals/new1/roadmap': roadmap({ goal: goalCard({ id: 'new1', status: 'draft' }) }) });
-    renderApp('/app/goals/new');
+    renderApp('/app/goals/new?from=scratch');
     await userEvent.type(await screen.findByLabelText(/^Название цели/), 'Сократить время согласования');
     await userEvent.click(screen.getByRole('radio', { name: /Операционная/ }));
     await userEvent.click(screen.getByRole('button', { name: /Сохранить черновик/ }));

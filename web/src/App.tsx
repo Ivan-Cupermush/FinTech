@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './app/Shell';
 import { LoginPage } from './features/auth/LoginPage';
-import { GoalCreatePage } from './features/goals/GoalCreatePage';
+import { GoalNewPage } from './features/goals/GoalTemplates';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { LandingPage } from './features/landing/LandingPage';
@@ -48,7 +48,7 @@ export function AppRoutes() {
       >
         <Route index element={<PulsePage />} />
         <Route path="goals" element={<GoalsPage />} />
-        <Route path="goals/new" element={<GoalCreatePage />} />
+        <Route path="goals/new" element={<GoalNewPage />} />
         <Route path="goals/:id" element={<GoalPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="metrics" element={<MetricsPage />} />

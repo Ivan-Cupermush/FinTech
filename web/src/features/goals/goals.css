@@ -528,3 +528,82 @@
     padding: 8px 6px;
   }
 }
+
+/* Шаблоны целей */
+.tpl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.tpl-search {
+  position: relative;
+  flex: 0 1 320px;
+  min-width: 220px;
+}
+.tpl-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.tpl-search .input {
+  padding-left: 36px;
+}
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.tpl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--dur),
+    box-shadow var(--dur);
+}
+.tpl-card:hover {
+  border-color: color-mix(in srgb, var(--ink) 30%, var(--line-strong));
+}
+.tpl-title {
+  font-weight: 620;
+  font-size: 15.5px;
+  line-height: 1.3;
+}
+.tpl-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  margin-top: auto;
+}
+.tpl-kpi-value {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.tpl-meta {
+  font-size: 12.5px;
+}
+.tpl-tasks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.tpl-tasks li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
