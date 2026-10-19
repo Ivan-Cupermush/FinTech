@@ -43,6 +43,10 @@ npm run seed -w server                 # по желанию: демо-данн�
 npm run build -w server && npm start -w server
 ```
 
+### Отчёт на почту
+
+Подписка «Присылать на почту» на странице «Отчёт» сохраняется всегда, а письма уходят, только если в `server/.env` заданы `REPORT_MAIL_ENABLED=1`, `SMTP_URL` (например `smtps://user:password@smtp.yandex.ru:465`) и `MAIL_FROM`. `APP_URL` — адрес сайта для ссылок в письме, необязательно. Сервер раз в минуту проверяет, кому пора: по понедельникам или 1-го числа в 9:00 по Москве.
+
 ### Push-уведомления
 
 Выключены, пока в `server/.env` не задано `PUSH_ENABLED=1`. Отправка идёт через Expo Push API; если в проекте Expo включена защита push, укажите `EXPO_ACCESS_TOKEN`. Приложению нужен `projectId` EAS (`expo.extra.eas.projectId` в `mobile/app.json`, появляется после `npx eas init`) и сборка разработки или релиз: в Expo Go удалённые push на Android не работают. Без них телефон не привязывается, а уведомления по-прежнему видны во «Входящих».
