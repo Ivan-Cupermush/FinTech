@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionTask, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, sparkSegments, taskActions, taskSections } from '../src/lib/logic';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -93,5 +93,31 @@ describe('sparkSegments', () => {
   });
   it('отступ по краям не даёт обрезать крайние точки', () => {
     expect(sparkSegments([1, 2], 100, 40, 2, 0, 5)[0]!.map((p) => p.x)).toEqual([5, 95]);
+  });
+});
+
+describe('pushCard', () => {
+  it('разрешение ещё не спрашивали — включить по кнопке', () => {
+    expect(pushCard('undetermined')).toMatchObject({ action: 'enable', label: 'Включить' });
+  });
+  it('запрещено — ведём в настройки телефона', () => {
+    expect(pushCard('denied')).toMatchObject({ action: 'settings', label: 'Открыть настройки' });
+  });
+  it('включено — можно настроить темы и тихие часы', () => {
+    const c = pushCard('granted');
+    expect(c).toMatchObject({ action: 'configure', label: 'Настроить' });
+    expect(c.text).toContain('22:00');
+  });
+  it('веб и симулятор — без кнопки', () => {
+    const c = pushCard('unsupported');
+    expect(c.action).toBeNull();
+    expect(c.label).toBeUndefined();
+  });
+  it('у каждого действия есть подпись', () => {
+    for (const perm of ['granted', 'denied', 'undetermined', 'unsupported'] as const) {
+      const c = pushCard(perm);
+      expect(c.title.length).toBeGreaterThan(0);
+      if (c.action) expect(c.label).toBeTruthy();
+    }
   });
 });

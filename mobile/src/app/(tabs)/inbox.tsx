@@ -1,7 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, Linking, Pressable, View } from 'react-native';
 import type { Notification } from '@offix/core';
+import { pushCard, type PushPermission } from '../../lib/logic';
+import { enablePush, pushPermission } from '../../lib/push';
 import { useNotifications } from '../../lib/queries';
 import { api } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
@@ -27,6 +30,7 @@ export default function Inbox() {
         <Text variant="h1">Входящие</Text>
         {unread.length > 0 && <Button title="Прочитать все" variant="ghost" onPress={() => void read()} style={{ minHeight: 36, paddingHorizontal: 8 }} />}
       </View>
+      <PushCard />
       {q.data?.length ? (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           {q.data.map((n, i) => (
@@ -54,5 +58,45 @@ export default function Inbox() {
         )
       )}
     </Screen>
+  );
+}
+
+/** Состояние push: включить по кнопке, открыть настройки телефона, если запрещено, или настроить темы. */
+function PushCard() {
+  const [perm, setPerm] = useState<PushPermission | null>(null);
+  const [busy, setBusy] = useState(false);
+  const check = useCallback(() => void pushPermission().then(setPerm, () => setPerm('unsupported')), []);
+  useEffect(() => {
+    check();
+    // Вернулся из настроек телефона — перечитываем разрешение.
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
+    return () => sub.remove();
+  }, [check]);
+  if (!perm) return null;
+  const c = pushCard(perm);
+  const act = async () => {
+    if (c.action === 'configure') return router.push('/push-settings');
+    if (c.action === 'settings') return void Linking.openSettings();
+    setBusy(true);
+    try {
+      setPerm(await enablePush(api));
+    } catch {
+      check();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="small" style={{ fontFamily: font.semibold }}>
+          {c.title}
+        </Text>
+        <Text variant="small" tone="faint">
+          {c.text}
+        </Text>
+      </View>
+      {c.action && c.label && <Button title={c.label} variant={c.action === 'enable' ? 'primary' : 'secondary'} loading={busy} onPress={() => void act()} style={{ minHeight: 36, paddingHorizontal: 14 }} />}
+    </Card>
   );
 }

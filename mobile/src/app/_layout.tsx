@@ -3,9 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { useColorScheme, View } from 'react-native';
+import { Platform, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiError } from '../lib/client';
+import { PushBridge } from '../lib/push-bridge';
 import { SessionProvider } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
 
@@ -24,6 +25,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={client}>
         <SessionProvider>
+          {Platform.OS !== 'web' && <PushBridge />}
           <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
           <Stack
             screenOptions={{
@@ -43,6 +45,7 @@ export default function RootLayout() {
             <Stack.Screen name="task/[id]" options={{ title: 'Задача', presentation: 'modal' }} />
             <Stack.Screen name="effect" options={{ title: 'Эффект' }} />
             <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
+            <Stack.Screen name="push-settings" options={{ title: 'Уведомления' }} />
           </Stack>
         </SessionProvider>
       </QueryClientProvider>

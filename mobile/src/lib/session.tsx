@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient, normalizeBaseUrl } from './client';
+import { unregisterDevice } from './push';
 
 const TOKEN = 'offix.token';
 const SERVER = 'offix.server';
@@ -53,6 +54,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Пока токен входа жив — отвязываем телефон, чтобы чужие push сюда не шли.
+    await unregisterDevice(api);
     current.token = null;
     setToken(null);
     qc.clear();
