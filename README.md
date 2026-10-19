@@ -43,6 +43,10 @@ npm run seed -w server                 # по желанию: демо-данн�
 npm run build -w server && npm start -w server
 ```
 
+### Push-уведомления
+
+Выключены, пока в `server/.env` не задано `PUSH_ENABLED=1`. Отправка идёт через Expo Push API; если в проекте Expo включена защита push, укажите `EXPO_ACCESS_TOKEN`. Приложению нужен `projectId` EAS (`expo.extra.eas.projectId` в `mobile/app.json`, появляется после `npx eas init`) и сборка разработки или релиз: в Expo Go удалённые push на Android не работают. Без них телефон не привязывается, а уведомления по-прежнему видны во «Входящих».
+
 ## Проверки
 
 ```bash
