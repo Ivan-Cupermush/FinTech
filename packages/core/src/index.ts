@@ -18,3 +18,5 @@ export * from './report';
 export * from './push';
 export * from './report-mail';
 export * from './templates';
+export * from './discussion';
+export * from './notes';
