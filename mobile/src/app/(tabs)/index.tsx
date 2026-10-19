@@ -3,10 +3,11 @@ import { HandHelping, LogOut, Plus } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { formatDate } from '@offix/core';
 import { greeting } from '../../lib/logic';
-import { useDashboard, useMe } from '../../lib/queries';
+import { useDashboard, useMe, useMetrics } from '../../lib/queries';
 import { useSession } from '../../lib/session';
 import { usePalette } from '../../lib/theme';
 import { GoalTile, RiskItem, TaskRow } from '../../ui/domain';
+import { EffectSummary } from '../../ui/effect';
 import { Button, Card, Empty, Screen, SectionTitle, Text } from '../../ui/primitives';
 
 /** Пульс: что под угрозой, кому помочь и мои задачи — за 10 секунд. */
@@ -14,11 +15,12 @@ export default function Pulse() {
   const p = usePalette();
   const me = useMe();
   const dash = useDashboard();
+  const metrics = useMetrics();
   const { logout } = useSession();
   const d = dash.data;
   const critical = d?.risks.filter((r) => r.severity === 'critical').length ?? 0;
   return (
-    <Screen refreshing={dash.isRefetching} onRefresh={() => dash.refetch()}>
+    <Screen refreshing={dash.isRefetching} onRefresh={() => void Promise.all([dash.refetch(), metrics.refetch()])}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ gap: 6, flex: 1 }}>
           <Text variant="eyebrow" tone="faint">
@@ -52,6 +54,8 @@ export default function Pulse() {
               <Empty title="Начните с одной измеримой цели" text="Опишите, какой показатель должен измениться, — offix построит путь и покажет, где теряется время." />
             </Card>
           )}
+
+          {metrics.data && <EffectSummary r={metrics.data} />}
 
           {d.risks.length > 0 && (
             <>

@@ -1,4 +1,4 @@
-import { diffDays, formatDate, isOverdue, plural, type Task } from '@offix/core';
+import { diffDays, formatDate, isOverdue, plural, type EffectTarget, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -55,4 +55,33 @@ export function taskSections(tasks: Task[], today: string) {
 /** «Доброе утро» — по локальному времени устройства. */
 export function greeting(hour: number): string {
   return hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
+}
+
+/** Маршрут приложения для шага «Что поднимет цифры». */
+export function effectRoute(t: EffectTarget): string {
+  if (t.kind === 'goal') return `/goal/${t.id}`;
+  if (t.kind === 'blocked_tasks') return '/tasks';
+  return '/goals';
+}
+
+/**
+ * Линии мини-графика в координатах w×h. Пропуски (null) рвут линию:
+ * «нечего считать» и «ноль» — разные вещи.
+ */
+export function sparkSegments(values: readonly (number | null)[], w: number, h: number, max?: number, min = 0, pad = 0): { x: number; y: number }[][] {
+  const known = values.filter((v): v is number => v !== null);
+  const hi = max ?? Math.max(1, ...known);
+  const span = hi - min || 1;
+  const x = (i: number) => (values.length < 2 ? w / 2 : pad + (i / (values.length - 1)) * (w - 2 * pad));
+  const y = (v: number) => h - 3 - ((Math.min(hi, Math.max(min, v)) - min) / span) * (h - 6);
+  const out: { x: number; y: number }[][] = [];
+  let cur: { x: number; y: number }[] = [];
+  values.forEach((v, i) => {
+    if (v === null) {
+      if (cur.length) out.push(cur);
+      cur = [];
+    } else cur.push({ x: x(i), y: y(v) });
+  });
+  if (cur.length) out.push(cur);
+  return out;
 }

@@ -1,4 +1,4 @@
-import { Bell, Building2, LayoutGrid, ListChecks, LogOut, Moon, Plus, Sun, Target } from 'lucide-react';
+import { Bell, Building2, LayoutGrid, ListChecks, LogOut, Moon, Plus, Sun, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
@@ -12,6 +12,8 @@ const NAV = [
   { to: '/app', label: 'Пульс', icon: LayoutGrid, end: true },
   { to: '/app/goals', label: 'Цели', icon: Target },
   { to: '/app/tasks', label: 'Задачи', icon: ListChecks },
+  // На телефоне вкладок пять: «Эффект» открывается из сводки на Пульсе.
+  { to: '/app/metrics', label: 'Эффект', icon: TrendingUp, tab: false },
   { to: '/app/org', label: 'Организация', icon: Building2 },
   { to: '/app/notifications', label: 'Уведомления', icon: Bell },
 ];
@@ -91,7 +93,7 @@ export function Shell() {
         <Outlet />
       </main>
       <nav className="tabbar" aria-label="Навигация">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {NAV.filter((n) => n.tab !== false).map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'active' : '')}>
             <Icon size={22} strokeWidth={1.8} />
             {label === 'Организация' ? 'Команда' : label === 'Уведомления' ? 'Входящие' : label}

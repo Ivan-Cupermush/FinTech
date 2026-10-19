@@ -11,3 +11,5 @@ export * from './access';
 export * from './analytics';
 export * from './api-types';
 export * from './goal-form';
+export * from './metrics';
+export * from './effect';
