@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Dashboard, GoalSummary, Me, MetricsReport, Notification, Roadmap, Task, TaskDetail } from '@offix/core';
+import type { Dashboard, GoalSummary, Me, MetricsReport, Notification, Report, Roadmap, Task, TaskDetail } from '@offix/core';
 import { api } from './session';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/users/me'), staleTime: 60_000 });
@@ -9,11 +9,12 @@ export const useRoadmap = (id: string) => useQuery({ queryKey: ['roadmap', id], 
 export const useTasks = (filter: string) => useQuery({ queryKey: ['tasks', filter], queryFn: () => api<Task[]>(`/tasks?${filter}`) });
 export const useTask = (id: string) => useQuery({ queryKey: ['task', id], queryFn: () => api<TaskDetail>(`/tasks/${id}`) });
 export const useMetrics = () => useQuery({ queryKey: ['metrics'], queryFn: () => api<MetricsReport>('/metrics'), staleTime: 30_000 });
+export const useReport = (days: number) => useQuery({ queryKey: ['report', days], queryFn: () => api<Report>(`/report?days=${days}`), staleTime: 30_000 });
 export const useNotifications = () => useQuery({ queryKey: ['notifications'], queryFn: () => api<Notification[]>('/notifications') });
 
 export function useInvalidateWork() {
   const qc = useQueryClient();
-  return () => Promise.all(['dashboard', 'goals', 'roadmap', 'tasks', 'task', 'notifications', 'metrics'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+  return () => Promise.all(['dashboard', 'goals', 'roadmap', 'tasks', 'task', 'notifications', 'metrics', 'report'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
 }
 
 export function useTaskStatus() {
