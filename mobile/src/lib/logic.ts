@@ -85,3 +85,22 @@ export function sparkSegments(values: readonly (number | null)[], w: number, h: 
   if (cur.length) out.push(cur);
   return out;
 }
+
+export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
+
+/**
+ * Карточка «Уведомления на телефон» во «Входящих». Разрешение спрашиваем
+ * только по нажатию, с объяснением зачем, а не всплывающим окном при запуске.
+ */
+export function pushCard(perm: PushPermission): { title: string; text: string; action: 'enable' | 'settings' | 'configure' | null; label?: string } {
+  switch (perm) {
+    case 'granted':
+      return { title: 'Уведомления включены', text: 'Блокеры приходят сразу, остальное — с 8:00 до 22:00.', action: 'configure', label: 'Настроить' };
+    case 'denied':
+      return { title: 'Уведомления выключены', text: 'Разрешите их в настройках телефона, чтобы узнавать о блокерах сразу.', action: 'settings', label: 'Открыть настройки' };
+    case 'undetermined':
+      return { title: 'Узнавайте о блокерах сразу', text: 'Push придёт, когда задача в вашей зоне заблокирована или вам поставили задачу.', action: 'enable', label: 'Включить' };
+    default:
+      return { title: 'Push работают в приложении на телефоне', text: 'Здесь уведомления видны во «Входящих».', action: null };
+  }
+}
