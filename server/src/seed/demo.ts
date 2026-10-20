@@ -1,6 +1,7 @@
 import { addDays, todayIso } from '@offix/core';
 import { hashPassword } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
+import { DEMO_1C_URL } from './fake-systems';
 
 /**
  * Демо-организация для показа и тестов: сквозной сценарий из ТЗ.
@@ -162,7 +163,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       due: d(120),
       activated: -27,
     });
-    await metric(goals.contracts, { name: 'Срок согласования договора', unit: 'days', baseline: 12, target: 5, direction: 'decrease' }, [
+    const contractsMetric = await metric(goals.contracts, { name: 'Срок согласования договора', unit: 'days', baseline: 12, target: 5, direction: 'decrease' }, [
       [-20, 12],
       [-5, 10],
     ]);
@@ -333,6 +334,34 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
       tasks.autofill,
       ts(-4, 11),
     ]);
+
+    // Интеграция с 1С (в демо — поддельная публикация): замер за −5 день пришёл из неё.
+    const { id: integrationId } = await one(
+      q,
+      `INSERT INTO integrations (company_id, goal_id, metric_id, kind, name, config, username, secret, interval_hours, last_sync_at, last_success_at, created_by, created_at)
+       VALUES ($1, $2, $3, 'onec', $4, $5, 'offix', 'demo-1c-password', 24, $6, $6, $7, $8) RETURNING id`,
+      [
+        companyId,
+        goals.contracts,
+        contractsMetric,
+        '1С: договоры',
+        JSON.stringify({ base_url: DEMO_1C_URL, entity: 'Document_ДоговорКонтрагента', date_field: 'Date', value_field: 'СрокСогласования', filter: '', aggregate: 'avg' }),
+        ts(-5, 7),
+        users.director,
+        ts(-6, 15),
+      ],
+    );
+    await q.query(`UPDATE goal_metric_observations SET source = 'integration', recorded_by = NULL, note = 'Интеграция «1С: договоры»' WHERE metric_id = $1 AND observed_at = $2`, [
+      contractsMetric,
+      ts(-5, 9),
+    ]);
+    const run = (at: string, status: string, fetched: number, imported: number, skipped: number, error: string | null, trigger = 'schedule') =>
+      q.query(
+        `INSERT INTO integration_runs (integration_id, company_id, trigger, started_by, started_at, finished_at, status, fetched, imported, skipped, error) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10)`,
+        [integrationId, companyId, trigger, trigger === 'manual' ? users.director : null, at, status, fetched, imported, skipped, error],
+      );
+    await run(ts(-6, 15), 'error', 0, 0, 0, 'Система отклонила логин и пароль', 'manual');
+    await run(ts(-5, 7), 'ok', 112, 1, 0, null, 'manual');
 
     return { companyId, users, units, goals, tasks };
   });

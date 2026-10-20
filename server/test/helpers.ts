@@ -5,6 +5,8 @@ import type { Db } from '../src/db/db';
 import { migrate } from '../src/db/migrate';
 import { createPgliteDb } from '../src/db/pglite';
 import { DEMO_PASSWORD, seedDemo, type DemoIds } from '../src/seed/demo';
+import { fakeSystemsFetch } from '../src/seed/fake-systems';
+import type { FetchLike } from '../src/services/integrations';
 
 /** Фиксированное «сегодня» — тесты не зависят от даты запуска. */
 export const NOW = new Date('2026-10-19T12:00:00Z');
@@ -39,11 +41,11 @@ const EMAILS: Record<keyof DemoIds['users'], string> = {
   observer: 'rector@offix.demo',
 };
 
-export async function setup(): Promise<Ctx> {
+export async function setup(opts: { integrationFetch?: FetchLike } = {}): Promise<Ctx> {
   const db = await createPgliteDb();
   await migrate(db);
   const demo = await seedDemo(db, { now: NOW });
-  const app = createApp({ db, config: { jwtSecret: SECRET, corsOrigins: ['http://localhost:5173'] }, now: () => NOW, rateLimit: false });
+  const app = createApp({ db, config: { jwtSecret: SECRET, corsOrigins: ['http://localhost:5173'] }, now: () => NOW, rateLimit: false, integrationFetch: opts.integrationFetch ?? fakeSystemsFetch(() => NOW) });
   const cache = new Map<string, string>();
   const token = async (who: keyof DemoIds['users']) => {
     if (!cache.has(who)) {

@@ -38,6 +38,7 @@ import {
 } from '../services/goals';
 import { withIdempotency } from '../services/idempotency';
 import { notify } from '../services/notify';
+import { addObservations } from '../services/observations';
 import { loadOrg } from '../services/org';
 
 const metricSchema = z.object({
@@ -490,38 +491,17 @@ export function goalsRouter(db: Db, now: () => Date): Router {
         });
         if (Object.keys(errors).length) throw invalid(`Не удалось импортировать замеры: ${Object.values(errors)[0]}`, errors);
 
-        // Блокируем KPI, чтобы параллельный импорт не добавил тот же день дважды.
-        await q.query(`SELECT id FROM goal_metrics WHERE id = $1 FOR UPDATE`, [mid]);
-        const existing = await q.query<{ observed_at: Date | string }>(`SELECT observed_at FROM goal_metric_observations WHERE metric_id = $1`, [mid]);
-        const days = new Set(existing.rows.map((r) => observationDay(new Date(r.observed_at))));
-        const fresh = rows.filter((r) => (days.has(r.day) ? false : (days.add(r.day), true)));
-        const note = body.note?.trim() || null;
-        for (const r of fresh) {
-          await q.query(
-            `INSERT INTO goal_metric_observations (metric_id, value, observed_at, source, recorded_by, note) VALUES ($1, $2, $3, 'import', $4, $5)`,
-            [mid, r.value, r.at, actor.id, note],
-          );
-        }
-        const skipped = body.rows.length - fresh.length;
-        const before = kpiProgress({ baseline: m.baseline, target: m.target_value, direction: m.direction, range_min: m.range_min, range_max: m.range_max }, m.current_value);
-        const [reloaded] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
-        const metric = serializeMetric(reloaded!);
-        if (fresh.length) {
-          const sorted = fresh.map((r) => r.day).sort();
-          await audit(q, {
-            company_id: actor.company_id,
-            entity_type: 'metric',
-            entity_id: mid,
-            goal_id: id,
-            actor_id: actor.id,
-            event_type: 'metric.imported',
-            new_values: { count: fresh.length, skipped, from: sorted[0], to: sorted.at(-1) },
-          });
-          if (metric.progress.state === 'achieved' && before.state !== 'achieved' && goal.row.owner_id) {
-            await notify(q, { company_id: actor.company_id, user_id: goal.row.owner_id, kind: 'kpi_achieved', title: `KPI «${m.name}» достиг цели`, goal_id: id }, actor.id);
-          }
-        }
-        return { status: fresh.length ? 201 : 200, body: { data: { imported: fresh.length, skipped, metric } } };
+        const r = await addObservations(q, {
+          companyId: actor.company_id,
+          goalId: id,
+          goalOwnerId: goal.row.owner_id,
+          metric: m,
+          rows,
+          source: 'import',
+          actorId: actor.id,
+          note: body.note?.trim() || null,
+        });
+        return { status: r.imported ? 201 : 200, body: { data: r } };
       }),
     );
     res.status(out.status).json(out.body);
