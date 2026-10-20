@@ -155,10 +155,13 @@ export function validateIntegrationConfig(kind: IntegrationKind, v: unknown): Co
   return kind === 'onec' ? validateOneCConfig(o) : validateMoodleConfig(o);
 }
 
-/** Пароль и токен назад не отдаём: только понять, что он задан и какой. */
+/**
+ * Пароль и токен назад не отдаём, даже частично: хвост пароля 1С сужает
+ * перебор. Показываем только, что секрет задан.
+ */
+export const SECRET_MASK = '••••••••';
 export function maskSecret(secret: string | null | undefined): string | null {
-  if (!secret) return null;
-  return secret.length >= 12 ? `••••${secret.slice(-4)}` : '••••';
+  return secret ? SECRET_MASK : null;
 }
 
 /** Точка замера из системы: момент и значение. */

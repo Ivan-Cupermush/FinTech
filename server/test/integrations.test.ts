@@ -76,7 +76,7 @@ describe('список', () => {
       goal: { id: ctx.demo.goals.contracts, title: 'Сократить срок согласования договоров' },
       metric: { name: 'Срок согласования договора', unit: 'days' },
       username: 'offix',
-      secret_mask: '••••word',
+      secret_mask: '••••••••',
       state: 'ok',
       interval_hours: 24,
       last_run: { status: 'ok', imported: 1, trigger: 'manual' },
@@ -222,7 +222,7 @@ describe('создание и правка', () => {
       interval_hours: 168,
     });
     expect(created.status).toBe(201);
-    expect(created.body.data).toMatchObject({ kind: 'moodle', username: null, secret_mask: '••••6789', state: 'never', config: { base_url: DEMO_MOODLE_URL, course_id: 101, metric: 'completion_share' } });
+    expect(created.body.data).toMatchObject({ kind: 'moodle', username: null, secret_mask: '••••••••', state: 'never', config: { base_url: DEMO_MOODLE_URL, course_id: 101, metric: 'completion_share' } });
 
     const r = await director.post(`/api/v1/integrations/${created.body.data.id}/sync`);
     // 40 слушателей (преподаватели не считаются), завершили 26.
@@ -248,9 +248,10 @@ describe('создание и правка', () => {
   it('правка: имя и частота меняются, пароль без нового значения сохраняется', async () => {
     const r = await director.patch(`/api/v1/integrations/${seeded}`, { name: '1С: договоры (бухгалтерия)', interval_hours: 6 });
     expect(r.status).toBe(200);
-    expect(r.body.data).toMatchObject({ name: '1С: договоры (бухгалтерия)', interval_hours: 6, secret_mask: '••••word' });
+    expect(r.body.data).toMatchObject({ name: '1С: договоры (бухгалтерия)', interval_hours: 6, secret_mask: '••••••••' });
     const p = await director.patch(`/api/v1/integrations/${seeded}`, { secret: 'new-password-2026' });
-    expect(p.body.data.secret_mask).toBe('••••2026');
+    expect(p.body.data.secret_mask).toBe('••••••••');
+    expect(JSON.stringify(p.body)).not.toContain('new-password');
     const { rows } = await ctx.db.query<{ secret: string }>(`SELECT secret FROM integrations WHERE id = $1`, [seeded]);
     expect(rows[0]!.secret).toBe('new-password-2026');
   });

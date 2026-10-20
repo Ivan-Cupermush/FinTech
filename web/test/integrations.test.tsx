@@ -47,7 +47,7 @@ const integration = (over: Partial<Integration> = {}): Integration => ({
   metric: { id: 'm-contracts', name: 'Срок согласования договора', unit: 'days' },
   config: { base_url: 'https://1c.univ.ru/univ', entity: 'Document_ДоговорКонтрагента', date_field: 'Date', value_field: 'СрокСогласования', filter: '', aggregate: 'avg' },
   username: 'offix',
-  secret_mask: '••••word',
+  secret_mask: '••••••••',
   enabled: true,
   interval_hours: 24,
   state: 'ok',
@@ -215,7 +215,7 @@ describe('карточка подключения', () => {
     expect(await screen.findByRole('heading', { name: '1С: договоры' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Документ или регистр/)).toHaveValue('Document_ДоговорКонтрагента');
     expect(screen.getByLabelText(/Пароль/)).toHaveValue('');
-    expect(screen.getByLabelText(/Пароль/)).toHaveAttribute('placeholder', 'Сохранён ••••word');
+    expect(screen.getByLabelText(/Пароль/)).toHaveAttribute('placeholder', 'Сохранён ••••••••');
     expect(screen.getByText('Оставьте пустым, чтобы не менять')).toBeInTheDocument();
     const log = await screen.findByRole('list');
     expect(within(log).getByText('Записано 1 замер')).toBeInTheDocument();

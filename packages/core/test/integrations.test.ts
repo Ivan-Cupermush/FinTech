@@ -110,8 +110,9 @@ describe('секреты', () => {
   it('маска: последние 4 символа только у длинного', () => {
     expect(maskSecret(null)).toBeNull();
     expect(maskSecret('')).toBeNull();
-    expect(maskSecret('short')).toBe('••••');
-    expect(maskSecret('a1b2c3d4e5f6g7h8')).toBe('••••g7h8');
+    expect(maskSecret('short')).toBe('••••••••');
+    expect(maskSecret('a1b2c3d4e5f6g7h8')).toBe('••••••••');
+    expect(maskSecret('a1b2c3d4e5f6g7h8')).not.toContain('g7h8');
   });
   it('токен вырезается из текста ошибки', () => {
     expect(redactSecret('GET https://lms/webservice/rest/server.php?wstoken=abc123&wsfunction=x failed', null)).toBe(
