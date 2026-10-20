@@ -1,6 +1,7 @@
 import { addDays, todayIso } from '@offix/core';
 import { hashPassword } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
+import { sealSecret } from '../services/secret-box';
 import { DEMO_1C_URL } from './fake-systems';
 
 /**
@@ -339,7 +340,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
     const { id: integrationId } = await one(
       q,
       `INSERT INTO integrations (company_id, goal_id, metric_id, kind, name, config, username, secret, interval_hours, last_sync_at, last_success_at, created_by, created_at)
-       VALUES ($1, $2, $3, 'onec', $4, $5, 'offix', 'demo-1c-password', 24, $6, $6, $7, $8) RETURNING id`,
+       VALUES ($1, $2, $3, 'onec', $4, $5, 'offix', $9, 24, $6, $6, $7, $8) RETURNING id`,
       [
         companyId,
         goals.contracts,
@@ -349,6 +350,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
         ts(-5, 7),
         users.director,
         ts(-6, 15),
+        sealSecret('demo-1c-password'),
       ],
     );
     await q.query(`UPDATE goal_metric_observations SET source = 'integration', recorded_by = NULL, note = 'Интеграция «1С: договоры»' WHERE metric_id = $1 AND observed_at = $2`, [

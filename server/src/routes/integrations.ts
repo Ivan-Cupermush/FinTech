@@ -6,6 +6,7 @@ import type { Db } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { loadIntegrations, serializeIntegration, serializeRun, syncIntegration, testConnection, type FetchLike, type RunResult } from '../services/integrations';
+import { sealSecret } from '../services/secret-box';
 
 const admin = (a: AuthedActor) => {
   if (a.role !== 'owner' && a.role !== 'admin') throw forbidden('Интеграции настраивает администратор');
@@ -116,7 +117,7 @@ export function integrationsRouter(db: Db, now: () => Date, doFetch: FetchLike):
         body.name.trim(),
         JSON.stringify(config),
         body.kind === 'onec' ? body.username!.trim() : null,
-        body.secret,
+        sealSecret(body.secret),
         body.enabled ?? true,
         body.interval_hours ?? 24,
         actor.id,
@@ -149,7 +150,7 @@ export function integrationsRouter(db: Db, now: () => Date, doFetch: FetchLike):
         next.name.trim(),
         JSON.stringify(config),
         cur.kind === 'onec' ? next.username?.trim() || null : null,
-        next.secret,
+        sealSecret(next.secret),
         body.enabled ?? cur.enabled,
         body.interval_hours ?? cur.interval_hours,
         body.metric_id ?? cur.metric_id,

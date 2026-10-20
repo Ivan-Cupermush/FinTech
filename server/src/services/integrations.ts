@@ -17,6 +17,7 @@ import {
   type UnitId,
 } from '@offix/core';
 import type { Db, Queryable } from '../db/db';
+import { openSecret } from './secret-box';
 import { loadMetrics } from './goals';
 import { addObservations, lockObservationDays } from './observations';
 
@@ -53,7 +54,7 @@ const SELECT = `SELECT i.*, g.title AS goal_title, g.status AS goal_status, g.ow
 
 export async function loadIntegrations(q: Queryable, companyId: string, id?: string): Promise<IntegrationRow[]> {
   const { rows } = await q.query<IntegrationRow>(`${SELECT} WHERE i.company_id = $1 ${id ? 'AND i.id = $2' : ''} ORDER BY i.created_at`, id ? [companyId, id] : [companyId]);
-  return rows;
+  return rows.map((r) => ({ ...r, secret: openSecret(r.secret) }));
 }
 
 const iso = (v: string | Date | null) => (v ? new Date(v).toISOString() : null);

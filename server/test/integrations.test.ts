@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedDemo } from '../src/seed/demo';
 import { DEMO_1C_URL, DEMO_MOODLE_URL, fakeSystemsFetch } from '../src/seed/fake-systems';
 import { dueIntegrations, syncIntegration, type FetchLike } from '../src/services/integrations';
+import { openSecret } from '../src/services/secret-box';
 import { NOW, setup, validGoal, type Agent, type Ctx } from './helpers';
 
 const fake = fakeSystemsFetch(() => NOW);
@@ -253,7 +254,10 @@ describe('создание и правка', () => {
     expect(p.body.data.secret_mask).toBe('••••••••');
     expect(JSON.stringify(p.body)).not.toContain('new-password');
     const { rows } = await ctx.db.query<{ secret: string }>(`SELECT secret FROM integrations WHERE id = $1`, [seeded]);
-    expect(rows[0]!.secret).toBe('new-password-2026');
+    // В базе — шифр, а не пароль.
+    expect(rows[0]!.secret).toMatch(/^enc:v1:/);
+    expect(rows[0]!.secret).not.toContain('new-password');
+    expect(openSecret(rows[0]!.secret)).toBe('new-password-2026');
   });
   it('правка с ошибкой в настройках — 422, ничего не меняется', async () => {
     const r = await director.patch(`/api/v1/integrations/${seeded}`, { config: { base_url: 'https://1c.univ.ru', entity: 'Документ Договор', date_field: 'Date', value_field: 'V' } });
