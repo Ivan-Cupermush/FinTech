@@ -12,6 +12,7 @@ import {
   parseOneCDate,
   planSync,
   redactSecret,
+  syncMomentText,
   validateIntegrationConfig,
   validateMoodleConfig,
   validateOneCConfig,
@@ -95,7 +96,7 @@ describe('настройки Moodle', () => {
     expect(validateMoodleConfig({ base_url: 'https://lms.univ.ru/', course_id: '42' }).config).toEqual({ base_url: 'https://lms.univ.ru', course_id: 42, metric: 'completion_share' });
   });
   it('без номера курса и с дробным — ошибка', () => {
-    expect(validateMoodleConfig({ base_url: 'https://lms.univ.ru' }).errors.course_id).toMatch(/course\/view\.php/);
+    expect(validateMoodleConfig({ base_url: 'https://lms.univ.ru' }).errors.course_id).toMatch(/course\/view\.php\?id=101/);
     expect(validateMoodleConfig({ base_url: 'https://lms.univ.ru', course_id: 1.5 }).errors.course_id).toBeDefined();
     expect(validateMoodleConfig({ base_url: 'https://lms.univ.ru', course_id: 0 }).errors.course_id).toBeDefined();
   });
@@ -261,5 +262,18 @@ describe('состояние и расписание', () => {
     expect(nextSyncAt({ enabled: true, last_sync_at: '2026-10-19T10:00:00.000Z', interval_hours: 24 }, NOW)).toBe('2026-10-20T10:00:00.000Z');
     expect(nextSyncAt({ enabled: true, last_sync_at: null, interval_hours: 24 }, NOW)).toBe(NOW.toISOString());
     expect(nextSyncAt({ enabled: false, last_sync_at: null, interval_hours: 24 }, NOW)).toBeNull();
+  });
+});
+
+describe('syncMomentText', () => {
+  it('сегодня, вчера, завтра и дата — по Москве', () => {
+    expect(syncMomentText('2026-10-19T11:00:00Z', NOW)).toBe('сегодня в 14:00');
+    expect(syncMomentText('2026-10-18T06:05:00Z', NOW)).toBe('вчера в 9:05');
+    expect(syncMomentText('2026-10-20T09:00:00Z', NOW)).toBe('завтра в 12:00');
+    expect(syncMomentText('2026-10-14T07:00:00Z', NOW)).toBe('14 окт в 10:00');
+    expect(syncMomentText('2025-12-31T20:30:00Z', NOW)).toBe('31 дек 2025 в 23:30');
+  });
+  it('полночь по Москве — уже следующий день', () => {
+    expect(syncMomentText('2026-10-18T21:10:00Z', NOW)).toBe('сегодня в 0:10');
   });
 });

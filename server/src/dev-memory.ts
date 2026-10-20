@@ -20,7 +20,8 @@ if (config.mail.enabled && config.mail.smtpUrl && config.mail.from) {
 }
 // В демо 1С и Moodle поддельные: подключения работают без сети и настоящих систем.
 const integrationFetch = fakeSystemsFetch();
-if (config.integrations.enabled) startIntegrationLoop(db, integrationFetch, { onError: (e) => console.error('integrations:', e) });
+// Расписание в демо включено всегда: системы поддельные, ничего наружу не уходит.
+startIntegrationLoop(db, integrationFetch, { onError: (e) => console.error('integrations:', e) });
 createApp({ db, config, integrationFetch }).listen(config.port, () => {
   console.log(`offix API (демо в памяти) — http://localhost:${config.port}`);
   console.log(`Вход: director@offix.demo / ${DEMO_PASSWORD}`);

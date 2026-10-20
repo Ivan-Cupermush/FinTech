@@ -1,0 +1,234 @@
+/* Интеграции */
+.int-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+/* Цвет — только знак системы, чтобы её узнавали в списке с первого взгляда. */
+.int-mark-onec {
+  background: #ffe14d;
+  color: #c4161c;
+}
+.int-mark-moodle {
+  background: #f98012;
+  color: #fff;
+}
+
+.int-row {
+  color: inherit;
+  text-decoration: none;
+  gap: 14px;
+  padding: 14px 8px;
+}
+.int-row-title {
+  font-weight: 600;
+}
+.int-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 13px;
+}
+.int-row-error {
+  font-size: 13px;
+  color: var(--bad);
+}
+
+.int-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 14px;
+}
+.int-kind {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.int-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.int-layout-single {
+  grid-template-columns: minmax(0, 720px);
+}
+@media (max-width: 1000px) {
+  .int-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* На узком экране сначала состояние и «Синхронизировать сейчас», потом настройки. */
+  .int-layout > aside {
+    order: -1;
+  }
+}
+
+.int-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+.int-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.int-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px;
+}
+.int-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13.5px;
+}
+.int-switch {
+  gap: 12px;
+  cursor: pointer;
+}
+.int-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+}
+.int-delete {
+  color: var(--bad);
+  margin-left: -10px;
+}
+@media (max-width: 560px) {
+  .int-section,
+  .int-actions {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .int-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .int-delete {
+    margin-left: 0;
+  }
+  /* Четыре частоты не помещаются в строку — сеткой два на два, без прокрутки. */
+  .int-form .segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-radius: var(--radius);
+  }
+  .int-form .segmented button {
+    justify-content: center;
+    border-radius: var(--radius-sm);
+  }
+}
+
+.int-test {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 16px 24px 0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  animation: fade-up 160ms var(--ease);
+}
+.int-test svg {
+  flex: none;
+  margin-top: 1px;
+}
+.int-test-ok {
+  background: var(--good-soft);
+  color: var(--ink);
+}
+.int-test-ok > svg {
+  color: var(--good);
+}
+.int-test-bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.int-preview {
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 220px;
+}
+.int-preview caption {
+  text-align: left;
+  font-size: 12.5px;
+  padding-bottom: 4px;
+}
+.int-preview td {
+  padding: 4px 0;
+  border-top: 1px solid color-mix(in srgb, var(--good) 18%, transparent);
+}
+.int-preview td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+  padding-left: 24px;
+}
+
+.int-status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.int-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.int-error svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.int-runs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.int-run {
+  align-items: flex-start;
+  font-size: 13.5px;
+  padding: 10px 4px;
+}
+.int-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.int-dot-ok {
+  background: var(--good);
+}
+.int-dot-error {
+  background: var(--bad);
+}
+.int-run-error {
+  color: var(--bad);
+}
+.int-run-warn {
+  font-size: 12.5px;
+  color: var(--warn);
+}

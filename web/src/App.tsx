@@ -6,6 +6,7 @@ import { GoalNewPage } from './features/goals/GoalTemplates';
 import { NotePage, NotesPage } from './features/notes/NotesPage';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
+import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
@@ -55,6 +56,8 @@ export function AppRoutes() {
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="report" element={<ReportPage />} />
         <Route path="org" element={<OrgPage />} />
+        <Route path="integrations" element={<IntegrationsPage />} />
+        <Route path="integrations/:id" element={<IntegrationPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="notes/:id" element={<NotePage />} />

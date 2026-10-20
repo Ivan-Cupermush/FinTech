@@ -144,7 +144,7 @@ export function validateMoodleConfig(v: Partial<Record<keyof MoodleConfig, unkno
   const urlError = checkIntegrationUrl(base);
   if (urlError) errors.base_url = urlError;
   const course = typeof v.course_id === 'number' ? v.course_id : Number(typeof v.course_id === 'string' ? v.course_id.trim() : NaN);
-  if (!Number.isInteger(course) || course < 1) errors.course_id = 'Номер курса — целое число, его видно в адресе курса: course/view.php?id=…';
+  if (!Number.isInteger(course) || course < 1) errors.course_id = 'Номер курса — целое число из адреса курса: course/view.php?id=101';
   const metric = (MOODLE_METRICS as readonly unknown[]).includes(v.metric) ? (v.metric as MoodleMetric) : 'completion_share';
   if (Object.keys(errors).length) return { config: null, errors };
   return { config: { base_url: normalizeBaseUrl(base), course_id: course, metric }, errors };
@@ -362,4 +362,68 @@ export function redactSecret(text: string, secret: string | null | undefined): s
   let out = text.replace(/wstoken=[^&\s]+/g, 'wstoken=••••');
   if (secret && secret.length >= 4) out = out.split(secret).join('••••');
   return out;
+}
+
+const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+/** Момент синхронизации по Москве: «сегодня в 14:00», «вчера в 9:05», «14 окт в 10:00», «завтра в 12:00». */
+export function syncMomentText(iso: string, now: Date): string {
+  const moscow = (t: number) => new Date(t + 3 * 3_600_000);
+  const at = moscow(Date.parse(iso));
+  const day = at.toISOString().slice(0, 10);
+  const today = moscow(now.getTime()).toISOString().slice(0, 10);
+  const shift = (n: number) => moscow(now.getTime() + n * 86_400_000).toISOString().slice(0, 10);
+  const time = `${at.getUTCHours()}:${String(at.getUTCMinutes()).padStart(2, '0')}`;
+  const label = day === today ? 'сегодня' : day === shift(-1) ? 'вчера' : day === shift(1) ? 'завтра' : `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]}${day.slice(0, 4) === today.slice(0, 4) ? '' : ` ${day.slice(0, 4)}`}`;
+  return `${label} в ${time}`;
+}
+
+/** Ответы API интеграций. */
+export interface IntegrationRun {
+  id: string;
+  trigger: 'manual' | 'schedule';
+  status: 'running' | 'ok' | 'error';
+  started_at: string;
+  finished_at: string | null;
+  fetched: number;
+  imported: number;
+  skipped: number;
+  /** Для error — причина сбоя, для ok — предупреждение об отклонённых днях. */
+  error: string | null;
+}
+
+export interface Integration {
+  id: string;
+  kind: IntegrationKind;
+  name: string;
+  goal: { id: string; title: string };
+  metric: { id: string; name: string; unit: UnitId };
+  config: IntegrationConfig;
+  username: string | null;
+  secret_mask: string | null;
+  enabled: boolean;
+  interval_hours: (typeof SYNC_INTERVALS)[number];
+  state: IntegrationState;
+  last_sync_at: string | null;
+  last_success_at: string | null;
+  last_error: string | null;
+  next_sync_at: string | null;
+  created_at: string;
+  last_run?: IntegrationRun | null;
+}
+
+export interface IntegrationTarget {
+  metric_id: string;
+  metric_name: string;
+  unit: UnitId;
+  goal_id: string;
+  goal_title: string;
+}
+
+export interface IntegrationTestResult {
+  ok: boolean;
+  message: string;
+  records: number;
+  invalid: number;
+  points: SyncPoint[];
 }

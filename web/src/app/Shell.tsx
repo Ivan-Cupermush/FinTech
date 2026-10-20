@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Building2, FileText, LayoutGrid, ListChecks, LogOut, Moon, Plus, Sun, Target, TrendingUp } from 'lucide-react';
+import { Bell, BookOpen, Building2, FileText, LayoutGrid, ListChecks, LogOut, Moon, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
@@ -17,6 +17,8 @@ const NAV = [
   { to: '/app/report', label: 'Отчёт', icon: FileText, tab: false },
   { to: '/app/notes', label: 'База знаний', icon: BookOpen, tab: false },
   { to: '/app/org', label: 'Организация', icon: Building2 },
+  // Интеграции настраивает администратор: остальным пункт не показываем.
+  { to: '/app/integrations', label: 'Интеграции', icon: Plug, tab: false, admin: true },
   { to: '/app/notifications', label: 'Уведомления', icon: Bell },
 ];
 
@@ -63,7 +65,7 @@ export function Shell() {
           Новая цель
         </Button>
         <nav className="stack" style={{ '--gap': '2px' } as React.CSSProperties}>
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {NAV.filter((n) => !n.admin || me.data?.role === 'owner' || me.data?.role === 'admin').map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <Icon size={18} strokeWidth={1.8} />
               {label}
