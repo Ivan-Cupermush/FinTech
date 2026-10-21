@@ -5,9 +5,11 @@ import { requireAuth } from './auth/auth';
 import type { Config } from './config';
 import type { Db } from './db/db';
 import { errorHandler, notFound } from './http/errors';
+import type { FetchLike } from './services/integrations';
 import { authRouter } from './routes/auth';
 import { discussionsRouter } from './routes/discussions';
 import { goalsRouter } from './routes/goals';
+import { integrationsRouter } from './routes/integrations';
 import { metricsRouter } from './routes/metrics';
 import { reportRouter } from './routes/report';
 import { notificationsRouter } from './routes/notifications';
@@ -24,9 +26,11 @@ export interface AppOptions {
   config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'> };
   now?: () => Date;
   rateLimit?: boolean;
+  /** Запросы интеграций в 1С и Moodle; в тестах и демо — поддельные системы. */
+  integrationFetch?: FetchLike;
 }
 
-export function createApp({ db, config, now = () => new Date(), rateLimit }: AppOptions): Express {
+export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -67,6 +71,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit }: App
   v1.use('/templates', templatesRouter(db, now));
   v1.use('/discussions', discussionsRouter(db));
   v1.use('/notes', notesRouter(db));
+  v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));
