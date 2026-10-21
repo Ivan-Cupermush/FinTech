@@ -1,5 +1,5 @@
 import { MessageSquare, Reply, Send, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   buildThread,
@@ -145,6 +145,7 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
   const [active, setActive] = useState(0);
   const [sending, setSending] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const placeCaret = useRef<number | null>(null);
   const toast = useToast();
   const m = mentionQuery(text, caret);
   const users = useUsers(m ? m.query.split(' ')[0] ?? '' : '');
@@ -160,11 +161,16 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
     const r = insertMention(text, caret, name);
     setText(r.text);
     setCaret(r.caret);
-    requestAnimationFrame(() => {
-      ref.current?.focus();
-      ref.current?.setSelectionRange(r.caret, r.caret);
-    });
+    placeCaret.current = r.caret;
   };
+  // Курсор после имени ставим сразу после отрисовки, до следующего ввода:
+  // с отложенной установкой быстро набранные буквы уезжали за курсор.
+  useLayoutEffect(() => {
+    if (placeCaret.current === null) return;
+    ref.current?.focus();
+    ref.current?.setSelectionRange(placeCaret.current, placeCaret.current);
+    placeCaret.current = null;
+  });
 
   const send = async () => {
     if (validateComment(text) || sending) return;
