@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { kpiProgress } from '@offix/core';
 import { KpiTrack } from '../../ui/KpiTrack';
 import { Logo } from '../../ui/Logo';
+import { SiteFooter } from '../../ui/SiteFooter';
+import { Backdrop } from '../../ui/fx/Backdrop';
+import { Glass } from '../../ui/fx/Glass';
 import './landing.css';
 
 const STEPS = [
@@ -21,59 +24,67 @@ const SCENARIOS = [
 /** Публичная страница: что такое offix и вход в демо. */
 export function LandingPage() {
   const demo = kpiProgress({ baseline: 40, target: 30, direction: 'decrease' }, 36.5);
-  const empty = kpiProgress({ baseline: 12, target: 10, direction: 'decrease' }, null);
   return (
-    <div className="landing">
-      <header className="l-nav">
-        <Logo size={28} />
-        <nav className="row" style={{ gap: 8 }}>
-          <a href="#how" className="l-link">Как работает</a>
-          <a href="#pilot" className="l-link">Пилот</a>
-          <Link to="/login" className="btn btn-primary btn-sm">
-            Войти
-          </Link>
-        </nav>
-      </header>
+    <>
+      <div className="l-top">
+        <Backdrop variant="hero" mark className="l-stage on-color">
+          <header className="l-nav">
+            <Glass className="l-nav-glass" radius={999} elasticity={0.08} displacement={48}>
+              <div className="l-nav-row">
+                <Link to="/" aria-label="offix — на главную">
+                  <Logo size={26} />
+                </Link>
+                <nav className="row" style={{ gap: 2 }} aria-label="Разделы">
+                  <a href="#how" className="l-link">Как работает</a>
+                  <a href="#pilot" className="l-link">Пилот</a>
+                  <Link to="/login" className="btn btn-primary btn-sm l-nav-cta">
+                    Войти
+                  </Link>
+                </nav>
+              </div>
+            </Glass>
+          </header>
 
-      <section className="l-hero">
-        <div className="l-hero-text">
-          <div className="eyebrow">Эффективность 360</div>
-          <h1>
-            Цели, которые
-            <br />
-            двигают цифры.
-          </h1>
-          <p className="l-lead">offix связывает цель организации, показатель и каждую задачу на пути к нему — и заранее показывает, где теряется время и какой срок под угрозой.</p>
-          <div className="row wrap" style={{ gap: 10 }}>
-            <Link to="/login" className="btn btn-primary btn-lg">
-              Открыть демо <ArrowRight size={17} />
-            </Link>
-            <a href="#how" className="btn btn-secondary btn-lg">
-              Как это работает
-            </a>
-          </div>
-        </div>
-        <div className="l-hero-art" aria-label="Пример карточки цели">
-          <div className="card l-card">
-            <div className="eyebrow">Учебный офис · стратегическая</div>
-            <h3>Сократить время согласования заявки</h3>
-            <KpiTrack baseline={40} target={30} current={36.5} unit="minutes" progress={demo} name="Время согласования" size="xl" />
-            <div className="l-risk">
-              <span className="l-dot" />
-              <span>
-                <b>Автозаполнение заблокировано 3 дня</b>
+          <section className="l-hero">
+            <div className="l-hero-text">
+              <div className="eyebrow">Эффективность 360</div>
+              <h1>
+                Цели, которые
                 <br />
-                <span className="faint">Ждём доступ к API от IT. Срок цели сдвигается на 4 дня.</span>
-              </span>
+                двигают цифры.
+              </h1>
+              <p className="l-lead">offix связывает цель организации, показатель и каждую задачу на пути к нему — и заранее показывает, где теряется время и какой срок под угрозой.</p>
+              <div className="row wrap" style={{ gap: 10 }}>
+                <Link to="/login" className="btn btn-primary btn-lg">
+                  Открыть демо <ArrowRight size={17} />
+                </Link>
+                <a href="#how" className="btn btn-secondary btn-lg">
+                  Как это работает
+                </a>
+              </div>
             </div>
-          </div>
-          <div className="card l-card l-card-small">
-            <div className="eyebrow">Без замеров</div>
-            <KpiTrack baseline={12} target={10} current={null} unit="days" progress={empty} name="Срок оформления договора" size="md" showLegend={false} />
-          </div>
-        </div>
-      </section>
+            <div className="l-hero-art" aria-label="Пример карточки цели">
+              <Glass className="l-card-glass" radius={28}>
+                <div className="l-card">
+                  <div className="eyebrow">Учебный офис · стратегическая</div>
+                  <h3>Сократить время согласования заявки</h3>
+                  <KpiTrack baseline={40} target={30} current={36.5} unit="minutes" progress={demo} name="Время согласования" size="lg" />
+                  <div className="l-risk">
+                    <span className="l-dot" />
+                    <span>
+                      <b>Автозаполнение заблокировано 3 дня</b>
+                      <br />
+                      <span className="faint">Ждём доступ к API от IT. Срок цели сдвигается на 4 дня.</span>
+                    </span>
+                  </div>
+                </div>
+              </Glass>
+            </div>
+          </section>
+        </Backdrop>
+      </div>
 
+      <div className="landing">
       <section id="how" className="l-section">
         <h2>Три шага от намерения к результату</h2>
         <div className="l-grid-3">
@@ -148,18 +159,15 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="l-cta">
+      <Backdrop variant="login" className="l-cta on-color">
         <h2>Посмотрите на живой пример</h2>
         <p className="muted">Демо-университет с целями, задачами, блокером и задержкой IT. Вход в один клик.</p>
         <Link to="/login" className="btn btn-primary btn-lg">
           Открыть демо <ArrowRight size={17} />
         </Link>
-      </section>
-
-      <footer className="l-foot">
-        <Logo size={22} />
-        <span className="faint">Сделано для FinTech Academy · трек «Эффективность 360»</span>
-      </footer>
-    </div>
+      </Backdrop>
+      </div>
+      <SiteFooter />
+    </>
   );
 }

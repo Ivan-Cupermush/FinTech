@@ -411,7 +411,7 @@
   }
   .wizard-foot {
     position: sticky;
-    bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+    bottom: calc(var(--tabbar-h) + 10px + var(--safe-bottom));
     background: var(--bg);
     margin-left: -16px;
     margin-right: -16px;

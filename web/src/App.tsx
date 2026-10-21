@@ -8,6 +8,7 @@ import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { LandingPage } from './features/landing/LandingPage';
+import { LicensesPage } from './features/credits/LicensesPage';
 import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
@@ -40,6 +41,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/licenses" element={<LicensesPage />} />
       <Route
         path="/app"
         element={

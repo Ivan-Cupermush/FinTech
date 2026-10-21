@@ -3,37 +3,89 @@
   margin: 0 auto;
   padding: 0 24px;
 }
+/* Первый экран: живой градиент на всю ширину, поверх — стекло и текст. */
+.l-top {
+  padding: 10px;
+}
+.l-stage {
+  min-height: min(880px, calc(100svh - 20px));
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  color: var(--ink);
+}
+/* Цвета поверх градиента: белый текст, светлые линии, белая главная кнопка. */
+.on-color {
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.82);
+  --ink-3: rgba(255, 255, 255, 0.64);
+  --bg: #0b0b1a;
+  --surface: rgba(255, 255, 255, 0.12);
+  --surface-2: rgba(255, 255, 255, 0.2);
+  --surface-3: rgba(255, 255, 255, 0.26);
+  --line: rgba(255, 255, 255, 0.2);
+  --line-strong: rgba(255, 255, 255, 0.38);
+  --accent: #ffffff;
+  --good: #7cf0bd;
+  --bad: #ff8f94;
+  --bad-soft: rgba(255, 90, 100, 0.2);
+  color: var(--ink);
+}
 .l-nav {
+  display: flex;
+  justify-content: center;
+  padding: 18px 16px 0;
+  position: relative;
+  z-index: 2;
+}
+.l-nav-glass {
+  width: min(720px, 100%);
+}
+.l-nav-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 72px;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
 }
 .l-link {
   padding: 8px 12px;
   font-size: 14px;
   color: var(--ink-2);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
+  transition:
+    color var(--dur),
+    background var(--dur);
 }
 .l-link:hover {
   color: var(--ink);
-  background: var(--surface-2);
+  background: var(--surface);
+}
+.l-nav-cta {
+  border-radius: 999px;
+  padding: 0 16px;
 }
 .l-hero {
+  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 56px;
-  align-items: center;
-  padding: 64px 0 96px;
+  align-items: end;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 72px 40px 48px;
 }
 .l-hero h1 {
-  font-size: clamp(42px, 6vw, 76px);
-  letter-spacing: -0.045em;
-  line-height: 0.98;
+  font-size: clamp(44px, 6.6vw, 92px);
+  letter-spacing: -0.05em;
+  line-height: 0.95;
   margin: 14px 0 22px;
+  text-wrap: balance;
 }
 .l-hero-text {
-  animation: fade-up 500ms var(--ease) both;
+  align-self: center;
+  animation: fade-up 600ms var(--ease) both;
 }
 .l-lead {
   font-size: 18px;
@@ -42,25 +94,19 @@
   margin-bottom: 28px;
   max-width: 520px;
 }
+.l-hero .btn-lg {
+  border-radius: 999px;
+}
 .l-hero-art {
-  position: relative;
-  animation: fade-up 600ms 120ms var(--ease) both;
+  justify-self: end;
+  width: min(420px, 100%);
+  animation: fade-up 700ms 180ms var(--ease) both;
 }
 .l-card {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 28px;
-  box-shadow: var(--shadow-2);
-  border-radius: var(--radius-xl);
-}
-.l-card-small {
-  position: relative;
-  width: 300px;
-  margin: -28px -20px 0 auto;
-  padding: 18px;
-  gap: 10px;
-  box-shadow: var(--shadow-3);
+  gap: 16px;
+  padding: 24px;
 }
 .l-risk {
   display: flex;
@@ -164,20 +210,12 @@
   align-items: center;
   gap: 16px;
   text-align: center;
-  padding: 88px 24px;
-  margin: 24px 0 40px;
+  padding: 104px 24px;
+  margin: 24px 0 56px;
   border-radius: var(--radius-xl);
-  background: var(--surface);
-  border: 1px solid var(--line);
 }
-.l-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 24px 0 40px;
-  font-size: 13px;
+.l-cta .btn-lg {
+  border-radius: 999px;
 }
 
 @media (max-width: 960px) {
@@ -186,7 +224,14 @@
     grid-template-columns: 1fr;
   }
   .l-hero {
-    padding: 32px 0 64px;
+    align-items: start;
+    gap: 32px;
+    /* Сверху место для 3D-знака. */
+    padding: max(30vh, 220px) 24px 32px;
+  }
+  .l-hero-art {
+    justify-self: stretch;
+    width: 100%;
   }
   .l-grid-3 {
     grid-template-columns: 1fr;
@@ -202,14 +247,19 @@
   .l-grid-2 {
     grid-template-columns: 1fr;
   }
+  .l-top {
+    padding: 6px;
+  }
   .l-card {
     padding: 20px;
   }
-  .l-card-small {
-    width: auto;
-    margin: 12px 0 0;
-  }
   .l-hero {
-    padding-bottom: 48px;
+    padding: max(33vh, 230px) 16px 20px;
   }
+  .l-nav {
+    padding: 10px 8px 0;
+  }
+}
+.on-color .eyebrow {
+  color: var(--ink-2);
 }

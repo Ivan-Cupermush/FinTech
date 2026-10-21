@@ -1,0 +1,72 @@
+/* ——— Живой фон ——— */
+.fx-backdrop {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.fx-gl {
+  animation: fx-in 900ms var(--ease) both;
+}
+.fx-gl canvas {
+  display: block;
+}
+@keyframes fx-in {
+  from {
+    opacity: 0;
+  }
+}
+.fx-flat-mark {
+  position: absolute;
+  z-index: -1;
+  right: 8%;
+  top: 50%;
+  width: min(30vw, 340px);
+  transform: translateY(-60%);
+  filter: drop-shadow(0 24px 48px rgba(10, 16, 80, 0.35));
+}
+@media (max-width: 960px) {
+  .fx-flat-mark {
+    right: 50%;
+    top: 14%;
+    width: 46vw;
+    transform: translateX(50%);
+  }
+}
+
+/* ——— Жидкое стекло ——— */
+.glass-slot {
+  position: relative;
+  /* Пока стекло не измерено, место держит минимальная высота. */
+  min-height: 40px;
+}
+.glass-slot .glass {
+  display: flex !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Библиотека задаёт тексту системный шрифт и белый цвет — возвращаем наши. */
+.glass-slot .glass > div {
+  width: 100%;
+  font: inherit !important;
+  text-shadow: none !important;
+  color: inherit;
+}
+.glass-body {
+  width: 100%;
+}
+/* Без поддержки SVG-фильтра в backdrop (Safari, Firefox) — честное матовое стекло. */
+@supports not (backdrop-filter: url(#a)) {
+  .glass-slot .glass__warp {
+    background: color-mix(in srgb, #fff 14%, transparent);
+  }
+}
+@media print {
+  .fx-gl {
+    display: none;
+  }
+}

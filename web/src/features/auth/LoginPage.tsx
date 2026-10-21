@@ -8,6 +8,8 @@ import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Logo } from '../../ui/Logo';
 import { Segmented } from '../../ui/Misc';
+import { Backdrop } from '../../ui/fx/Backdrop';
+import { Glass } from '../../ui/fx/Glass';
 import './auth.css';
 
 /** Демо-вход: каждая роль видит свой срез — так проще показать права на питче. */
@@ -132,27 +134,25 @@ export function LoginPage() {
           </div>
         )}
       </div>
-      <div className="auth-art" aria-hidden>
-        <div className="ring" />
-        <div className="ring r2" />
-        <div className="stack" style={{ '--gap': '18px' } as React.CSSProperties}>
-          <div className="eyebrow" style={{ color: 'color-mix(in srgb, var(--bg) 55%, transparent)' }}>
-            Время обработки заявки
-          </div>
-          <div className="big">
-            <span className="dim">40 → </span>36,5
-            <span className="dim"> → </span>
-            <span className="acc">30</span>
-            <span className="dim" style={{ fontSize: '0.4em', letterSpacing: 0 }}>
-              {' '}
-              мин
-            </span>
-          </div>
-          <p style={{ maxWidth: 420, color: 'color-mix(in srgb, var(--bg) 70%, transparent)', fontSize: 17 }}>
-            Цель — это изменение показателя, а не список дел. offix показывает, движется ли он, и что мешает.
-          </p>
+      <Backdrop variant="login" className="auth-art on-color">
+        <div aria-hidden>
+          <Glass className="auth-glass" radius={32} elasticity={0.1}>
+            <div className="auth-glass-body">
+              <div className="eyebrow">Время обработки заявки</div>
+              <div className="big">
+                <span className="dim">40 → </span>36,5
+                <span className="dim"> → </span>
+                <span className="acc">30</span>
+                <span className="dim" style={{ fontSize: '0.4em', letterSpacing: 0 }}>
+                  {' '}
+                  мин
+                </span>
+              </div>
+              <p>Цель — это изменение показателя, а не список дел. offix показывает, движется ли он, и что мешает.</p>
+            </div>
+          </Glass>
         </div>
-      </div>
+      </Backdrop>
     </div>
   );
 }

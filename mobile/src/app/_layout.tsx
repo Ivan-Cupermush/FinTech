@@ -47,6 +47,7 @@ export default function RootLayout() {
             <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
             <Stack.Screen name="push-settings" options={{ title: 'Уведомления' }} />
             <Stack.Screen name="discussion/[type]/[id]" options={{ title: 'Обсуждение' }} />
+            <Stack.Screen name="licenses" options={{ title: 'Лицензии' }} />
           </Stack>
         </SessionProvider>
       </QueryClientProvider>

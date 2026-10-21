@@ -27,7 +27,8 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ],
     "scheme": "offix",
     "extra": {
