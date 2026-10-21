@@ -712,7 +712,7 @@ a.list-row:hover {
 }
 @media (max-width: 900px) {
   .toast-host {
-    bottom: calc(var(--tabbar-h) + 16px + var(--safe-bottom));
+    bottom: calc(var(--tabbar-h) + 22px + var(--safe-bottom));
   }
 }
 

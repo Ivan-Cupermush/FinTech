@@ -14,42 +14,37 @@
   margin: 0 auto;
 }
 .auth-art {
-  position: relative;
-  overflow: hidden;
-  background: var(--ink);
-  color: var(--bg);
+  margin: 10px;
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: clamp(28px, 5vw, 64px);
+  padding: clamp(20px, 4vw, 48px);
+}
+.auth-glass-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(22px, 3vw, 36px);
+}
+.auth-glass-body p {
+  max-width: 420px;
+  color: var(--ink-2);
+  font-size: 17px;
 }
 .auth-art .big {
-  font-size: clamp(56px, 8vw, 112px);
+  font-size: clamp(36px, 4.4vw, 72px);
+  white-space: nowrap;
   font-weight: 680;
   letter-spacing: -0.055em;
   line-height: 0.95;
   font-variant-numeric: tabular-nums;
 }
 .auth-art .big .dim {
-  color: color-mix(in srgb, var(--bg) 38%, transparent);
+  color: var(--ink-3);
 }
 .auth-art .big .acc {
-  color: var(--accent);
-}
-.auth-art .ring {
-  position: absolute;
-  right: -120px;
-  top: -120px;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--bg) 14%, transparent);
-}
-.auth-art .ring.r2 {
-  right: -40px;
-  top: -40px;
-  width: 360px;
-  height: 360px;
+  color: #c9d2ff;
 }
 .demo-people {
   display: grid;

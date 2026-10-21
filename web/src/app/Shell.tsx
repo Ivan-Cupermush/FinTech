@@ -7,6 +7,7 @@ import { useDashboard, useMe } from '../lib/queries';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Logo } from '../ui/Logo';
+import { Glass } from '../ui/fx/Glass';
 
 const NAV = [
   { to: '/app', label: 'Пульс', icon: LayoutGrid, end: true },
@@ -96,15 +97,17 @@ export function Shell() {
       <main className="main">
         <Outlet />
       </main>
-      <nav className="tabbar" aria-label="Навигация">
-        {NAV.filter((n) => n.tab !== false).map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <Icon size={22} strokeWidth={1.8} />
-            {label === 'Организация' ? 'Команда' : label === 'Уведомления' ? 'Входящие' : label}
-            {to === '/app/notifications' && unread > 0 && <span className="dot" />}
-          </NavLink>
-        ))}
-      </nav>
+      <Glass className="tabbar-glass" radius={28} overLight={!isDark} elasticity={0} displacement={40} blur={0.25}>
+        <nav className="tabbar" aria-label="Навигация">
+          {NAV.filter((n) => n.tab !== false).map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'active' : '')}>
+              <Icon size={22} strokeWidth={1.8} />
+              {label === 'Организация' ? 'Команда' : label === 'Уведомления' ? 'Входящие' : label}
+              {to === '/app/notifications' && unread > 0 && <span className="dot" />}
+            </NavLink>
+          ))}
+        </nav>
+      </Glass>
     </div>
   );
 }

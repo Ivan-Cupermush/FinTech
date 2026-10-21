@@ -21,3 +21,4 @@ export * from './templates';
 export * from './discussion';
 export * from './notes';
 export * from './integrations';
+export * from './credits';
