@@ -409,9 +409,10 @@
 }
 .kpi-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
 }
 .kpi-values {
   display: flex;
@@ -446,8 +447,12 @@
 .kpi-xl .kpi-values {
   font-size: 44px;
 }
+/* В узкой карточке (три в ряд рядом с меню) цифры ужимаются, а не вылезают за край. */
+.kpi-lg {
+  container-type: inline-size;
+}
 .kpi-lg .kpi-values {
-  font-size: 30px;
+  font-size: clamp(22px, 9cqi, 30px);
 }
 .kpi-md .kpi-values {
   font-size: 20px;
