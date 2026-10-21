@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Dashboard, GoalSummary, Me, MetricsReport, Notification, Report, Roadmap, Task, TaskDetail } from '@offix/core';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Dashboard, GoalSummary, Me, MetricsReport, Note, NoteSummary, Notification, Report, Roadmap, Task, TaskDetail } from '@offix/core';
 import { api } from './session';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/users/me'), staleTime: 60_000 });
@@ -10,6 +10,8 @@ export const useTasks = (filter: string) => useQuery({ queryKey: ['tasks', filte
 export const useTask = (id: string) => useQuery({ queryKey: ['task', id], queryFn: () => api<TaskDetail>(`/tasks/${id}`) });
 export const useMetrics = () => useQuery({ queryKey: ['metrics'], queryFn: () => api<MetricsReport>('/metrics'), staleTime: 30_000 });
 export const useReport = (days: number) => useQuery({ queryKey: ['report', days], queryFn: () => api<Report>(`/report?days=${days}`), staleTime: 30_000 });
+export const useNotes = (qs: string) => useQuery({ queryKey: ['notes', qs], queryFn: () => api<NoteSummary[]>(`/notes${qs ? `?${qs}` : ''}`), placeholderData: keepPreviousData });
+export const useNote = (id: string) => useQuery({ queryKey: ['note', id], queryFn: () => api<Note>(`/notes/${id}`) });
 export const useNotifications = () => useQuery({ queryKey: ['notifications'], queryFn: () => api<Notification[]>('/notifications') });
 
 export function useInvalidateWork() {

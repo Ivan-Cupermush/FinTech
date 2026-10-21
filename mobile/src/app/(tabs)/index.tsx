@@ -8,6 +8,7 @@ import { useSession } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
 import { Glass } from '../../ui/fx/Glass';
 import { Hero } from '../../ui/fx/Hero';
+import { HeroStats } from '../../ui/fx/PageHero';
 import { GoalTile, RiskItem, TaskRow } from '../../ui/domain';
 import { EffectSummary } from '../../ui/effect';
 import { Button, Card, Empty, Screen, SectionTitle, Text } from '../../ui/primitives';
@@ -46,20 +47,7 @@ export default function Pulse() {
               </Text>
             )}
           </View>
-          {d && (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {pulseStats(d).map((s) => (
-                <Glass key={s.label} radius={18} style={{ flex: 1 }}>
-                  <View style={{ paddingVertical: 10, paddingHorizontal: 12 }} accessible accessibilityLabel={`${s.label}: ${s.value}`}>
-                    <Text style={{ color: '#fff', fontFamily: font.bold, fontSize: 22, lineHeight: 26 }}>{s.value}</Text>
-                    <Text variant="caption" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                      {s.label}
-                    </Text>
-                  </View>
-                </Glass>
-              ))}
-            </View>
-          )}
+          {d && <HeroStats stats={pulseStats(d)} />}
         </View>
       </Hero>
 

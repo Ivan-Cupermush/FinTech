@@ -73,13 +73,22 @@ export function tabBarSpace(bottomInset: number): number {
  * Палитры шапок: «hero» — фирменная ночь с синим (вход, Пульс),
  * «good» / «bad» — та же ночь, но третий цвет говорит о состоянии цели,
  * чтобы шапка цели сразу показывала, идёт ли показатель к цели.
+ * Остальные — разделы: у каждого свой третий цвет, те же, что в шапках сайта,
+ * чтобы раздел узнавался на любом устройстве.
  */
-export type HeroVariant = 'hero' | 'good' | 'bad';
+export const SECTION_VARIANTS = ['inbox', 'knowledge', 'discussion', 'create', 'settings'] as const;
+export type SectionVariant = (typeof SECTION_VARIANTS)[number];
+export type HeroVariant = 'hero' | 'good' | 'bad' | SectionVariant;
 
 const PALETTES: Record<HeroVariant, readonly [string, string, string]> = {
   hero: HERO_COLORS,
   good: ['#2f4bff', '#071a24', '#2fd39a'],
   bad: ['#3b3bff', '#1a0b22', '#ff5a7a'],
+  inbox: ['#3b4dff', '#140a2a', '#ff7ac0'],
+  knowledge: ['#3a55ff', '#14102e', '#ee8466'],
+  discussion: ['#2a5cff', '#06182a', '#2fc6d8'],
+  create: ['#4a62ff', '#121a5e', '#9d86ff'],
+  settings: ['#2f52ff', '#061c22', '#3fd6a0'],
 };
 
 export function heroColors(variant: HeroVariant): readonly [string, string, string] {
@@ -91,4 +100,13 @@ export function heroVariantForKpi(state: string | null | undefined): HeroVariant
   if (state === 'achieved' || state === 'in_range') return 'good';
   if (state === 'regress' || state === 'out_of_range') return 'bad';
   return 'hero';
+}
+
+export type HeroStat = { label: string; value: number; tone?: 'bad' | 'warn' };
+
+/** Цифра на стекле градиента: тревожные — тёплым светлым, чтобы читались на синем. */
+export function heroStatColor(tone: HeroStat['tone']): string {
+  if (tone === 'bad') return '#ffb3c1';
+  if (tone === 'warn') return '#ffd88a';
+  return '#ffffff';
 }

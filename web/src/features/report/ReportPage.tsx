@@ -1,4 +1,4 @@
-import { Copy, FileSpreadsheet, Printer } from 'lucide-react';
+import { Copy, FileBarChart, FileSpreadsheet, Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -20,7 +20,9 @@ import {
   type ReportGoal,
   type ReportPeriod,
 } from '@offix/core';
+import { reportHeroStats } from '../../lib/hero-stats';
 import { useReport } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
 import { KpiTrack } from '../../ui/KpiTrack';
 import { LogoMark } from '../../ui/Logo';
@@ -67,12 +69,16 @@ export function ReportPage() {
 
   return (
     <div className="page report-page">
-      <div className="page-head report-toolbar">
-        <div>
-          <div className="eyebrow">Для руководства</div>
-          <h1 style={{ marginTop: 6 }}>Отчёт</h1>
-          <p className="muted">Собирается сам из целей, замеров и задач. Распечатайте, отправьте в мессенджер или откройте в Excel.</p>
-        </div>
+      <PageHero
+        variant="report"
+        icon={FileBarChart}
+        className="report-toolbar"
+        eyebrow="Для руководства"
+        title="Отчёт"
+        subtitle="Собирается сам из целей, замеров и задач. Распечатайте, отправьте в мессенджер или откройте в Excel."
+        stats={r ? reportHeroStats(r.headline) : undefined}
+      />
+      <div className="report-toolbar report-bar">
         <div className="report-actions">
           <Segmented
             label="Период отчёта"

@@ -89,6 +89,16 @@ describe('отчёт для руководства', () => {
     expect(within(goals).getByText('Без KPI: эффект не измерить')).toBeInTheDocument();
   });
 
+  it('живая шапка — только на экране: на бумагу идёт сам лист', async () => {
+    mockApi({ ...base, 'GET /report': report() });
+    renderApp('/app/report');
+    const hero = await screen.findByRole('region', { name: 'Отчёт' });
+    // .report-toolbar прячется при печати целиком — вместе с градиентом, стеклом и знаком.
+    expect(hero).toHaveClass('report-toolbar', 'page-hero');
+    expect(hero.closest('article')).toBeNull();
+    expect(await within(hero).findByText('задач закрыто')).toBeInTheDocument();
+  });
+
   it('риск из «Нужно решение» в строке цели не повторяется, справочный — показан', async () => {
     mockApi({ ...base, 'GET /report': report() });
     renderApp('/app/report');

@@ -46,7 +46,9 @@ export default function RootLayout() {
             <Stack.Screen name="effect" options={{ title: 'Эффект' }} />
             <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
             <Stack.Screen name="push-settings" options={{ title: 'Уведомления' }} />
-            <Stack.Screen name="discussion/[type]/[id]" options={{ title: 'Обсуждение' }} />
+            <Stack.Screen name="discussion/[type]/[id]" options={{ title: 'Обсуждение', headerShown: false }} />
+            <Stack.Screen name="notes/index" options={{ title: 'База знаний' }} />
+            <Stack.Screen name="notes/[id]" options={{ title: 'Заметка' }} />
             <Stack.Screen name="licenses" options={{ title: 'Лицензии' }} />
           </Stack>
         </SessionProvider>

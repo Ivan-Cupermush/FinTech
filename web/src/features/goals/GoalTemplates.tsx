@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, FileStack, Info, PencilLine, Search, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Check, FileStack, Info, PencilLine, Search, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -28,6 +28,7 @@ import { api, ApiError, newIdempotencyKey } from '../../lib/api';
 import { useInvalidateWork, useMe } from '../../lib/queries';
 import type { GoalCard } from '../../lib/types';
 import { Button } from '../../ui/Button';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Field } from '../../ui/Field';
 import { Empty } from '../../ui/Misc';
 import { useToast } from '../../ui/Toast';
@@ -78,15 +79,17 @@ function StartChooser() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/app/goals')} style={{ marginLeft: -10, marginBottom: 8 }}>
-            Цели
-          </Button>
-          <h1>Новая цель</h1>
-          <p className="muted">Цель описывает результат, которого нужно достичь, — а не список работ.</p>
-        </div>
-      </div>
+      <PageHero
+        variant="create"
+        icon={Sparkles}
+        back={
+          <button type="button" onClick={() => navigate('/app/goals')}>
+            <ArrowLeft size={15} aria-hidden /> Цели
+          </button>
+        }
+        title="Новая цель"
+        subtitle="Цель описывает результат, которого нужно достичь, — а не список работ."
+      />
 
       <section aria-labelledby="start-title" className="stack" style={{ '--gap': '12px', marginBottom: 28 } as React.CSSProperties}>
         <h2 id="start-title" className="eyebrow">
@@ -212,18 +215,19 @@ function TemplateApply({ t }: { t: GoalTemplate }) {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/app/goals/new')} style={{ marginLeft: -10, marginBottom: 8 }}>
-            Шаблоны
-          </Button>
-          <div className="eyebrow">
-            Шаблон · {TEMPLATE_AREA_LABELS[t.area]} · {GOAL_TYPE_LABELS[t.type]}
-          </div>
-          <h1 style={{ marginTop: 6 }}>{t.title}</h1>
-          <p className="muted">{t.description}</p>
-        </div>
-      </div>
+      <PageHero
+        variant="create"
+        icon={Sparkles}
+        compact
+        back={
+          <button type="button" onClick={() => navigate('/app/goals/new')}>
+            <ArrowLeft size={15} aria-hidden /> Шаблоны
+          </button>
+        }
+        eyebrow={`Шаблон · ${TEMPLATE_AREA_LABELS[t.area]} · ${GOAL_TYPE_LABELS[t.type]}`}
+        title={t.title}
+        subtitle={t.description}
+      />
 
       <div className="wizard">
         <div className="wizard-section">

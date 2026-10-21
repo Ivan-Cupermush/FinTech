@@ -1,4 +1,9 @@
 /* ───────── Отчёт для руководства ───────── */
+.report-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 20px;
+}
 .report-actions {
   display: flex;
   align-items: center;
@@ -321,7 +326,9 @@
   margin: 14mm 14mm 16mm;
 }
 @media print {
+  /* Бумага всегда светлая — и при тёмной теме телефона (:not(light) сильнее простого :root). */
   :root,
+  :root:not([data-theme='light']),
   :root[data-theme='dark'] {
     --bg: #fff;
     --surface: #fff;

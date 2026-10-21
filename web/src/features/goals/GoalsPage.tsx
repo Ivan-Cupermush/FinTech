@@ -2,7 +2,9 @@ import { Plus, Target } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { todayIso } from '@offix/core';
-import { useGoals } from '../../lib/queries';
+import { goalsHeroStats } from '../../lib/hero-stats';
+import { useDashboard, useGoals } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton, Tabs } from '../../ui/Misc';
 import { GoalTile } from './parts';
@@ -29,18 +31,24 @@ export function GoalsPage() {
   const goals = useGoals(FILTERS[tab]);
   const today = todayIso();
   const list = (goals.data ?? []).filter((g) => tab !== 'all' || g.status !== 'cancelled');
+  // Плитки шапки не зависят от вкладки: всегда сводка по всем целям верхнего уровня.
+  const all = useGoals(FILTERS.all);
+  const dash = useDashboard();
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Цели</h1>
-          <p className="muted">Каждая цель — это показатель, который должен измениться, и путь к нему.</p>
-        </div>
-        <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/goals/new')}>
-          Новая цель
-        </Button>
-      </div>
+      <PageHero
+        variant="goals"
+        icon={Target}
+        title="Цели"
+        subtitle="Каждая цель — это показатель, который должен измениться, и путь к нему."
+        stats={all.data ? goalsHeroStats(all.data, dash.data?.risks) : undefined}
+        actions={
+          <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/goals/new')}>
+            Новая цель
+          </Button>
+        }
+      />
       <div style={{ marginBottom: 20 }}>
         <Tabs
           label="Фильтр целей"

@@ -1,4 +1,5 @@
-import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type Dashboard, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
+import type { HeroStat } from './fx';
+import { PUSH_TOPICS, diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type Dashboard, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Notification, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -57,10 +58,13 @@ export function greeting(hour: number): string {
   return hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
 }
 
+const attention = (n: number, tone: HeroStat['tone']): HeroStat['tone'] => (n > 0 ? tone : undefined);
+
 /** Три цифры в шапке Пульса: что горит, кому помочь и сколько своих задач. */
-export function pulseStats(d: Pick<Dashboard, 'risks' | 'help_needed' | 'my_tasks'>): { label: string; value: number }[] {
+export function pulseStats(d: Pick<Dashboard, 'risks' | 'help_needed' | 'my_tasks'>): HeroStat[] {
+  const critical = d.risks.filter((r) => r.severity === 'critical').length;
   return [
-    { label: 'под угрозой', value: d.risks.filter((r) => r.severity === 'critical').length },
+    { label: 'под угрозой', value: critical, tone: attention(critical, 'bad') },
     { label: 'ждут помощи', value: d.help_needed.length },
     { label: 'мои задачи', value: d.my_tasks.length },
   ];
@@ -131,4 +135,32 @@ export function discussionLine(s: DiscussionSummary | undefined): { text: string
   if (!s || !s.total) return { text: 'Пока нет комментариев — задайте вопрос здесь, а не в мессенджере', unread: 0 };
   const total = `${s.total} ${plural(s.total, ['комментарий', 'комментария', 'комментариев'])}`;
   return { text: s.unread ? `${total} · ${s.unread} ${plural(s.unread, ['новый', 'новых', 'новых'])}` : total, unread: s.unread };
+}
+
+/** Шапка «Входящих»: сколько непрочитанного и сколько из этого — блокеры. */
+export function inboxStats(items: Pick<Notification, 'kind' | 'read_at'>[]): HeroStat[] {
+  const unread = items.filter((n) => !n.read_at);
+  const blockers = unread.filter((n) => n.kind === 'task_blocked').length;
+  return [
+    { label: 'новые', value: unread.length },
+    { label: 'блокеры', value: blockers, tone: attention(blockers, 'bad') },
+    { label: 'обсуждения', value: unread.filter((n) => n.kind === 'comment').length },
+  ];
+}
+
+/** Шапка обсуждения: сколько сказано, сколько людей в разговоре и сколько нового для меня. */
+export function discussionStats(comments: { author_id: string }[], unread: number): HeroStat[] {
+  return [
+    { label: 'реплик', value: comments.length },
+    { label: 'участников', value: new Set(comments.map((c) => c.author_id)).size },
+    { label: 'новых', value: unread },
+  ];
+}
+
+/** Подпись в шапке настроек push: сколько тем включено и молчит ли телефон ночью. */
+export function pushSummary(s: { muted: readonly string[]; quiet_hours: boolean }, devices: number): string {
+  if (!devices) return 'Телефон ещё не привязан — включите уведомления во «Входящих».';
+  const on = PUSH_TOPICS.filter((t) => !s.muted.includes(t)).length;
+  const topics = on === PUSH_TOPICS.length ? 'Все темы включены' : on ? `Включено ${on} из ${PUSH_TOPICS.length} тем` : 'Все темы выключены';
+  return `${topics}${s.quiet_hours ? ' · ночью тихо' : ''}.`;
 }

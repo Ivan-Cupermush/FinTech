@@ -28,11 +28,6 @@
   gap: 20px;
   padding: clamp(20px, 4vw, 40px);
 }
-.note-title {
-  font-size: 28px;
-  letter-spacing: -0.02em;
-  margin-bottom: 6px;
-}
 .note-editor {
   min-height: 320px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -153,4 +148,19 @@
 }
 .note-search .input {
   padding-left: 36px;
+}
+
+/* Шапка заметки на градиенте: ссылка на цель — белая, с подчёркиванием при наведении. */
+.note-hero-meta {
+  display: inline;
+  font-size: 14px;
+}
+.note-hero-meta svg {
+  vertical-align: -2px;
+}
+.note-hero-meta a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 3px;
 }

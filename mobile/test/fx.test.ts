@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { glassKind, glassTint, heroColors, heroMarkPlacement, heroVariantForKpi, hexToRgb, HERO_COLORS, tabBarSpace, tabIndicator } from '../src/lib/fx';
+import { glassKind, glassTint, heroColors, heroStatColor, SECTION_VARIANTS, heroMarkPlacement, heroVariantForKpi, hexToRgb, HERO_COLORS, tabBarSpace, tabIndicator } from '../src/lib/fx';
 
 describe('hexToRgb', () => {
   it('переводит цвет в доли единицы для шейдера', () => {
@@ -90,5 +90,27 @@ describe('heroVariantForKpi', () => {
     expect(heroVariantForKpi('progressing')).toBe('hero');
     expect(heroVariantForKpi(undefined)).toBe('hero');
     for (const v of ['hero', 'good', 'bad'] as const) for (const c of heroColors(v)) expect(hexToRgb(c)).toHaveLength(3);
+  });
+});
+
+describe('шапки разделов', () => {
+  it('у каждого раздела своя валидная палитра, и все разные', () => {
+    const seen = new Set<string>();
+    for (const v of SECTION_VARIANTS) {
+      const c = heroColors(v);
+      expect(c).toHaveLength(3);
+      for (const x of c) expect(hexToRgb(x)).toHaveLength(3);
+      seen.add(c.join());
+    }
+    expect(seen.size).toBe(SECTION_VARIANTS.length);
+    expect(seen.has(HERO_COLORS.join())).toBe(false);
+  });
+  it('тревожная цифра на стекле — тёплая и светлая, обычная — белая', () => {
+    expect(heroStatColor(undefined)).toBe('#ffffff');
+    for (const tone of ['bad', 'warn'] as const) {
+      const [r, g, b] = hexToRgb(heroStatColor(tone));
+      expect(r).toBeGreaterThan(0.9);
+      expect((r + g + b) / 3).toBeGreaterThan(0.7);
+    }
   });
 });

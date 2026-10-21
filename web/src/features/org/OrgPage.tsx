@@ -1,9 +1,11 @@
-import { Building2, Copy, Plus, UserPlus, Users } from 'lucide-react';
+import { Building2, Copy, Network, Plus, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { buildTree, plural, COMPANY_ROLE_HINTS, COMPANY_ROLE_LABELS, COMPANY_ROLES, UNIT_TYPE_LABELS, UNIT_TYPES, type CompanyRole, type FieldErrors, type TreeNode, type UnitType } from '@offix/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../lib/api';
+import { orgHeroStats } from '../../lib/hero-stats';
 import { useMe, useUnits, useUsers } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import type { OrgUnitRow } from '../../lib/types';
 import { Avatar, AvatarStack } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -23,24 +25,29 @@ export function OrgPage() {
   const [tab, setTab] = useState<Tab>('structure');
   const [dialog, setDialog] = useState<'unit' | 'invite' | null>(null);
   const admin = me.data?.role === 'owner' || me.data?.role === 'admin';
+  const people = useUsers();
+  const units = useUnits();
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Организация</h1>
-          <p className="muted">{me.data?.company_name ?? ' '}</p>
-        </div>
-        {admin && (
-          <div className="row" style={{ gap: 8 }}>
-            <Button icon={<UserPlus size={16} />} onClick={() => setDialog('invite')}>
-              Пригласить
-            </Button>
-            <Button variant="primary" icon={<Plus size={16} />} onClick={() => setDialog('unit')}>
-              Подразделение
-            </Button>
-          </div>
-        )}
-      </div>
+      <PageHero
+        variant="org"
+        icon={Network}
+        title="Организация"
+        subtitle={me.data?.company_name ?? ' '}
+        stats={people.data && units.data ? orgHeroStats(people.data, units.data) : undefined}
+        actions={
+          admin && (
+            <>
+              <Button icon={<UserPlus size={16} />} onClick={() => setDialog('invite')}>
+                Пригласить
+              </Button>
+              <Button variant="primary" icon={<Plus size={16} />} onClick={() => setDialog('unit')}>
+                Подразделение
+              </Button>
+            </>
+          )
+        }
+      />
       <div style={{ marginBottom: 20 }}>
         <Tabs
           label="Раздел организации"
