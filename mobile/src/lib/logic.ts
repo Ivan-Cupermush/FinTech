@@ -1,4 +1,4 @@
-import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
+import { diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type Dashboard, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -55,6 +55,15 @@ export function taskSections(tasks: Task[], today: string) {
 /** «Доброе утро» — по локальному времени устройства. */
 export function greeting(hour: number): string {
   return hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
+}
+
+/** Три цифры в шапке Пульса: что горит, кому помочь и сколько своих задач. */
+export function pulseStats(d: Pick<Dashboard, 'risks' | 'help_needed' | 'my_tasks'>): { label: string; value: number }[] {
+  return [
+    { label: 'под угрозой', value: d.risks.filter((r) => r.severity === 'critical').length },
+    { label: 'ждут помощи', value: d.help_needed.length },
+    { label: 'мои задачи', value: d.my_tasks.length },
+  ];
 }
 
 /** Маршрут приложения для шага «Что поднимет цифры». */

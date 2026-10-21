@@ -3,12 +3,24 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDate } from '@offix/core';
 import { useDashboard, useMe } from '../../lib/queries';
+import type { Dashboard } from '../../lib/types';
+import { Backdrop } from '../../ui/fx/Backdrop';
+import { Glass } from '../../ui/fx/Glass';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
 import { GoalTile, RiskList } from '../goals/parts';
 import { EffectStrip } from '../metrics/EffectStrip';
 import { TaskPanel } from '../tasks/TaskPanel';
 import { TaskRow } from '../tasks/parts';
+
+/** Три цифры в шапке Пульса: что горит, кому помочь и сколько своих задач. */
+export function pulseStats(d: Pick<Dashboard, 'risks' | 'help_needed' | 'my_tasks'>): { label: string; value: number }[] {
+  return [
+    { label: 'под угрозой', value: d.risks.filter((r) => r.severity === 'critical').length },
+    { label: 'ждут помощи', value: d.help_needed.length },
+    { label: 'мои задачи', value: d.my_tasks.length },
+  ];
+}
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -23,28 +35,35 @@ export function PulsePage() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const d = dash.data;
   const firstName = me.data?.display_name.split(' ')[0];
+  const critical = d?.risks.filter((r) => r.severity === 'critical').length ?? 0;
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
+      <Backdrop variant="hero" mark markMode="side" className="app-hero on-color" aria-labelledby="pulse-h">
+        <div className="app-hero-text">
           <div className="eyebrow">{d ? formatDate(d.today, { today: '0000' }) : ' '}</div>
-          <h1 style={{ marginTop: 6 }}>
+          <h1 id="pulse-h">
             {greeting()}
             {firstName ? `, ${firstName}` : ''}
           </h1>
-          {d && (
-            <p className="muted">
-              {d.risks.filter((r) => r.severity === 'critical').length
-                ? `${d.risks.filter((r) => r.severity === 'critical').length} ${d.risks.filter((r) => r.severity === 'critical').length === 1 ? 'вопрос требует' : 'вопроса требуют'} решения сегодня.`
-                : 'Критичных вопросов нет — цели идут по плану.'}
-            </p>
-          )}
+          {d && <p>{critical ? `${critical} ${critical === 1 ? 'вопрос требует' : 'вопроса требуют'} решения сегодня.` : 'Критичных вопросов нет — цели идут по плану.'}</p>}
         </div>
-        <Button className="mobile-only" variant="primary" icon={<Plus size={16} />} onClick={() => navigate("/app/goals/new")}>
+        {d && (
+          <div className="app-hero-stats">
+            {pulseStats(d).map((s) => (
+              <Glass key={s.label} className="app-hero-stat" radius={20} clip elasticity={0.06} displacement={40}>
+                <div className="app-hero-stat-body">
+                  <span className="num">{s.value}</span>
+                  <span>{s.label}</span>
+                </div>
+              </Glass>
+            ))}
+          </div>
+        )}
+        <Button className="mobile-only app-hero-cta" variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/goals/new')}>
           Новая цель
         </Button>
-      </div>
+      </Backdrop>
 
       {dash.isLoading && (
         <div className="grid-cards">

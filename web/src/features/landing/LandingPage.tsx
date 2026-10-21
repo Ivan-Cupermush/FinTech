@@ -6,7 +6,15 @@ import { Logo } from '../../ui/Logo';
 import { SiteFooter } from '../../ui/SiteFooter';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
+import { PilotChart } from '../../ui/fx/PilotChart';
 import './landing.css';
+
+/** Пилот: было 40 минут, сейчас 36,5, цель 30. Те же числа, что в демо-данных. */
+export const PILOT_BARS = [
+  { value: 40, label: 'было' },
+  { value: 36.5, label: 'сейчас' },
+  { value: 30, label: 'цель', target: true },
+];
 
 const STEPS = [
   { icon: Target, title: 'Сформулируйте результат', text: 'Не «провести анализ», а «сократить время согласования с 40 до 30 минут». Мастер подскажет, где цель превращается в задачу.' },
@@ -125,18 +133,21 @@ export function LandingPage() {
             Четыре подразделения — учебный офис, IT, контроль качества и управление персоналом — работают над одной целью. Каждый видит свою часть пути и то, как его задержка влияет на общий результат.
           </p>
         </div>
-        <div className="l-stats">
-          <div>
-            <div className="l-stat num">−25%</div>
-            <div className="faint">целевое время согласования</div>
-          </div>
-          <div>
-            <div className="l-stat num">4</div>
-            <div className="faint">подразделения в одной карте</div>
-          </div>
-          <div>
-            <div className="l-stat num">1</div>
-            <div className="faint">экран, где видно, где теряется время</div>
+        <div className="stack" style={{ '--gap': '20px' } as React.CSSProperties}>
+          <PilotChart bars={PILOT_BARS} unit="мин" caption="Время согласования заявки студента" />
+          <div className="l-stats">
+            <div>
+              <div className="l-stat num">−25%</div>
+              <div className="faint">целевое время согласования</div>
+            </div>
+            <div>
+              <div className="l-stat num">4</div>
+              <div className="faint">подразделения в одной карте</div>
+            </div>
+            <div>
+              <div className="l-stat num">1</div>
+              <div className="faint">экран, где видно, где теряется время</div>
+            </div>
           </div>
         </div>
       </section>

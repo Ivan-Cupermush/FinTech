@@ -37,3 +37,58 @@ export function glassKind(os: string, liquidAvailable: boolean): GlassKind {
   if (os === 'ios') return liquidAvailable ? 'liquid' : 'blur';
   return 'tint';
 }
+
+export type GlassTone = 'color' | 'surface';
+
+/** Оттенки стекла: на градиенте — тёмно-синее, на экране — под цвет темы. */
+export function glassTint(tone: GlassTone, scheme: 'light' | 'dark') {
+  if (tone === 'color') {
+    return { border: 'rgba(255,255,255,0.22)', fill: 'rgba(14,18,60,0.42)', liquidTint: 'rgba(20,26,90,0.25)', blurTint: 'systemUltraThinMaterialDark' as const };
+  }
+  return scheme === 'dark'
+    ? { border: 'rgba(255,255,255,0.10)', fill: 'rgba(24,24,32,0.86)', liquidTint: 'rgba(20,20,28,0.35)', blurTint: 'systemChromeMaterialDark' as const }
+    : { border: 'rgba(11,11,15,0.08)', fill: 'rgba(255,255,255,0.86)', liquidTint: 'rgba(255,255,255,0.35)', blurTint: 'systemChromeMaterialLight' as const };
+}
+
+/**
+ * Положение «капли» под активной вкладкой: вкладки делят ширину поровну,
+ * капля чуть уже ячейки и стоит по её центру.
+ */
+export function tabIndicator(index: number, count: number, width: number, inset = 6) {
+  const n = Math.max(1, count);
+  const i = Math.min(Math.max(0, index), n - 1);
+  const cell = Math.max(0, width - inset * 2) / n;
+  const w = Math.max(0, cell - 8);
+  return { x: inset + cell * i + (cell - w) / 2, w };
+}
+
+/** Высота, которую парящая панель вкладок занимает над низом экрана, — столько отступа нужно контенту. */
+export const TAB_BAR_HEIGHT = 64;
+export const TAB_BAR_GAP = 10;
+export function tabBarSpace(bottomInset: number): number {
+  return TAB_BAR_HEIGHT + TAB_BAR_GAP + Math.max(bottomInset, 8) + 16;
+}
+
+/**
+ * Палитры шапок: «hero» — фирменная ночь с синим (вход, Пульс),
+ * «good» / «bad» — та же ночь, но третий цвет говорит о состоянии цели,
+ * чтобы шапка цели сразу показывала, идёт ли показатель к цели.
+ */
+export type HeroVariant = 'hero' | 'good' | 'bad';
+
+const PALETTES: Record<HeroVariant, readonly [string, string, string]> = {
+  hero: HERO_COLORS,
+  good: ['#2f4bff', '#071a24', '#2fd39a'],
+  bad: ['#3b3bff', '#1a0b22', '#ff5a7a'],
+};
+
+export function heroColors(variant: HeroVariant): readonly [string, string, string] {
+  return PALETTES[variant];
+}
+
+/** По состоянию KPI выбираем настроение шапки цели. */
+export function heroVariantForKpi(state: string | null | undefined): HeroVariant {
+  if (state === 'achieved' || state === 'in_range') return 'good';
+  if (state === 'regress' || state === 'out_of_range') return 'bad';
+  return 'hero';
+}

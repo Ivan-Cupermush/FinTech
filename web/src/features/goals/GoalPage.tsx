@@ -1,5 +1,8 @@
 import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, Pencil, Plus, Rocket, Sheet, Undo2 } from 'lucide-react';
 import { useState } from 'react';
+import { Backdrop } from '../../ui/fx/Backdrop';
+import { Glass } from '../../ui/fx/Glass';
+import { gradientForKpi } from '../../ui/fx/gradients';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { formatDate, GOAL_TYPE_LABELS, KPI_STATE_LABELS, type Risk } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
@@ -65,7 +68,7 @@ export function GoalPage() {
         <ArrowLeft size={15} /> {g.parent_goal_id ? 'К родительской цели' : 'Все цели'}
       </Link>
 
-      <header className="goal-hero">
+      <Backdrop variant={gradientForKpi(primary?.progress.state)} className="goal-hero on-color">
         <div className="stack" style={{ '--gap': '12px', minWidth: 0 } as React.CSSProperties}>
           <div className="row wrap" style={{ gap: 6 }}>
             <GoalStatusPill status={g.status} />
@@ -91,40 +94,42 @@ export function GoalPage() {
           </div>
           <GoalActions goal={g} onDialog={setDialog} />
         </div>
-        <div className="stack" style={{ '--gap': '10px' } as React.CSSProperties}>
-          {primary ? (
-            <>
-              <div className="eyebrow">{primary.name}</div>
-              <KpiTrack baseline={primary.baseline} target={primary.target} current={primary.current_value} unit={primary.unit} progress={primary.progress} name={primary.name} size="xl" />
-              <div className="spread" style={{ fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
-                <span className="faint">
-                  {primary.last_observed_at ? `Замер ${formatDate(primary.last_observed_at.slice(0, 10), { today: r.timeline.today })} · ${KPI_STATE_LABELS[primary.progress.state]}` : 'Фактических замеров ещё не было'}
-                </span>
-                {g.permissions.record && g.status !== 'draft' && (
-                  <span className="row wrap" style={{ gap: 6 }}>
-                    <Button size="sm" variant="ghost" icon={<Sheet size={14} />} onClick={() => setDialog('import')}>
-                      Импорт из таблицы
-                    </Button>
-                    <Button size="sm" variant="accent" onClick={() => setDialog('observe')}>
-                      Внести значение
-                    </Button>
+        <Glass className="goal-hero-kpi" radius={24} clip elasticity={0.05} displacement={48}>
+          <div className="stack goal-hero-kpi-body" style={{ '--gap': '10px' } as React.CSSProperties}>
+            {primary ? (
+              <>
+                <div className="eyebrow">{primary.name}</div>
+                <KpiTrack baseline={primary.baseline} target={primary.target} current={primary.current_value} unit={primary.unit} progress={primary.progress} name={primary.name} size="lg" />
+                <div className="spread" style={{ fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
+                  <span className="faint">
+                    {primary.last_observed_at ? `Замер ${formatDate(primary.last_observed_at.slice(0, 10), { today: r.timeline.today })} · ${KPI_STATE_LABELS[primary.progress.state]}` : 'Фактических замеров ещё не было'}
                   </span>
+                  {g.permissions.record && g.status !== 'draft' && (
+                    <span className="row wrap" style={{ gap: 6 }}>
+                      <Button size="sm" variant="ghost" icon={<Sheet size={14} />} onClick={() => setDialog('import')}>
+                        Импорт из таблицы
+                      </Button>
+                      <Button size="sm" variant="accent" onClick={() => setDialog('observe')}>
+                        Внести значение
+                      </Button>
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="card card-tight stack" style={{ '--gap': '8px' } as React.CSSProperties}>
+                <b>KPI не задан</b>
+                <span className="faint" style={{ fontSize: 14 }}>Без показателя цель нельзя запустить: непонятно, что считать результатом.</span>
+                {g.permissions.edit && (
+                  <Button size="sm" variant="accent" icon={<Plus size={14} />} onClick={() => setDialog('kpi')}>
+                    Добавить KPI
+                  </Button>
                 )}
               </div>
-            </>
-          ) : (
-            <div className="card card-tight stack" style={{ '--gap': '8px' } as React.CSSProperties}>
-              <b>KPI не задан</b>
-              <span className="faint" style={{ fontSize: 14 }}>Без показателя цель нельзя запустить: непонятно, что считать результатом.</span>
-              {g.permissions.edit && (
-                <Button size="sm" variant="accent" icon={<Plus size={14} />} onClick={() => setDialog('kpi')}>
-                  Добавить KPI
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
+            )}
+          </div>
+        </Glass>
+      </Backdrop>
 
       {g.status === 'draft' && <ActivationCard goal={g} onFix={setDialog} />}
 

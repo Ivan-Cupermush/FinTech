@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { todayIso } from '@offix/core';
 import { useGoals } from '../../lib/queries';
-import { font, usePalette } from '../../lib/theme';
+import { usePalette } from '../../lib/theme';
 import { GoalTile } from '../../ui/domain';
+import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { Card, Empty, Screen, Text } from '../../ui/primitives';
 
 const TABS = [
@@ -27,15 +28,7 @@ export default function Goals() {
           <Plus size={20} color={p.bg} />
         </Pressable>
       </View>
-      <View accessibilityRole="tablist" style={{ flexDirection: 'row', backgroundColor: p.surface2, borderRadius: 999, padding: 3 }}>
-        {TABS.map((t) => (
-          <Pressable key={t.key} accessibilityRole="tab" accessibilityState={{ selected: tab === t.key }} onPress={() => setTab(t.key)} style={{ flex: 1, paddingVertical: 8, borderRadius: 999, alignItems: 'center', backgroundColor: tab === t.key ? p.surface : 'transparent' }}>
-            <Text variant="small" style={{ fontFamily: font.medium, color: tab === t.key ? p.ink : p.ink2 }}>
-              {t.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <LiquidSegmented label="Какие цели" value={tab} onChange={setTab} options={TABS.map((t) => ({ value: t.key, label: t.label }))} />
       {q.data?.length
         ? q.data.map((g) => <GoalTile key={g.id} goal={g} today={today} onPress={() => router.push(`/goal/${g.id}`)} />)
         : !q.isLoading && (

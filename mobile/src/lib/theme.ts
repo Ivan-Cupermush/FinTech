@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 
 /** Те же токены, что на сайте: монохром, один акцент, цвет — только со смыслом. */
@@ -56,8 +57,38 @@ export const font = {
 
 export const radius = { sm: 10, md: 14, lg: 20, xl: 28 };
 
+/**
+ * Палитра поверх живого градиента: белый текст, полупрозрачные подложки.
+ * Компоненты (KPI, метки, текст) внутри шапки-градиента берут её сами —
+ * через PaletteOverride, без отдельных «белых» версий.
+ */
+export const onColor: Palette = {
+  bg: '#0B0B1A',
+  surface: 'rgba(255,255,255,0.12)',
+  surface2: 'rgba(255,255,255,0.18)',
+  surface3: 'rgba(255,255,255,0.28)',
+  ink: '#FFFFFF',
+  ink2: 'rgba(255,255,255,0.82)',
+  ink3: 'rgba(255,255,255,0.62)',
+  line: 'rgba(255,255,255,0.2)',
+  accent: '#FFFFFF',
+  accentInk: '#0B0B1A',
+  accentSoft: 'rgba(255,255,255,0.18)',
+  good: '#7CF0BD',
+  goodSoft: 'rgba(124,240,189,0.18)',
+  warn: '#FFC46B',
+  warnSoft: 'rgba(255,196,107,0.2)',
+  bad: '#FF8F94',
+  badSoft: 'rgba(255,90,100,0.22)',
+  info: '#C9C4FF',
+  infoSoft: 'rgba(201,196,255,0.2)',
+};
+
+export const PaletteOverride = createContext<Palette | null>(null);
+
 export function usePalette(): Palette {
-  return useColorScheme() === 'dark' ? dark : light;
+  const scheme = useColorScheme();
+  return useContext(PaletteOverride) ?? (scheme === 'dark' ? dark : light);
 }
 
 export type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'accent' | 'info';

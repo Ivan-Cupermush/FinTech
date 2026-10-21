@@ -1,5 +1,6 @@
 import { Activity, ArrowRight, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Backdrop } from '../../ui/fx/Backdrop';
 import { Link, useNavigate } from 'react-router-dom';
 import { MOVEMENT_LABELS, MOVEMENT_TONES, formatDelta, formatHours, formatPercent as percent, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
 import { useMetrics } from '../../lib/queries';
@@ -82,7 +83,7 @@ function Report({ r }: { r: MetricsReport }) {
   const actions = effectActions(r, today);
   return (
     <div className="stack" style={{ '--gap': '20px' } as React.CSSProperties}>
-      <section className="card effect-hero" aria-labelledby="ns-h">
+      <Backdrop variant="hero" className="effect-hero on-color" aria-labelledby="ns-h">
         <div className="effect-hero-main">
           <div className="eyebrow" id="ns-h">
             Северная звезда
@@ -100,7 +101,7 @@ function Report({ r }: { r: MetricsReport }) {
             <span>{trendText(seriesTrend(r.series.north_star)) ?? 'сейчас'}</span>
           </div>
         </div>
-      </section>
+      </Backdrop>
 
       {ns.items.length > 0 && (
         <section className="card" aria-labelledby="ns-goals-h">
