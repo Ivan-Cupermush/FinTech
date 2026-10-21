@@ -29,13 +29,54 @@
   transform: translateY(-60%);
   filter: drop-shadow(0 24px 48px rgba(10, 16, 80, 0.35));
 }
+.fx-flat-mark-side {
+  right: 4%;
+  width: min(22vw, 220px);
+  transform: translateY(-50%);
+}
 @media (max-width: 960px) {
-  .fx-flat-mark {
+  .fx-flat-mark:not(.fx-flat-mark-side) {
     right: 50%;
     top: 14%;
     width: 46vw;
     transform: translateX(50%);
   }
+  .fx-flat-mark-side {
+    top: 16px;
+    right: 16px;
+    width: 96px;
+    transform: none;
+  }
+}
+
+/* ——— Цвета поверх живого градиента ——— */
+/* Цвета поверх градиента: белый текст, светлые линии, белая главная кнопка. */
+.on-color {
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.82);
+  --ink-3: rgba(255, 255, 255, 0.64);
+  --bg: #0b0b1a;
+  --surface: rgba(255, 255, 255, 0.12);
+  --surface-2: rgba(255, 255, 255, 0.2);
+  --surface-3: rgba(255, 255, 255, 0.26);
+  --line: rgba(255, 255, 255, 0.2);
+  --line-strong: rgba(255, 255, 255, 0.38);
+  --accent: #ffffff;
+  --accent-hover: #e8ecff;
+  --accent-ink: #0b0b1a;
+  --accent-soft: rgba(255, 255, 255, 0.18);
+  --good-soft: rgba(124, 240, 189, 0.18);
+  --warn: #ffc46b;
+  --warn-soft: rgba(255, 196, 107, 0.2);
+  --info: #c9c4ff;
+  --info-soft: rgba(201, 196, 255, 0.2);
+  --good: #7cf0bd;
+  --bad: #ff8f94;
+  --bad-soft: rgba(255, 90, 100, 0.2);
+  color: var(--ink);
+}
+.on-color .eyebrow {
+  color: var(--ink-2);
 }
 
 /* ——— Жидкое стекло ——— */
@@ -68,5 +109,73 @@
 @media print {
   .fx-gl {
     display: none;
+  }
+}
+
+/* ——— 3D-график пилота ——— */
+.pilot-chart {
+  position: relative;
+  margin: 0;
+  border-radius: var(--radius-xl, 28px);
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 30px 80px -40px rgba(30, 40, 160, 0.55);
+}
+.pilot-stage {
+  position: relative;
+  height: clamp(260px, 32vw, 340px);
+}
+.pilot-flat {
+  position: absolute;
+  inset: 32px 18% 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 9%;
+}
+.pilot-flat span {
+  flex: 1;
+  max-width: 72px;
+  border-radius: 14px 14px 4px 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.16));
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(10px);
+}
+.pilot-flat span.is-target {
+  background: linear-gradient(180deg, #8ea0ff, #3b5bff);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 40px rgba(111, 134, 255, 0.6);
+}
+.pilot-legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 4px 18% 22px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+}
+.pilot-legend .num {
+  display: block;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.pilot-legend small {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+.pilot-legend .is-target .num {
+  color: #c9d2ff;
+}
+@media (max-width: 560px) {
+  .pilot-flat,
+  .pilot-legend {
+    padding-left: 6%;
+    padding-right: 6%;
+  }
+  .pilot-flat {
+    inset: 28px 8% 8px;
   }
 }

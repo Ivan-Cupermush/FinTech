@@ -14,6 +14,12 @@ type GlassProps = {
   /** Сила преломления краёв. */
   displacement?: number;
   blur?: number;
+  /**
+   * Обрезать слот по скруглению. На градиенте фильтр преломления даёт
+   * прямоугольный ореол за углами — у плиток на шапках его срезаем.
+   * Тень снаружи при этом пропадает, поэтому на светлом фоне не включаем.
+   */
+  clip?: boolean;
   style?: CSSProperties;
 };
 
@@ -23,7 +29,7 @@ type GlassProps = {
  * поэтому кладём его в слот, а слот получает высоту стекла — и блок
  * ведёт себя как обычная карточка в потоке.
  */
-export function Glass({ children, className = '', radius = 24, overLight = false, elasticity = 0.12, displacement = 64, blur = 0.08, style }: GlassProps) {
+export function Glass({ children, className = '', radius = 24, overLight = false, elasticity = 0.12, displacement = 64, blur = 0.08, clip = false, style }: GlassProps) {
   const slot = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number | undefined>(undefined);
 
@@ -47,7 +53,7 @@ export function Glass({ children, className = '', radius = 24, overLight = false
   }, []);
 
   return (
-    <div ref={slot} className={`glass-slot ${className}`} style={{ height, ...style }}>
+    <div ref={slot} className={`glass-slot ${clip ? 'glass-clip' : ''} ${className}`} style={{ height, clipPath: clip ? `inset(0 round ${radius}px)` : undefined, ...style }}>
       <LiquidGlass
         cornerRadius={radius}
         overLight={overLight}

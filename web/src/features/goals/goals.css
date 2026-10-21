@@ -147,14 +147,21 @@
 }
 
 /* Рабочее пространство цели */
+/* Шапка цели на живом градиенте: цвет говорит о состоянии KPI, сам KPI — на жидком стекле. */
 .goal-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 440px);
   gap: 28px;
   align-items: end;
-  padding-bottom: 24px;
+  padding: 28px;
   margin-bottom: 20px;
-  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+}
+.goal-hero h1 {
+  text-wrap: balance;
+}
+.goal-hero-kpi-body {
+  padding: 20px;
 }
 .tree {
   display: flex;
@@ -400,6 +407,7 @@
   }
   .goal-hero {
     grid-template-columns: 1fr;
+    padding: 20px;
   }
 }
 @media (max-width: 640px) {

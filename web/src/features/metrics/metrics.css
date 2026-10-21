@@ -5,6 +5,7 @@
   gap: 32px;
   align-items: end;
   padding: 28px;
+  border-radius: var(--radius-xl);
 }
 .effect-hero-main {
   display: flex;

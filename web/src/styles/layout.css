@@ -2,6 +2,46 @@
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+/* Живой фон приложения: медленно дрейфующее свечение фирменных цветов.
+   Стеклу сайдбара, окон и нижней панели есть что преломлять. */
+.shell::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(32% 28% at 18% 6%, color-mix(in srgb, #3b5bff 16%, transparent), transparent 70%),
+    radial-gradient(28% 26% at 92% 14%, color-mix(in srgb, #8a72ff 14%, transparent), transparent 70%),
+    radial-gradient(36% 30% at 62% 96%, color-mix(in srgb, #3b5bff 10%, transparent), transparent 70%);
+  animation: ambient-drift 38s var(--ease) infinite alternate;
+}
+:root[data-theme='dark'] .shell::before {
+  background:
+    radial-gradient(32% 28% at 18% 6%, color-mix(in srgb, #3b5bff 26%, transparent), transparent 70%),
+    radial-gradient(28% 26% at 92% 14%, color-mix(in srgb, #8a72ff 22%, transparent), transparent 70%),
+    radial-gradient(36% 30% at 62% 96%, color-mix(in srgb, #3b5bff 16%, transparent), transparent 70%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .shell::before {
+    background:
+      radial-gradient(32% 28% at 18% 6%, color-mix(in srgb, #3b5bff 26%, transparent), transparent 70%),
+      radial-gradient(28% 26% at 92% 14%, color-mix(in srgb, #8a72ff 22%, transparent), transparent 70%),
+      radial-gradient(36% 30% at 62% 96%, color-mix(in srgb, #3b5bff 16%, transparent), transparent 70%);
+  }
+}
+@keyframes ambient-drift {
+  to {
+    transform: translate3d(4%, 3%, 0) rotate(6deg) scale(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shell::before {
+    animation: none;
+  }
 }
 .sidebar {
   position: sticky;
@@ -12,7 +52,10 @@
   gap: 4px;
   padding: 20px 14px;
   border-right: 1px solid var(--line);
-  background: var(--bg);
+  /* Сайдбар — матовое стекло над живым фоном. */
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
 .sidebar-brand {
   padding: 4px 10px 22px;
@@ -35,10 +78,15 @@
   color: var(--ink);
 }
 .nav-link.active {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   color: var(--ink);
-  box-shadow: var(--shadow-1);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 60%, transparent),
+    var(--shadow-1);
   border: 1px solid var(--line);
+}
+.nav-link.active svg {
+  color: var(--accent);
 }
 .nav-link .badge {
   margin-left: auto;
@@ -181,5 +229,74 @@
 @media (min-width: 901px) {
   .mobile-only {
     display: none !important;
+  }
+}
+
+/* ——— Шапка экрана на живом градиенте (Пульс) ——— */
+.app-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 260px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  border-radius: var(--radius-xl);
+  animation: fade-up 300ms var(--ease);
+}
+.app-hero-text {
+  max-width: min(62%, 640px);
+}
+.app-hero h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(30px, 3.8vw, 46px);
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.app-hero p {
+  color: var(--ink-2);
+}
+.app-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 170px));
+  gap: 10px;
+}
+.app-hero-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.app-hero-stat-body .num {
+  font-size: 28px;
+  font-weight: 680;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.app-hero-cta {
+  align-self: flex-start;
+}
+@media (max-width: 900px) {
+  .app-hero {
+    padding: 20px;
+    min-height: 0;
+    margin-bottom: 20px;
+  }
+  .app-hero-text {
+    max-width: none;
+    /* Справа сверху — 3D-знак. */
+    padding-right: 96px;
+  }
+  .app-hero-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .app-hero-stat-body {
+    padding: 10px 12px;
+  }
+  .app-hero-stat-body .num {
+    font-size: 24px;
   }
 }

@@ -2,7 +2,7 @@ import { Environment, Float, Lightformer, MeshTransmissionMaterial } from '@reac
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef } from 'react';
 import * as THREE from 'three';
-import { markPlacement } from './layout';
+import { markPlacement, type MarkMode } from './layout';
 
 /**
  * Знак offix в объёме: стеклянное «o» — где мы сейчас, белый «›» — куда движемся
@@ -10,11 +10,11 @@ import { markPlacement } from './layout';
  * Знак привязан к камере градиента и стоит перед ней, поэтому стекло
  * преломляет живой градиент за собой. Слегка поворачивается за курсором.
  */
-export function BrandMark3D({ animate }: { animate: boolean }) {
+export function BrandMark3D({ animate, mode = 'landing' }: { animate: boolean; mode?: MarkMode }) {
   const rig = useRef<THREE.Group>(null);
   const mark = useRef<THREE.Group>(null);
   const { camera, size } = useThree();
-  const place = markPlacement(size.width, size.height, (camera as THREE.PerspectiveCamera).fov ?? 45);
+  const place = markPlacement(size.width, size.height, (camera as THREE.PerspectiveCamera).fov ?? 45, 2, mode);
 
   useFrame((state, delta) => {
     if (!rig.current || !mark.current) return;

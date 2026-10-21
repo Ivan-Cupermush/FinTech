@@ -14,23 +14,6 @@
   border-radius: var(--radius-xl);
   color: var(--ink);
 }
-/* Цвета поверх градиента: белый текст, светлые линии, белая главная кнопка. */
-.on-color {
-  --ink: #ffffff;
-  --ink-2: rgba(255, 255, 255, 0.82);
-  --ink-3: rgba(255, 255, 255, 0.64);
-  --bg: #0b0b1a;
-  --surface: rgba(255, 255, 255, 0.12);
-  --surface-2: rgba(255, 255, 255, 0.2);
-  --surface-3: rgba(255, 255, 255, 0.26);
-  --line: rgba(255, 255, 255, 0.2);
-  --line-strong: rgba(255, 255, 255, 0.38);
-  --accent: #ffffff;
-  --good: #7cf0bd;
-  --bad: #ff8f94;
-  --bad-soft: rgba(255, 90, 100, 0.2);
-  color: var(--ink);
-}
 .l-nav {
   display: flex;
   justify-content: center;
@@ -187,14 +170,15 @@
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 48px;
-  align-items: end;
+  align-items: center;
 }
 .l-stats {
   display: grid;
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 .l-stat {
-  font-size: 52px;
+  font-size: clamp(34px, 4vw, 48px);
   font-weight: 680;
   letter-spacing: -0.05em;
   line-height: 1;
@@ -259,7 +243,4 @@
   .l-nav {
     padding: 10px 8px 0;
   }
-}
-.on-color .eyebrow {
-  color: var(--ink-2);
 }

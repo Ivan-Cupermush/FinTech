@@ -64,6 +64,19 @@ describe('Пульс', () => {
     expect(screen.getByText(/Технические проблемы|Нет доступа/)).toBeInTheDocument();
     expect(screen.getByText('Повысить NPS')).toBeInTheDocument();
   });
+  it('шапка Пульса — живой градиент с 3D-знаком и стеклянными счётчиками', async () => {
+    mockApi(base);
+    renderApp('/app');
+    const h1 = await screen.findByRole('heading', { level: 1, name: /Ольга/ });
+    const hero = h1.closest('.app-hero') as HTMLElement;
+    expect(hero).toHaveClass('fx-backdrop', 'on-color');
+    expect(hero).toHaveAccessibleName(/Ольга/);
+    expect(hero.querySelector('.fx-css')).not.toBeNull();
+    // Без WebGL в тестах — плоский знак сбоку, а не 3D-сцена.
+    expect(hero.querySelector('.fx-flat-mark-side')).not.toBeNull();
+    const chips = [...hero.querySelectorAll('.app-hero-stat')].map((c) => c.textContent);
+    expect(chips).toEqual(['1под угрозой', '1ждут помощи', '1мои задачи']);
+  });
   it('пустая компания видит приглашение создать первую цель', async () => {
     mockApi({ ...base, 'GET /dashboard': { ...DASH, goals: [], risks: [], my_tasks: [], help_needed: [], drafts: [] } });
     renderApp('/app');
@@ -193,6 +206,27 @@ describe('Карточка цели', () => {
     expect(screen.getByText('Где теряется время')).toBeInTheDocument();
     expect(screen.getByText('Ожидание проверки')).toBeInTheDocument();
     expect(screen.getByText('75%')).toBeInTheDocument();
+  });
+  it('шапка цели окрашена по состоянию KPI, а сам KPI лежит на стекле', async () => {
+    mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap() });
+    renderApp('/app/goals/g1');
+    await screen.findByRole('button', { name: 'Внести значение' });
+    const hero = document.querySelector('.goal-hero') as HTMLElement;
+    expect(hero).toHaveAttribute('data-variant', 'hero');
+    expect(hero.querySelector('.goal-hero-kpi .glass')).not.toBeNull();
+    expect(within(hero).getByRole('group')).toHaveAccessibleName(/36,5 мин, цель 30 мин/);
+  });
+  it('достигнутая цель — зелёная шапка, откат — красная', async () => {
+    const goal = (m: ReturnType<typeof metric>) => roadmap({ goal: { ...goalCard(), metrics: [m] } });
+    mockApi({ ...base, 'GET /goals/g1/roadmap': goal(metric({ current_value: 29 })) });
+    const first = renderApp('/app/goals/g1');
+    await screen.findByRole('button', { name: 'Внести значение' });
+    expect(document.querySelector('.goal-hero')).toHaveAttribute('data-variant', 'good');
+    first.unmount();
+    mockApi({ ...base, 'GET /goals/g1/roadmap': goal(metric({ current_value: 44 })) });
+    renderApp('/app/goals/g1');
+    await screen.findByRole('button', { name: 'Внести значение' });
+    expect(document.querySelector('.goal-hero')).toHaveAttribute('data-variant', 'bad');
   });
   it('нет доступа — «Цель не найдена», без подробностей', async () => {
     mockApi({ ...base, 'GET /goals/zzz/roadmap': apiError(404, 'Цель не найдена') });

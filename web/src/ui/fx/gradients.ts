@@ -3,7 +3,7 @@
  * по кругу, без случайных оттенков: градиент поддерживает бренд, а не спорит с ним.
  * Те же три цвета идут в CSS-запасной вариант, поэтому без WebGL образ тот же.
  */
-export type GradientVariant = 'hero' | 'login';
+export type GradientVariant = 'hero' | 'login' | 'good' | 'bad';
 
 export interface GradientLook {
   colors: [string, string, string];
@@ -21,6 +21,10 @@ export interface GradientLook {
 }
 
 export function gradientLook(variant: GradientVariant, dark: boolean): GradientLook {
+  if (variant === 'good' || variant === 'bad') {
+    // Шапка цели: та же ночь, но третий цвет говорит, идёт ли показатель к цели.
+    return { ...gradientLook('hero', dark), colors: variant === 'good' ? ['#2f4bff', '#071a24', '#2fd39a'] : ['#3b3bff', '#1a0b22', '#ff5a7a'] };
+  }
   if (variant === 'login') {
     // Тот же «ночной» градиент, что на главной, но развёрнутый иначе — узнаётся, а не повторяется.
     return {
@@ -64,4 +68,11 @@ export function gradientCss(look: GradientLook): string {
     `radial-gradient(100% 90% at 60% 100%, ${b} 0%, transparent 70%)`,
     `linear-gradient(135deg, ${a}, ${b})`,
   ].join(', ');
+}
+
+/** Настроение шапки цели по состоянию KPI. */
+export function gradientForKpi(state: string | null | undefined): GradientVariant {
+  if (state === 'achieved' || state === 'in_range') return 'good';
+  if (state === 'regress' || state === 'out_of_range') return 'bad';
+  return 'hero';
 }
