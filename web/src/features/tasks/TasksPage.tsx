@@ -1,8 +1,10 @@
-import { ListChecks, Search } from 'lucide-react';
+import { ListChecks, ListTodo, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { isOverdue, todayIso, type TaskStatus } from '@offix/core';
+import { tasksHeroStats } from '../../lib/hero-stats';
 import { useTasks } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import type { Task } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton, Tabs } from '../../ui/Misc';
@@ -47,12 +49,13 @@ export function TasksPage() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Задачи</h1>
-          <p className="muted">{q.data ? `${counts('blocked') ? `${counts('blocked')} заблокировано · ` : ''}${counts('in_progress')} в работе` : ' '}</p>
-        </div>
-      </div>
+      <PageHero
+        variant="tasks"
+        icon={ListTodo}
+        title="Задачи"
+        subtitle={q.data ? `${counts('blocked') ? `${counts('blocked')} заблокировано · ` : ''}${counts('in_progress')} в работе. Сначала — то, где нужна помощь.` : ' '}
+        stats={q.data ? tasksHeroStats(q.data, today) : undefined}
+      />
       <div className="spread wrap" style={{ marginBottom: 20 }}>
         <Tabs
           label="Чьи задачи"

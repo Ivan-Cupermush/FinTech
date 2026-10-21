@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDate, todayIso } from '@offix/core';
 import { api } from '../../lib/api';
+import { inboxHeroStats } from '../../lib/hero-stats';
 import { useNotifications } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import type { Notification } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
@@ -49,18 +51,21 @@ export function NotificationsPage() {
     else if (n.goal_id) navigate(`/app/goals/${n.goal_id}`);
   };
   return (
-    <div className="page" style={{ maxWidth: 820 }}>
-      <div className="page-head">
-        <div>
-          <h1>Уведомления</h1>
-          <p className="muted">{unread.length ? `Непрочитанных: ${unread.length}` : 'Всё прочитано'}</p>
-        </div>
-        {unread.length > 0 && (
-          <Button icon={<CheckCheck size={16} />} onClick={() => markRead()}>
-            Прочитать все
-          </Button>
-        )}
-      </div>
+    <div className="page" style={{ maxWidth: 920 }}>
+      <PageHero
+        variant="inbox"
+        icon={Bell}
+        title="Уведомления"
+        subtitle={unread.length ? `Непрочитанных: ${unread.length}` : 'Всё прочитано'}
+        stats={q.data ? inboxHeroStats(q.data) : undefined}
+        actions={
+          unread.length > 0 && (
+            <Button icon={<CheckCheck size={16} />} onClick={() => markRead()}>
+              Прочитать все
+            </Button>
+          )
+        }
+      />
       {q.isLoading ? (
         <Skeleton h={200} />
       ) : q.data?.length ? (

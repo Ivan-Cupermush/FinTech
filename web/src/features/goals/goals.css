@@ -233,7 +233,10 @@
   border-bottom: 1px solid var(--line);
   font-size: 12px;
   color: var(--ink-3);
-  background: var(--surface);
+  /* Прилипшая шкала — стекло: полосы задач видны сквозь неё при прокрутке. */
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
   z-index: 2;
 }
 .tl-label-col {
@@ -400,7 +403,7 @@
 
 @media (max-width: 1100px) {
   .wizard {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .wizard-aside {
     position: static;
@@ -420,7 +423,9 @@
   .wizard-foot {
     position: sticky;
     bottom: calc(var(--tabbar-h) + 10px + var(--safe-bottom));
-    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 74%, transparent);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
     margin-left: -16px;
     margin-right: -16px;
     padding: 12px 16px;
@@ -489,7 +494,9 @@
 .import-table th {
   position: sticky;
   top: 0;
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--ink-3);
   font-size: 12px;
   font-weight: 560;

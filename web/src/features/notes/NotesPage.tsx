@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDate, NOTE_LIMITS, todayIso, validateNote, type Note, type NoteSummary } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
+import { notesHeroStats } from '../../lib/hero-stats';
 import { useMe } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Dialog, Empty, Segmented, Skeleton } from '../../ui/Misc';
@@ -66,22 +68,26 @@ export function NotesPage() {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const q = useNotes({ q: useDebounced(query), scope });
+  const all = useNotes({});
   const today = todayIso();
   const canWrite = me.data?.role !== 'observer';
 
   return (
-    <div className="page" style={{ maxWidth: 860 }}>
-      <div className="page-head">
-        <div>
-          <h1>База знаний</h1>
-          <p className="muted">Регламенты, договорённости и решения — рядом с целями, а не в переписке.</p>
-        </div>
-        {canWrite && (
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
-            Новая заметка
-          </Button>
-        )}
-      </div>
+    <div className="page" style={{ maxWidth: 960 }}>
+      <PageHero
+        variant="knowledge"
+        icon={BookOpen}
+        title="База знаний"
+        subtitle="Регламенты, договорённости и решения — рядом с целями, а не в переписке."
+        stats={all.data ? notesHeroStats(all.data, today) : undefined}
+        actions={
+          canWrite && (
+            <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
+              Новая заметка
+            </Button>
+          )
+        }
+      />
       <div className="row wrap" style={{ gap: 12, marginBottom: 16 }}>
         <div className="note-search grow">
           <Search size={16} className="faint" aria-hidden />
@@ -183,11 +189,44 @@ export function NotePage() {
     );
   }
 
+  const meta = n && (
+    <span className="note-hero-meta">
+      {n.goal_title && (
+        <>
+          <Target size={13} aria-hidden /> <Link to={`/app/goals/${n.goal_id}`}>{n.goal_title}</Link> ·{' '}
+        </>
+      )}
+      {n.author_name} · обновлена {formatDate(n.updated_at.slice(0, 10), { today })}
+      {n.updated_by_name && n.updated_by_name !== n.author_name ? ` · ${n.updated_by_name}` : ''}
+    </span>
+  );
+
   return (
-    <div className="page" style={{ maxWidth: 860 }}>
-      <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate(back.to)} style={{ marginLeft: -10, marginBottom: 8 }}>
-        {back.label}
-      </Button>
+    <div className="page" style={{ maxWidth: 960 }}>
+      <PageHero
+        variant="knowledge"
+        icon={BookOpen}
+        compact
+        back={
+          <Link to={back.to}>
+            <ArrowLeft size={15} aria-hidden /> {back.label}
+          </Link>
+        }
+        eyebrow={isNew ? 'База знаний' : n?.goal_id ? 'Заметка цели' : 'Общая заметка'}
+        title={isNew ? 'Новая заметка' : editing ? 'Правка заметки' : n?.title}
+        subtitle={!isNew ? meta : 'Регламент, договорённость или решение встречи — коротко и по делу.'}
+        actions={
+          !editing &&
+          n?.can_edit && (
+            <>
+              <Button size="sm" icon={<Pencil size={14} />} onClick={() => setEditing(true)}>
+                Изменить
+              </Button>
+              <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label="Удалить заметку" onClick={() => setConfirm(true)} />
+            </>
+          )
+        }
+      />
       {editing ? (
         <div className="card stack" style={{ '--gap': '16px' } as React.CSSProperties}>
           <Field label="Заголовок" required error={errors.title} counter={{ value: title.length, max: NOTE_LIMITS.title }}>
@@ -225,28 +264,6 @@ export function NotePage() {
       ) : (
         n && (
           <article className="card note-sheet" aria-label={n.title}>
-            <header className="spread wrap" style={{ gap: 12, alignItems: 'flex-start' }}>
-              <div>
-                <h1 className="note-title">{n.title}</h1>
-                <div className="faint note-row-meta">
-                  {n.goal_title && (
-                    <>
-                      <Target size={12} aria-hidden /> <Link to={`/app/goals/${n.goal_id}`}>{n.goal_title}</Link> ·{' '}
-                    </>
-                  )}
-                  {n.author_name} · обновлена {formatDate(n.updated_at.slice(0, 10), { today })}
-                  {n.updated_by_name && n.updated_by_name !== n.author_name ? ` · ${n.updated_by_name}` : ''}
-                </div>
-              </div>
-              {n.can_edit && (
-                <div className="row" style={{ gap: 6 }}>
-                  <Button size="sm" icon={<Pencil size={14} />} onClick={() => setEditing(true)}>
-                    Изменить
-                  </Button>
-                  <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label="Удалить заметку" onClick={() => setConfirm(true)} />
-                </div>
-              )}
-            </header>
             <Markdown source={n.body} />
           </article>
         )

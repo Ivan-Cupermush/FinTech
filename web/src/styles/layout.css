@@ -279,6 +279,101 @@
 .app-hero-cta {
   align-self: flex-start;
 }
+/* Шапки рабочих разделов: тот же язык, что у Пульса, плюс знак раздела справа. */
+.page-hero {
+  min-height: 236px;
+}
+.page-hero .app-hero-text {
+  max-width: min(60%, 620px);
+}
+.page-hero.is-compact {
+  min-height: 168px;
+  padding: 24px 32px;
+}
+.page-hero.is-compact h1 {
+  font-size: clamp(26px, 3vw, 38px);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+.page-hero-back {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.page-hero-back a,
+.page-hero-back button {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+.page-hero-back a:hover,
+.page-hero-back button:hover {
+  color: var(--ink);
+}
+.page-hero-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-hero-foot {
+  justify-content: flex-start;
+}
+/* Кнопки — слева, сразу за плитками: правую часть шапки занимает знак раздела. */
+.page-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-self: center;
+}
+/* Плитки лежат на ярких местах градиента — лёгкая тень под стеклом держит белый текст читаемым. */
+.page-hero .app-hero-stat-body {
+  background: rgba(8, 10, 40, 0.16);
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+/* Живой градиент местами светлеет почти до белого — лёгкая тень держит текст читаемым. */
+.page-hero .app-hero-text,
+.page-hero .app-hero-stat-body {
+  text-shadow: 0 1px 14px rgba(8, 10, 40, 0.32);
+}
+.page-hero .app-hero-stats {
+  flex: 0 1 auto;
+}
+.app-hero-stat-body[data-tone='bad'] .num {
+  color: var(--bad);
+}
+.app-hero-stat-body[data-tone='warn'] .num {
+  color: var(--warn);
+}
+.app-hero-stat-body[data-tone='good'] .num {
+  color: var(--good);
+}
+/* На бумаге шапка — просто заголовок: без градиента, стекла и белого текста. */
+@media print {
+  .page-hero {
+    min-height: 0;
+    padding: 0 0 12px;
+    color: #000;
+    --ink: #000;
+    --ink-2: #333;
+    --ink-3: #555;
+    border-radius: 0;
+  }
+  .page-hero .fx-layer,
+  .page-hero .fx-flat-glyph,
+  .page-hero .app-hero-stats,
+  .page-hero .page-hero-actions {
+    display: none !important;
+  }
+}
 @media (max-width: 900px) {
   .app-hero {
     padding: 20px;
@@ -293,8 +388,25 @@
   .app-hero-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .page-hero .app-hero-text {
+    max-width: none;
+    padding-right: 84px;
+  }
+  .page-hero .app-hero-stats {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
+    max-width: none;
+    width: 100%;
+  }
+  .page-hero.is-compact {
+    padding: 20px;
+    min-height: 0;
+  }
   .app-hero-stat-body {
     padding: 10px 12px;
+  }
+  .page-hero .app-hero-stat-body {
+    padding: 10px;
+    font-size: 12px;
   }
   .app-hero-stat-body .num {
     font-size: 24px;

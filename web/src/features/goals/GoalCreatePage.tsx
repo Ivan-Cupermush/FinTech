@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, Info, Lightbulb, Plus, Rocket, Search, TriangleAlert, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Info, Lightbulb, Plus, Rocket, Search, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -25,6 +25,7 @@ import { useInvalidateWork, useMe, useUnits, useUsers } from '../../lib/queries'
 import type { GoalCard } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Field } from '../../ui/Field';
 import { KpiTrack } from '../../ui/KpiTrack';
 import { Dialog, Segmented } from '../../ui/Misc';
@@ -225,15 +226,19 @@ export function GoalCreatePage() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={cancel} style={{ marginLeft: -10, marginBottom: 8 }}>
-            Цели
-          </Button>
-          <h1>Новая цель</h1>
-          <p className="muted">Цель описывает результат, которого нужно достичь, — а не список работ.</p>
-        </div>
-      </div>
+      <PageHero
+        variant="create"
+        icon={Sparkles}
+        compact
+        back={
+          <button type="button" onClick={cancel}>
+            <ArrowLeft size={15} aria-hidden /> Цели
+          </button>
+        }
+        eyebrow={`Шаг ${step} из ${STEPS.length}`}
+        title="Новая цель"
+        subtitle="Цель описывает результат, которого нужно достичь, — а не список работ."
+      />
 
       <div className="wizard">
         <div>

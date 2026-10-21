@@ -38,3 +38,21 @@ export function kpiBarHeights(values: number[], height = 2): number[] {
   if (!(span > 0)) return values.map(() => height);
   return values.map((v) => Math.max(0.05, ((v - floor) / span) * height));
 }
+
+/**
+ * Где стоит стеклянный знак раздела. На широкой шапке — справа по центру, как
+ * знак offix на Пульсе. На телефоне шапка почти квадратная, и по соотношению
+ * сторон знак встал бы посреди текста, поэтому решает раскладка страницы
+ * (`narrow` — та же граница 900 px, что в CSS): на узкой — маленький знак
+ * в правом верхнем углу, где текст оставляет место.
+ */
+export function glyphPlacement(width: number, height: number, narrow: boolean, fovDeg = 45, distance = 2) {
+  if (!narrow) return markPlacement(width, height, fovDeg, distance, 'side');
+  const aspect = width > 0 && height > 0 ? width / height : 1;
+  const viewH = 2 * distance * Math.tan(((fovDeg * Math.PI) / 180) / 2);
+  const viewW = viewH * aspect;
+  const scale = Math.min((viewW * 0.26) / 2.2, (viewH * 0.32) / 1.9);
+  const x = viewW / 2 - (2.2 * scale) / 2 - viewW * 0.05;
+  const y = viewH / 2 - (1.9 * scale) / 2 - viewH * 0.06;
+  return { x, y, distance, scale };
+}

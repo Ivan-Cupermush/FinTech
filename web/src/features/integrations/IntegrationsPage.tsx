@@ -29,7 +29,9 @@ import {
   type OneCConfig,
 } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
+import { integrationsHeroStats } from '../../lib/hero-stats';
 import { useMe } from '../../lib/queries';
+import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Dialog, Empty, Segmented, Skeleton } from '../../ui/Misc';
@@ -88,6 +90,7 @@ export function IntegrationsPage() {
   if (me.data && !admin) {
     return (
       <div className="page" style={{ maxWidth: 860 }}>
+        <PageHero variant="integrations" icon={Plug} compact title="Интеграции" subtitle="Замеры KPI приходят сами из 1С и Moodle — без ручного ввода и таблиц." />
         <div className="card">
           <Empty icon={<Plug size={22} />} title="Интеграции настраивает администратор">
             Если замеры KPI уже есть в 1С или Moodle, попросите администратора подключить систему — цифры будут приходить сами.
@@ -99,17 +102,20 @@ export function IntegrationsPage() {
 
   return (
     <div className="page" style={{ maxWidth: 960 }}>
-      <div className="page-head">
-        <div>
-          <h1>Интеграции</h1>
-          <p className="muted">Замеры KPI приходят сами из 1С и Moodle — без ручного ввода и таблиц.</p>
-        </div>
-        {!!q.data?.length && (
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/integrations/new')}>
-            Подключить систему
-          </Button>
-        )}
-      </div>
+      <PageHero
+        variant="integrations"
+        icon={Plug}
+        title="Интеграции"
+        subtitle="Замеры KPI приходят сами из 1С и Moodle — без ручного ввода и таблиц."
+        stats={q.data?.length ? integrationsHeroStats(q.data) : undefined}
+        actions={
+          !!q.data?.length && (
+            <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/integrations/new')}>
+              Подключить систему
+            </Button>
+          )
+        }
+      />
       {q.isLoading || !me.data ? (
         <Skeleton h={180} />
       ) : q.data?.length ? (
@@ -370,18 +376,23 @@ export function IntegrationPage() {
 
   return (
     <div className="page" style={{ maxWidth: 1080 }}>
-      <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/app/integrations')} style={{ marginLeft: -10, marginBottom: 8 }}>
-        Все интеграции
-      </Button>
-      <div className="page-head">
-        <div className="row" style={{ gap: 14 }}>
-          <KindMark kind={f.kind} size={48} />
-          <div>
-            <h1>{isNew ? 'Новое подключение' : current!.name}</h1>
-            <p className="muted">{INTEGRATION_KIND_LABELS[f.kind].hint}</p>
-          </div>
-        </div>
-      </div>
+      <PageHero
+        variant="integrations"
+        icon={Plug}
+        compact
+        back={
+          <Link to="/app/integrations">
+            <ArrowLeft size={15} aria-hidden /> Все интеграции
+          </Link>
+        }
+        eyebrow={
+          <span className="row" style={{ gap: 8 }}>
+            <KindMark kind={f.kind} size={22} /> {INTEGRATION_KIND_LABELS[f.kind].title}
+          </span>
+        }
+        title={isNew ? 'Новое подключение' : current!.name}
+        subtitle={INTEGRATION_KIND_LABELS[f.kind].hint}
+      />
 
       <div className={isNew ? 'int-layout int-layout-single' : 'int-layout'}>
         <form

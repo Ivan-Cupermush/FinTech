@@ -80,6 +80,40 @@
   flex-direction: column;
   gap: 6px;
 }
+/* Поле ответа — стеклянная плашка, прилипающая к низу: длинное обсуждение
+   прокручивается под ней, а написать можно, не листая до конца. */
+.dsc-composer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 3;
+  padding: 10px;
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(22px) saturate(1.6);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
+    var(--shadow-2);
+  transition: box-shadow 0.2s ease;
+}
+.dsc-composer:focus-within {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent),
+    var(--shadow-2);
+}
+.dsc-composer .textarea {
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+}
+.dsc.compact .dsc-composer {
+  bottom: 0;
+}
+@media (max-width: 900px) {
+  .dsc.card .dsc-composer {
+    bottom: calc(var(--tabbar-h) + 20px + var(--safe-bottom));
+  }
+}
 .dsc-replying {
   display: flex;
   align-items: center;
@@ -110,10 +144,19 @@
   min-width: 280px;
   max-width: min(440px, calc(100vw - 32px));
   padding: 4px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
+  /* Почти непрозрачно: список вылезает за карточку, а размытие внутри карточки
+     со своим стеклом видит только её содержимое — снаружи текст бы просвечивал. */
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent),
+    var(--shadow-3);
+}
+.dsc-suggest button[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .dsc-suggest button {
   display: flex;
@@ -155,4 +198,19 @@
   min-width: 0;
   font-size: 12px;
   text-align: right;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dsc-composer,
+  .dsc-suggest {
+    background: var(--surface);
+  }
+}
+@media (max-width: 640px) {
+  .dsc-suggest {
+    right: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
 }

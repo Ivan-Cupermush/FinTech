@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, type ReactNode } from 'react';
-import { gradientCss, gradientLook, type GradientVariant } from './gradients';
+import type { LucideIcon } from 'lucide-react';
+import { gradientCss, gradientLook, type GradientVariant, type SectionVariant } from './gradients';
 import { useDarkTheme, useFxLevel } from './support';
 import type { MarkMode } from './layout';
 import './fx.css';
@@ -25,10 +26,22 @@ export function Backdrop({
   variant,
   mark = false,
   markMode = 'landing',
+  glyph,
+  glyphIcon,
   className = '',
   children,
   ...rest
-}: { variant: GradientVariant; mark?: boolean; markMode?: MarkMode; className?: string; children?: ReactNode } & Omit<React.HTMLAttributes<HTMLElement>, 'className' | 'children'>) {
+}: {
+  variant: GradientVariant;
+  mark?: boolean;
+  markMode?: MarkMode;
+  /** Стеклянный 3D-знак раздела справа (вместо знака offix). */
+  glyph?: SectionVariant;
+  /** Тот же знак без WebGL: иконка раздела в матовом стекле. */
+  glyphIcon?: LucideIcon;
+  className?: string;
+  children?: ReactNode;
+} & Omit<React.HTMLAttributes<HTMLElement>, 'className' | 'children'>) {
   const dark = useDarkTheme();
   const level = useFxLevel();
   const look = gradientLook(variant, dark);
@@ -39,12 +52,13 @@ export function Backdrop({
         <div className="fx-layer fx-gl" aria-hidden>
           <SceneBoundary>
             <Suspense fallback={null}>
-              <Scene variant={variant} dark={dark} animate={level === 'full'} mark={mark} markMode={markMode} />
+              <Scene variant={variant} dark={dark} animate={level === 'full'} mark={mark} markMode={markMode} glyph={glyph} />
             </Suspense>
           </SceneBoundary>
         </div>
       )}
       {mark && level === 'static' && <FlatMark side={markMode === 'side'} />}
+      {!mark && glyph && glyphIcon && level === 'static' && <FlatGlyph icon={glyphIcon} />}
       {children}
     </div>
   );
@@ -57,5 +71,14 @@ function FlatMark({ side }: { side: boolean }) {
       <circle cx="34" cy="32" r="20" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="11" />
       <path d="M76 12 L96 32 L76 52" fill="none" stroke="#fff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+/** Знак раздела без WebGL: иконка в круге матового стекла, на том же месте, что и 3D. */
+function FlatGlyph({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span className="fx-flat-glyph" aria-hidden>
+      <Icon size={56} strokeWidth={1.6} />
+    </span>
   );
 }

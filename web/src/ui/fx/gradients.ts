@@ -3,7 +3,38 @@
  * по кругу, без случайных оттенков: градиент поддерживает бренд, а не спорит с ним.
  * Те же три цвета идут в CSS-запасной вариант, поэтому без WebGL образ тот же.
  */
-export type GradientVariant = 'hero' | 'login' | 'good' | 'bad';
+export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | SectionVariant;
+
+/**
+ * Шапки рабочих разделов. Та же «ночь» с фирменным синим, но у каждого
+ * раздела свой третий цвет и свой разворот волны: разделы узнаются с первого
+ * взгляда и при этом остаются одной семьёй.
+ */
+export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create'] as const;
+export type SectionVariant = (typeof SECTION_VARIANTS)[number];
+
+const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; rotationZ: number; positionX: number; polar: number }> = {
+  // Цели — фирменная пара синего и фиолетового, ближе всего к главной.
+  goals: { colors: ['#2f4bff', '#0a0d33', '#7a6bff'], rotationZ: 220, positionX: -0.3, polar: 112 },
+  // Задачи — синий с бирюзой: про движение и работу.
+  tasks: { colors: ['#2a5cff', '#06182a', '#2fc6d8'], rotationZ: 250, positionX: -0.7, polar: 118 },
+  // Отчёт — глубокий индиго с холодной сиренью: спокойный, «бумажный» тон.
+  report: { colors: ['#3346ff', '#0b0a2b', '#a58bff'], rotationZ: 200, positionX: 0.1, polar: 108 },
+  // База знаний — синий с тёплым персиком: место, где читают.
+  knowledge: { colors: ['#3a55ff', '#14102e', '#ee8466'], rotationZ: 240, positionX: -0.4, polar: 116 },
+  // Интеграции — синий с электрическим голубым: про связь систем.
+  integrations: { colors: ['#2448ff', '#04122b', '#3fb8ff'], rotationZ: 260, positionX: -0.9, polar: 120 },
+  // Уведомления — синий с мягкой розовой искрой: внимание без тревоги.
+  inbox: { colors: ['#3b4dff', '#140a2a', '#ff7ac0'], rotationZ: 210, positionX: -0.2, polar: 110 },
+  // Организация — синий с зелёным: люди и структура.
+  org: { colors: ['#2f52ff', '#061c22', '#3fd6a0'], rotationZ: 230, positionX: -0.6, polar: 114 },
+  // Новая цель — самый светлый и яркий: начало.
+  create: { colors: ['#4a62ff', '#121a5e', '#9d86ff'], rotationZ: 235, positionX: -0.5, polar: 115 },
+};
+
+export function isSectionVariant(v: string): v is SectionVariant {
+  return (SECTION_VARIANTS as readonly string[]).includes(v);
+}
 
 export interface GradientLook {
   colors: [string, string, string];
@@ -21,6 +52,10 @@ export interface GradientLook {
 }
 
 export function gradientLook(variant: GradientVariant, dark: boolean): GradientLook {
+  if (isSectionVariant(variant)) {
+    const l = SECTION_LOOKS[variant];
+    return { ...gradientLook('hero', dark), colors: l.colors, cPolarAngle: l.polar, rotation: [0, 0, l.rotationZ], position: [l.positionX, 0.1, 0] };
+  }
   if (variant === 'good' || variant === 'bad') {
     // Шапка цели: та же ночь, но третий цвет говорит, идёт ли показатель к цели.
     return { ...gradientLook('hero', dark), colors: variant === 'good' ? ['#2f4bff', '#071a24', '#2fd39a'] : ['#3b3bff', '#1a0b22', '#ff5a7a'] };
