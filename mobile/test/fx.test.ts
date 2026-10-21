@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { glassKind, heroMarkPlacement, hexToRgb, HERO_COLORS } from '../src/lib/fx';
+import { glassKind, glassTint, heroColors, heroMarkPlacement, heroVariantForKpi, hexToRgb, HERO_COLORS, tabBarSpace, tabIndicator } from '../src/lib/fx';
 
 describe('hexToRgb', () => {
   it('переводит цвет в доли единицы для шейдера', () => {
@@ -45,5 +45,50 @@ describe('glassKind', () => {
     expect(glassKind('ios', false)).toBe('blur');
     expect(glassKind('android', false)).toBe('tint');
     expect(glassKind('web', true)).toBe('tint');
+  });
+});
+
+describe('tabIndicator', () => {
+  it('капля стоит по центру своей вкладки и не вылезает за панель', () => {
+    const width = 358;
+    for (let i = 0; i < 4; i++) {
+      const t = tabIndicator(i, 4, width);
+      const cell = (width - 12) / 4;
+      expect(t.x + t.w / 2).toBeCloseTo(6 + cell * i + cell / 2);
+      expect(t.x).toBeGreaterThanOrEqual(6);
+      expect(t.x + t.w).toBeLessThanOrEqual(width - 6);
+    }
+  });
+  it('индекс за пределами — прижимается к краю, нулевая ширина не ломает', () => {
+    expect(tabIndicator(9, 4, 358)).toEqual(tabIndicator(3, 4, 358));
+    expect(tabIndicator(-1, 4, 358)).toEqual(tabIndicator(0, 4, 358));
+    expect(tabIndicator(0, 4, 0).w).toBe(0);
+  });
+});
+
+describe('tabBarSpace', () => {
+  it('контенту хватает места под парящей панелью и над «чёлкой» снизу', () => {
+    expect(tabBarSpace(34)).toBeGreaterThan(64 + 34);
+    expect(tabBarSpace(0)).toBeGreaterThan(64);
+  });
+});
+
+describe('glassTint', () => {
+  it('на градиенте — всегда тёмное стекло, на экране — под тему', () => {
+    expect(glassTint('color', 'light')).toEqual(glassTint('color', 'dark'));
+    expect(glassTint('surface', 'light').blurTint).toMatch(/Light$/);
+    expect(glassTint('surface', 'dark').blurTint).toMatch(/Dark$/);
+  });
+});
+
+describe('heroVariantForKpi', () => {
+  it('шапка цели окрашивается по состоянию показателя', () => {
+    expect(heroVariantForKpi('achieved')).toBe('good');
+    expect(heroVariantForKpi('in_range')).toBe('good');
+    expect(heroVariantForKpi('regress')).toBe('bad');
+    expect(heroVariantForKpi('out_of_range')).toBe('bad');
+    expect(heroVariantForKpi('progressing')).toBe('hero');
+    expect(heroVariantForKpi(undefined)).toBe('hero');
+    for (const v of ['hero', 'good', 'bad'] as const) for (const c of heroColors(v)) expect(hexToRgb(c)).toHaveLength(3);
   });
 });

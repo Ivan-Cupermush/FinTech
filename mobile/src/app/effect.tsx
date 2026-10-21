@@ -20,6 +20,7 @@ import { effectRoute } from '../lib/logic';
 import { useMetrics } from '../lib/queries';
 import { font, usePalette } from '../lib/theme';
 import { MovementBar, Sparkline } from '../ui/effect';
+import { Hero } from '../ui/fx/Hero';
 import { Button, Card, Empty, Pill, Screen, SectionTitle, Text } from '../ui/primitives';
 
 /** Эффект: двигает ли работа показатели. Та же картина, что на сайте, в одну колонку. */
@@ -64,30 +65,32 @@ function Report({ r }: { r: MetricsReport }) {
   const steps = effectSteps(r, todayIso());
   return (
     <>
-      <Card style={{ gap: 14 }}>
-        <Text variant="eyebrow" tone="faint">
-          Северная звезда
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-          <Text style={{ fontSize: 72, lineHeight: 76, fontFamily: font.bold, letterSpacing: -4 }}>{ns.value === null ? '—' : ns.value}</Text>
-          {ns.value !== null && <Text style={{ fontSize: 30, fontFamily: font.semibold, color: p.ink3, marginLeft: 4 }}>%</Text>}
-        </View>
-        <Text tone="muted">{northStarCaption(r)}</Text>
-        {ns.total > 0 && <MovementBar counts={ns.counts} />}
-        {ns.total > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {ORDER.map((k) => (
-              <Text key={k} variant="caption" tone={ns.counts[k] ? 'muted' : 'faint'}>
-                {MOVEMENT_LABELS[k]} <Text variant="caption" style={{ fontFamily: font.semibold }}>{ns.counts[k]}</Text>
-              </Text>
-            ))}
+      <Hero>
+        <View style={{ padding: 18, gap: 14 }}>
+          <Text variant="eyebrow" tone="faint">
+            Северная звезда
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text style={{ fontSize: 72, lineHeight: 76, fontFamily: font.bold, letterSpacing: -4 }}>{ns.value === null ? '—' : ns.value}</Text>
+            {ns.value !== null && <Text style={{ fontSize: 30, fontFamily: font.semibold, color: 'rgba(255,255,255,0.6)', marginLeft: 4 }}>%</Text>}
           </View>
-        )}
-        <Sparkline values={r.series.north_star} max={100} height={72} label="Северная звезда по неделям" />
-        <Text variant="caption" tone="faint" style={{ textAlign: 'right' }}>
-          {trendText(seriesTrend(r.series.north_star)) ?? ' '}
-        </Text>
-      </Card>
+          <Text tone="muted">{northStarCaption(r)}</Text>
+          {ns.total > 0 && <MovementBar counts={ns.counts} />}
+          {ns.total > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {ORDER.map((k) => (
+                <Text key={k} variant="caption" tone={ns.counts[k] ? 'muted' : 'faint'}>
+                  {MOVEMENT_LABELS[k]} <Text variant="caption" style={{ fontFamily: font.semibold }}>{ns.counts[k]}</Text>
+                </Text>
+              ))}
+            </View>
+          )}
+          <Sparkline values={r.series.north_star} max={100} height={72} label="Северная звезда по неделям" />
+          <Text variant="caption" tone="faint" style={{ textAlign: 'right' }}>
+            {trendText(seriesTrend(r.series.north_star)) ?? ' '}
+          </Text>
+        </View>
+      </Hero>
 
       {ns.items.length > 0 && (
         <>

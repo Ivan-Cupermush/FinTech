@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine } from '../src/lib/logic';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine, pulseStats } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -145,5 +145,17 @@ describe('строка «Обсуждение»', () => {
     expect(discussionLine({ total: 1, unread: 0 }).text).toBe('1 комментарий');
     expect(discussionLine({ total: 5, unread: 2 })).toEqual({ text: '5 комментариев · 2 новых', unread: 2 });
     expect(discussionLine({ total: 21, unread: 1 }).text).toBe('21 комментарий · 1 новый');
+  });
+});
+
+describe('pulseStats', () => {
+  it('в шапке Пульса — критичные риски, просьбы о помощи и мои задачи', () => {
+    const s = pulseStats({
+      risks: [{ severity: 'critical' }, { severity: 'warning' }, { severity: 'critical' }] as never,
+      help_needed: [{}] as never,
+      my_tasks: [{}, {}, {}, {}] as never,
+    });
+    expect(s.map((x) => x.value)).toEqual([2, 1, 4]);
+    expect(s.map((x) => x.label)).toEqual(['под угрозой', 'ждут помощи', 'мои задачи']);
   });
 });

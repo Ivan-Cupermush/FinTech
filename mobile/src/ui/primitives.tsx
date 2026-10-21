@@ -4,6 +4,8 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { initials } from '@offix/core';
 import { font, radius, toneColors, usePalette, type Tone } from '../lib/theme';
+import { AmbientGlow } from './fx/AmbientGlow';
+import { useTabBarSpace } from './fx/TabBarSpace';
 
 type Variant = 'body' | 'small' | 'caption' | 'title' | 'h1' | 'h2' | 'eyebrow';
 
@@ -23,12 +25,18 @@ export function Text({ variant = 'body', tone = 'ink', style, ...rest }: TextPro
   return <RNText {...rest} style={[SIZES[variant], { color, fontVariant: ['tabular-nums'] }, style]} />;
 }
 
-export function Screen({ children, refreshing, onRefresh, scroll = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean }) {
+/**
+ * Экран со свечением фирменных цветов в шапке. Внутри вкладок снизу
+ * оставляем место под парящую стеклянную панель, чтобы она не закрывала контент.
+ */
+export function Screen({ children, refreshing, onRefresh, scroll = true, glow = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; glow?: boolean }) {
   const p = usePalette();
+  const tabSpace = useTabBarSpace();
   if (!scroll) return <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>{children}</SafeAreaView>;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }} refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={p.ink3} /> : undefined}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(40, tabSpace), gap: 16 }} scrollIndicatorInsets={{ bottom: tabSpace }} refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={p.ink3} /> : undefined}>
+        {glow && <AmbientGlow />}
         {children}
       </ScrollView>
     </SafeAreaView>

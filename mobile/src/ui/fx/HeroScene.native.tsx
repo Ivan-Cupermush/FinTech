@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import { Component, useMemo, useRef, type ReactNode } from 'react';
 import { View } from 'react-native';
 import * as THREE from 'three';
-import { heroMarkPlacement, hexToRgb, HERO_COLORS } from '../../lib/fx';
+import { heroColors, heroMarkPlacement, hexToRgb, type HeroVariant } from '../../lib/fx';
 
 /**
  * Живой градиент — наш шейдер по мотивам ShaderGradient: сама библиотека
@@ -42,7 +42,8 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-function GradientPlane({ animate }: { animate: boolean }) {
+function GradientPlane({ animate, variant }: { animate: boolean; variant: HeroVariant }) {
+  const colors = heroColors(variant);
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -51,12 +52,12 @@ function GradientPlane({ animate }: { animate: boolean }) {
         depthWrite: false,
         uniforms: {
           uTime: { value: 8 },
-          uC1: { value: new THREE.Vector3(...hexToRgb(HERO_COLORS[0])) },
-          uC2: { value: new THREE.Vector3(...hexToRgb(HERO_COLORS[1])) },
-          uC3: { value: new THREE.Vector3(...hexToRgb(HERO_COLORS[2])) },
+          uC1: { value: new THREE.Vector3(...hexToRgb(colors[0])) },
+          uC2: { value: new THREE.Vector3(...hexToRgb(colors[1])) },
+          uC3: { value: new THREE.Vector3(...hexToRgb(colors[2])) },
         },
       }),
-    [],
+    [colors],
   );
   useFrame((_, delta) => {
     if (animate) material.uniforms.uTime!.value += delta;
@@ -109,7 +110,7 @@ class GlBoundary extends Component<{ children: ReactNode }, { failed: boolean }>
   }
 }
 
-export default function HeroScene({ animate }: { animate: boolean }) {
+export default function HeroScene({ animate, mark = true, variant = 'hero' }: { animate: boolean; mark?: boolean; variant?: HeroVariant }) {
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
       <GlBoundary>
@@ -117,8 +118,8 @@ export default function HeroScene({ animate }: { animate: boolean }) {
           <ambientLight intensity={1.2} />
           <directionalLight position={[3, 4, 5]} intensity={2.4} />
           <directionalLight position={[-4, -1, 3]} intensity={0.8} color="#b9c3ff" />
-          <GradientPlane animate={animate} />
-          <BrandMark animate={animate} />
+          <GradientPlane animate={animate} variant={variant} />
+          {mark && <BrandMark animate={animate} />}
         </Canvas>
       </GlBoundary>
     </View>

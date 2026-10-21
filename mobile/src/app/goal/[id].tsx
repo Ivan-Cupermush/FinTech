@@ -10,6 +10,9 @@ import { font, usePalette } from '../../lib/theme';
 import { KpiTrack, RiskItem, TaskRow } from '../../ui/domain';
 import { Avatar, Button, Card, Empty, Input, Pill, Screen, SectionTitle, Text } from '../../ui/primitives';
 import { DiscussionLink } from '../../ui/discussion';
+import { Glass } from '../../ui/fx/Glass';
+import { Hero } from '../../ui/fx/Hero';
+import { heroVariantForKpi } from '../../lib/fx';
 
 export default function GoalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,45 +72,54 @@ export default function GoalScreen() {
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <Stack.Screen options={{ title: g.parent_goal_id ? 'Подцель' : 'Цель' }} />
-      <View style={{ gap: 10 }}>
-        <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-          <Pill tone={g.status === 'active' ? 'accent' : g.status === 'completed' ? 'good' : g.status === 'on_hold' ? 'warn' : 'neutral'} dot>
-            {GOAL_STATUS_LABELS[g.status]}
-          </Pill>
-          {g.units.map((u) => (
-            <Pill key={u.id}>{u.name}</Pill>
-          ))}
-        </View>
-        <Text variant="h2">{g.title}</Text>
-        {g.owner && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Avatar name={g.owner.display_name} size={22} />
-            <Text variant="small">{g.owner.display_name}</Text>
-            <Text variant="small" tone={due.overdue ? 'bad' : 'faint'}>
-              · {due.text}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <Card>
-        {m ? (
-          <>
-            <Text variant="eyebrow" tone="faint">
-              {m.name}
-            </Text>
-            <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} size="xl" />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <Text variant="caption" tone="faint" style={{ flex: 1 }}>
-                {m.last_observed_at ? `Замер ${formatDate(m.last_observed_at.slice(0, 10), { today })} · ${KPI_STATE_LABELS[m.progress.state]}` : 'Замеров ещё не было'}
-              </Text>
-              {g.permissions.record && g.status !== 'draft' && <Button title="Внести" variant="accent" onPress={() => setObserve(m)} style={{ minHeight: 38 }} />}
+      <Hero mark={false} variant={heroVariantForKpi(m?.progress.state)}>
+        <View style={{ padding: 16, gap: 16 }}>
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+              <Pill tone={g.status === 'active' ? 'accent' : g.status === 'completed' ? 'good' : g.status === 'on_hold' ? 'warn' : 'neutral'} dot>
+                {GOAL_STATUS_LABELS[g.status]}
+              </Pill>
+              {g.units.map((u) => (
+                <Pill key={u.id}>{u.name}</Pill>
+              ))}
             </View>
-          </>
-        ) : (
-          <Empty title="KPI не задан" text="Без показателя цель нельзя запустить. Добавьте его на сайте или в мастере." />
-        )}
-      </Card>
+            <Text variant="h2">{g.title}</Text>
+            {g.owner && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Avatar name={g.owner.display_name} size={22} />
+                <Text variant="small" style={{ flex: 1 }}>
+                  {g.owner.display_name}
+                  <Text variant="small" tone={due.overdue ? 'bad' : 'faint'}>
+                    {' · '}
+                    {due.text}
+                  </Text>
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Glass tone="color" radius={22}>
+            <View style={{ padding: 16, gap: 12 }}>
+              {m ? (
+                <>
+                  <Text variant="eyebrow" tone="faint">
+                    {m.name}
+                  </Text>
+                  <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} size="lg" />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <Text variant="caption" tone="faint" style={{ flex: 1 }}>
+                      {m.last_observed_at ? `Замер ${formatDate(m.last_observed_at.slice(0, 10), { today })} · ${KPI_STATE_LABELS[m.progress.state]}` : 'Замеров ещё не было'}
+                    </Text>
+                    {g.permissions.record && g.status !== 'draft' && <Button title="Внести" variant="accent" onPress={() => setObserve(m)} style={{ minHeight: 38 }} />}
+                  </View>
+                </>
+              ) : (
+                <Empty title="KPI не задан" text="Без показателя цель нельзя запустить. Добавьте его на сайте или в мастере." />
+              )}
+            </View>
+          </Glass>
+        </View>
+      </Hero>
 
       {g.status === 'draft' && (
         <Card>

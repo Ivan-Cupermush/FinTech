@@ -18,6 +18,7 @@ import {
 } from '@offix/core';
 import { useReport } from '../lib/queries';
 import { font, radius, usePalette } from '../lib/theme';
+import { LiquidSegmented } from '../ui/fx/LiquidSegmented';
 import { Button, Card, Empty, Pill, Screen, SectionTitle, Text } from '../ui/primitives';
 
 /**
@@ -43,27 +44,7 @@ export default function ReportScreen() {
 }
 
 function PeriodPicker({ value, onChange }: { value: ReportPeriod; onChange: (p: ReportPeriod) => void }) {
-  const p = usePalette();
-  return (
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 3, gap: 2, borderRadius: 999, backgroundColor: p.surface2 }}>
-      {REPORT_PERIODS.map((d) => {
-        const on = d === value;
-        return (
-          <Pressable
-            key={d}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(d)}
-            style={{ flex: 1, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? p.surface : 'transparent' }}
-          >
-            <Text variant="small" tone={on ? 'ink' : 'muted'} style={{ fontFamily: on ? font.semibold : font.medium }}>
-              {REPORT_PERIOD_LABELS[d]}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  return <LiquidSegmented label="Период" value={value} onChange={onChange} options={REPORT_PERIODS.map((d) => ({ value: d, label: REPORT_PERIOD_LABELS[d] }))} />;
 }
 
 function Body({ r }: { r: Report }) {

@@ -27,6 +27,7 @@ import {
 import { ApiError, newIdempotencyKey } from '../../lib/client';
 import { useInvalidateWork, useMe } from '../../lib/queries';
 import { api } from '../../lib/session';
+import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { font, usePalette } from '../../lib/theme';
 import { Avatar, Button, Card, Input, Screen, Text } from '../../ui/primitives';
 import { TemplateApply, TemplateList } from '../../ui/templates';
@@ -85,23 +86,16 @@ export default function NewGoal() {
   const chip = (selected: boolean) => ({ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: selected ? p.ink : p.line, backgroundColor: selected ? p.ink : p.surface });
 
   const start = (
-    <View accessibilityRole="radiogroup" accessibilityLabel="С чего начать" style={{ flexDirection: 'row', padding: 3, gap: 2, borderRadius: 999, backgroundColor: p.surface2 }}>
-      {(
-        [
-          ['scratch', 'С нуля'],
-          ['template', 'Из шаблона'],
-        ] as const
-      ).map(([m, label]) => {
-        const on = (canTemplate ? mode : 'scratch') === m;
-        return (
-          <Pressable key={m} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: m === 'template' && !canTemplate }} disabled={m === 'template' && !canTemplate} onPress={() => (setMode(m), setTpl(null))} style={{ flex: 1, paddingVertical: 9, borderRadius: 999, alignItems: 'center', backgroundColor: on ? p.surface : 'transparent', opacity: m === 'template' && !canTemplate ? 0.4 : 1 }}>
-            <Text variant="small" style={{ fontFamily: on ? font.semibold : font.medium, color: on ? p.ink : p.ink2 }}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <LiquidSegmented
+      role="radio"
+      label="С чего начать"
+      value={canTemplate ? mode : 'scratch'}
+      onChange={(m) => (setMode(m), setTpl(null))}
+      options={[
+        { value: 'scratch' as const, label: 'С нуля' },
+        { value: 'template' as const, label: 'Из шаблона', disabled: !canTemplate },
+      ]}
+    />
   );
 
   if (canTemplate && mode === 'template') {
