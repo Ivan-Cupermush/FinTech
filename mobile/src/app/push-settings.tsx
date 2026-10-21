@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { StyleSheet, Switch, View } from 'react-native';
 import { PUSH_TOPIC_LABELS, PUSH_TOPICS, QUIET_FROM_HOUR, QUIET_TO_HOUR, plural, type PushSettings, type PushTopic } from '@offix/core';
 import { api } from '../lib/session';
+import { BellRing } from 'lucide-react-native';
+import { pushSummary } from '../lib/logic';
 import { usePalette } from '../lib/theme';
+import { PageHero } from '../ui/fx/PageHero';
 import { Button, Card, Empty, Screen, SectionTitle, Text } from '../ui/primitives';
 
 type Loaded = PushSettings & { devices: number };
@@ -32,6 +35,14 @@ export default function PushSettingsScreen() {
 
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
+      <PageHero
+        variant="settings"
+        icon={BellRing}
+        compact
+        eyebrow="Настройки"
+        title="Push на телефон"
+        subtitle={s ? pushSummary(s, s.devices) : 'Что будит телефон. Во «Входящих» уведомления сохраняются всегда.'}
+      />
       {q.isError && (
         <Card>
           <Empty title="Не удалось загрузить настройки" text={(q.error as Error).message} action={<Button title="Повторить" variant="secondary" onPress={() => q.refetch()} />} />

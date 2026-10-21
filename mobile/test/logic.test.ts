@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine, pulseStats } from '../src/lib/logic';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine, discussionStats, inboxStats, pulseStats, pushSummary } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -157,5 +157,32 @@ describe('pulseStats', () => {
     });
     expect(s.map((x) => x.value)).toEqual([2, 1, 4]);
     expect(s.map((x) => x.label)).toEqual(['под угрозой', 'ждут помощи', 'мои задачи']);
+    expect(s[0]!.tone).toBe('bad');
+  });
+  it('ноль угроз не подсвечивается', () => {
+    expect(pulseStats({ risks: [], help_needed: [], my_tasks: [] }).every((x) => !x.tone)).toBe(true);
+  });
+});
+
+describe('шапки экранов', () => {
+  it('«Входящие»: непрочитанные, блокеры среди них и обсуждения', () => {
+    const s = inboxStats([
+      { kind: 'task_blocked', read_at: null },
+      { kind: 'task_blocked', read_at: '2026-10-20T10:00:00Z' },
+      { kind: 'comment', read_at: null },
+      { kind: 'goal_assigned', read_at: null },
+    ]);
+    expect(s.map((x) => x.value)).toEqual([3, 1, 1]);
+    expect(s[1]!.tone).toBe('bad');
+    expect(inboxStats([{ kind: 'comment', read_at: '2026-10-20' }])[1]!.tone).toBeUndefined();
+  });
+  it('обсуждение: комментарии, участники без повторов и новые', () => {
+    const s = discussionStats([{ author_id: 'a' }, { author_id: 'b' }, { author_id: 'a' }], 2);
+    expect(s.map((x) => x.value)).toEqual([3, 2, 2]);
+  });
+  it('настройки push коротко говорят, что включено', () => {
+    expect(pushSummary({ muted: [], quiet_hours: true }, 1)).toBe('Все темы включены · ночью тихо.');
+    expect(pushSummary({ muted: ['comments'], quiet_hours: false }, 2)).toBe('Включено 3 из 4 тем.');
+    expect(pushSummary({ muted: [], quiet_hours: true }, 0)).toMatch(/не привязан/);
   });
 });

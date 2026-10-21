@@ -1,11 +1,14 @@
 import * as Haptics from 'expo-haptics';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { initials } from '@offix/core';
 import { font, radius, toneColors, usePalette, type Tone } from '../lib/theme';
 import { AmbientGlow } from './fx/AmbientGlow';
 import { useTabBarSpace } from './fx/TabBarSpace';
+
+/** Поле внутри стеклянной плашки: рамку фокуса рисует плашка, браузерная не нужна. */
+export const NO_WEB_OUTLINE: TextStyle = Platform.OS === 'web' ? { outlineWidth: 0 } : {};
 
 type Variant = 'body' | 'small' | 'caption' | 'title' | 'h1' | 'h2' | 'eyebrow';
 

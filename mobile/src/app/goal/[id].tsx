@@ -10,6 +10,7 @@ import { font, usePalette } from '../../lib/theme';
 import { KpiTrack, RiskItem, TaskRow } from '../../ui/domain';
 import { Avatar, Button, Card, Empty, Input, Pill, Screen, SectionTitle, Text } from '../../ui/primitives';
 import { DiscussionLink } from '../../ui/discussion';
+import { NotesLink } from '../../ui/notes';
 import { Glass } from '../../ui/fx/Glass';
 import { Hero } from '../../ui/fx/Hero';
 import { heroVariantForKpi } from '../../lib/fx';
@@ -148,7 +149,8 @@ export default function GoalScreen() {
         </>
       )}
 
-      <DiscussionLink type="goal" id={g.id} />
+      <DiscussionLink type="goal" id={g.id} title={g.title} />
+      <NotesLink goalId={g.id} goalTitle={g.title} />
 
       <SectionTitle title="Дорожная карта" />
       {groups.length ? (

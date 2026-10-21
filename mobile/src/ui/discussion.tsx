@@ -15,12 +15,12 @@ export function useDiscussionSummary(type: DiscussionEntity, id: string | undefi
 }
 
 /** Строка «Обсуждение» на экране цели и задачи: сколько комментариев и сколько новых. */
-export function DiscussionLink({ type, id }: { type: DiscussionEntity; id: string }) {
+export function DiscussionLink({ type, id, title }: { type: DiscussionEntity; id: string; title?: string }) {
   const p = usePalette();
   const s = useDiscussionSummary(type, id);
   const line = discussionLine(s.data);
   return (
-    <Card onPress={() => router.push(`/discussion/${type}/${id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Card onPress={() => router.push({ pathname: '/discussion/[type]/[id]', params: { type, id, ...(title ? { title } : {}) } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <MessageSquare size={20} color={p.ink2} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontFamily: font.semibold }}>Обсуждение</Text>

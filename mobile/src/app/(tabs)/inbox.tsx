@@ -3,11 +3,15 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Linking, Pressable, View } from 'react-native';
 import type { Notification } from '@offix/core';
-import { pushCard, type PushPermission } from '../../lib/logic';
+import { Bell, CheckCheck } from 'lucide-react-native';
+import { inboxStats, pushCard, type PushPermission } from '../../lib/logic';
 import { enablePush, pushPermission } from '../../lib/push';
 import { useNotifications } from '../../lib/queries';
 import { api } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
+import { Glass } from '../../ui/fx/Glass';
+import { PageHero } from '../../ui/fx/PageHero';
+import { KnowledgeLink } from '../../ui/notes';
 import { Button, Card, Empty, Screen, Text } from '../../ui/primitives';
 
 export default function Inbox() {
@@ -26,11 +30,27 @@ export default function Inbox() {
   };
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="h1">Входящие</Text>
-        {unread.length > 0 && <Button title="Прочитать все" variant="ghost" onPress={() => void read()} style={{ minHeight: 36, paddingHorizontal: 8 }} />}
-      </View>
+      <PageHero
+        variant="inbox"
+        icon={Bell}
+        title="Входящие"
+        subtitle={unread.length ? 'Сначала блокеры — там ждут вашего решения.' : 'Всё прочитано. Новое придёт сюда и push-уведомлением.'}
+        stats={q.data ? inboxStats(q.data) : undefined}
+        right={
+          unread.length > 0 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Прочитать все" onPress={() => void read()} hitSlop={8}>
+              <Glass radius={18} style={{ height: 36, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <CheckCheck size={15} color="#fff" />
+                <Text variant="caption" style={{ color: '#fff' }}>
+                  Прочитать все
+                </Text>
+              </Glass>
+            </Pressable>
+          ) : undefined
+        }
+      />
       <PushCard />
+      <KnowledgeLink />
       {q.data?.length ? (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           {q.data.map((n, i) => (

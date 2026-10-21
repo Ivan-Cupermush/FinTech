@@ -143,7 +143,7 @@ export default function TaskScreen() {
         </Card>
       )}
 
-      <DiscussionLink type="task" id={t.id} />
+      <DiscussionLink type="task" id={t.id} title={t.title} />
 
       {t.history.length > 0 && (
         <Card style={{ gap: 8 }}>

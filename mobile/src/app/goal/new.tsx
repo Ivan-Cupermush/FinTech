@@ -27,7 +27,9 @@ import {
 import { ApiError, newIdempotencyKey } from '../../lib/client';
 import { useInvalidateWork, useMe } from '../../lib/queries';
 import { api } from '../../lib/session';
+import { Sparkles } from 'lucide-react-native';
 import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
+import { PageHero } from '../../ui/fx/PageHero';
 import { font, usePalette } from '../../lib/theme';
 import { Avatar, Button, Card, Input, Screen, Text } from '../../ui/primitives';
 import { TemplateApply, TemplateList } from '../../ui/templates';
@@ -86,7 +88,16 @@ export default function NewGoal() {
   const chip = (selected: boolean) => ({ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: selected ? p.ink : p.line, backgroundColor: selected ? p.ink : p.surface });
 
   const start = (
-    <LiquidSegmented
+    <>
+      <PageHero
+        variant="create"
+        icon={Sparkles}
+        compact
+        eyebrow="Новая цель"
+        title="Какой результат нужен?"
+        subtitle={canTemplate && mode === 'template' ? 'В шаблоне KPI и план уже готовы — останется выбрать владельца и срок.' : 'Три коротких шага: результат, как измерим, кто отвечает.'}
+      />
+      <LiquidSegmented
       role="radio"
       label="С чего начать"
       value={canTemplate ? mode : 'scratch'}
@@ -95,7 +106,8 @@ export default function NewGoal() {
         { value: 'scratch' as const, label: 'С нуля' },
         { value: 'template' as const, label: 'Из шаблона', disabled: !canTemplate },
       ]}
-    />
+      />
+    </>
   );
 
   if (canTemplate && mode === 'template') {

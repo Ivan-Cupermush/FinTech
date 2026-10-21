@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, TextInput, View } from 'react-native';
+import { MessageSquare, SendHorizontal, X } from 'lucide-react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   buildThread,
   COMMENT_MAX,
@@ -18,11 +20,14 @@ import {
   type DiscussionSummary,
   type Member,
 } from '@offix/core';
+import { discussionStats } from '../../../lib/logic';
 import { useMe } from '../../../lib/queries';
 import { api } from '../../../lib/session';
 import { font, radius, usePalette } from '../../../lib/theme';
 import { discussionSummaryKey } from '../../../ui/discussion';
-import { Avatar, Button, Card, Empty, Screen, Text } from '../../../ui/primitives';
+import { Glass } from '../../../ui/fx/Glass';
+import { PageHero } from '../../../ui/fx/PageHero';
+import { Avatar, Card, Empty, NO_WEB_OUTLINE, Screen, Text } from '../../../ui/primitives';
 
 const when = (iso: string, today: string) => {
   const time = new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -31,7 +36,8 @@ const when = (iso: string, today: string) => {
 
 /** Обсуждение цели или задачи на телефоне: ветки, ответы, @упоминания. */
 export default function DiscussionScreen() {
-  const params = useLocalSearchParams<{ type: string; id: string }>();
+  const params = useLocalSearchParams<{ type: string; id: string; title?: string }>();
+  const insets = useSafeAreaInsets();
   const type = isDiscussionEntity(params.type) ? params.type : 'goal';
   const id = params.id;
   const p = usePalette();
@@ -63,8 +69,9 @@ export default function DiscussionScreen() {
   const people = q.data?.people ?? [];
   const firstNew = readMark === undefined ? undefined : q.data?.comments.find((c) => c.author_id !== me.data?.id && (!readMark || c.created_at > readMark))?.id;
 
+  const canSend = !validateComment(text) && !sending;
   const send = async () => {
-    if (validateComment(text) || sending) return;
+    if (!canSend) return;
     setSending(true);
     try {
       await api(`/discussions/${type}/${id}`, { body: { body: text, parent_id: replyTo?.parent_id ?? replyTo?.id ?? null } });
@@ -124,64 +131,102 @@ export default function DiscussionScreen() {
     </View>
   );
 
-  return (
-    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
-      {q.isError && <Empty title="Обсуждение недоступно" text="Возможно, у вас нет доступа к цели или задаче." />}
-      {thread.length ? (
-        <Card style={{ gap: 16 }}>{thread.map((n) => [item(n.comment, false), ...n.replies.map((r) => item(r, true))])}</Card>
-      ) : (
-        q.data && (
-          <Card>
-            <Empty title="Обсуждения пока нет" text="Задайте вопрос здесь: контекст останется рядом с целью. Упомяните коллегу через @." />
-          </Card>
-        )
-      )}
-
-      {q.data?.can_comment && (
-        <View style={{ gap: 8 }}>
-          {replyTo && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: radius.sm, backgroundColor: p.surface2 }}>
-              <Text variant="small" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
-                Ответ: {replyTo.author_name} — {replyTo.body}
-              </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Отменить ответ" onPress={() => setReplyTo(null)} hitSlop={8}>
-                <Text tone="faint">×</Text>
+  const composer = q.data?.can_comment && (
+    <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 12), gap: 8 }}>
+      {suggestions.length > 0 && (
+        <Glass tone="surface" radius={20}>
+          <View style={{ paddingVertical: 4, paddingHorizontal: 12 }} accessibilityLabel="Кого упомянуть">
+            {suggestions.map((u, i) => (
+              <Pressable
+                key={u.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Упомянуть: ${u.display_name}`}
+                onPress={() => {
+                  const r = insertMention(text, caret, u.display_name);
+                  setText(r.text);
+                  setCaret(r.caret);
+                }}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: p.line, opacity: pressed ? 0.6 : 1 })}
+              >
+                <Avatar name={u.display_name} size={24} />
+                <Text style={{ fontFamily: font.medium }}>{u.display_name}</Text>
+                {u.position && (
+                  <Text variant="caption" tone="faint" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>
+                    {u.position}
+                  </Text>
+                )}
               </Pressable>
-            </View>
-          )}
-          {suggestions.length > 0 && (
-            <Card style={{ gap: 0, paddingVertical: 4 }}>
-              {suggestions.map((u) => (
-                <Pressable
-                  key={u.id}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    const r = insertMention(text, caret, u.display_name);
-                    setText(r.text);
-                    setCaret(r.caret);
-                  }}
-                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, opacity: pressed ? 0.6 : 1 })}
-                >
-                  <Avatar name={u.display_name} size={22} />
-                  <Text style={{ flex: 1 }}>{u.display_name}</Text>
-                </Pressable>
-              ))}
-            </Card>
-          )}
+            ))}
+          </View>
+        </Glass>
+      )}
+      <Glass tone="surface" radius={24}>
+        {replyTo && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 8, marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: p.accentSoft }}>
+            <Text variant="small" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
+              Ответ: {replyTo.author_name} — {replyTo.body}
+            </Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Отменить ответ" onPress={() => setReplyTo(null)} hitSlop={8}>
+              <X size={16} color={p.ink3} />
+            </Pressable>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 6, paddingLeft: 14 }}>
           <TextInput
             value={text}
             onChangeText={setText}
             onSelectionChange={(e) => setCaret(e.nativeEvent.selection.end)}
-            placeholder="Комментарий… @ — упомянуть коллегу"
+            placeholder="Комментарий… @ — упомянуть"
             placeholderTextColor={p.ink3}
             multiline
             maxLength={COMMENT_MAX}
             accessibilityLabel="Комментарий"
-            style={{ minHeight: 72, padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: p.line, backgroundColor: p.surface, color: p.ink, fontFamily: font.regular, fontSize: 15, textAlignVertical: 'top' }}
+            style={[{ flex: 1, minHeight: 40, maxHeight: 140, paddingTop: 10, paddingBottom: 10, color: p.ink, fontFamily: font.regular, fontSize: 15, textAlignVertical: 'top' }, NO_WEB_OUTLINE]}
           />
-          <Button title="Отправить" onPress={() => void send()} loading={sending} disabled={!!validateComment(text)} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Отправить"
+            accessibilityState={{ disabled: !canSend, busy: sending }}
+            disabled={!canSend}
+            onPress={() => void send()}
+            style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: canSend ? p.accent : p.surface3, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.94 : 1 }] })}
+          >
+            {sending ? <ActivityIndicator color={p.accentInk} /> : <SendHorizontal size={18} color={canSend ? p.accentInk : p.ink3} />}
+          </Pressable>
         </View>
-      )}
+      </Glass>
+    </View>
+  );
+
+  return (
+    <Screen scroll={false}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 16, gap: 16 }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={p.ink3} />}
+        >
+          <PageHero
+            variant="discussion"
+            icon={MessageSquare}
+            back={type === 'goal' ? 'Цель' : 'Задача'}
+            eyebrow={type === 'goal' ? 'Обсуждение цели' : 'Обсуждение задачи'}
+            title={params.title || 'Обсуждение'}
+            stats={q.data && q.data.comments.length ? discussionStats(q.data.comments, q.data.unread) : undefined}
+          />
+          {q.isError && <Empty title="Обсуждение недоступно" text="Возможно, у вас нет доступа к цели или задаче." />}
+          {thread.length ? (
+            <Card style={{ gap: 16 }}>{thread.map((n) => [item(n.comment, false), ...n.replies.map((r) => item(r, true))])}</Card>
+          ) : (
+            q.data && (
+              <Card>
+                <Empty title="Обсуждения пока нет" text="Задайте вопрос здесь: контекст останется рядом с целью. Упомяните коллегу через @." />
+              </Card>
+            )
+          )}
+        </ScrollView>
+        {composer}
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
