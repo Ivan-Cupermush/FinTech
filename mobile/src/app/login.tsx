@@ -7,6 +7,8 @@ import { ApiError } from '../lib/client';
 import { useSession } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
 import { LogoMark } from '../ui/domain';
+import { Glass } from '../ui/fx/Glass';
+import { Hero } from '../ui/fx/Hero';
 import { Avatar, Button, Input, Text } from '../ui/primitives';
 
 const DEMO = [
@@ -53,14 +55,27 @@ export default function Login() {
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 20, gap: 22, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <LogoMark size={34} />
-            <Text style={{ fontFamily: font.bold, fontSize: 22, letterSpacing: -0.6 }}>offix</Text>
-          </View>
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <Text variant="h1">Цели, которые двигают цифры</Text>
-            <Text tone="muted">Войдите, чтобы увидеть, что под угрозой и кому нужна помощь.</Text>
-          </View>
+          <Hero style={{ marginTop: 4 }}>
+            <View style={{ minHeight: 300, padding: 20, justifyContent: 'space-between', gap: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <LogoMark size={30} />
+                <Text style={{ fontFamily: font.bold, fontSize: 20, letterSpacing: -0.6, color: '#fff' }}>offix</Text>
+              </View>
+              <View style={{ gap: 14 }}>
+                <Text variant="h1" style={{ color: '#fff', fontSize: 32, lineHeight: 34, letterSpacing: -1.2 }}>
+                  Цели, которые{'\n'}двигают цифры
+                </Text>
+                <Glass radius={18} style={{ alignSelf: 'flex-start' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: 14, paddingVertical: 10 }} accessibilityLabel="Время согласования: было 40, сейчас 36,5, цель 30 минут">
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontFamily: font.semibold, fontSize: 18 }}>40 →</Text>
+                    <Text style={{ color: '#fff', fontFamily: font.bold, fontSize: 22 }}>36,5</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontFamily: font.semibold, fontSize: 18 }}>→ 30 мин</Text>
+                  </View>
+                </Glass>
+              </View>
+            </View>
+          </Hero>
+          <Text tone="muted">Войдите, чтобы увидеть, что под угрозой и кому нужна помощь.</Text>
           <View style={{ gap: 14 }}>
             <Input label="Почта" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" error={errors.email} placeholder="name@company.ru" />
             <Input label="Пароль" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" error={errors.password} onSubmitEditing={() => run('form', email, password)} />
@@ -104,6 +119,11 @@ export default function Login() {
               <Server size={14} color={p.ink3} />
               <Text variant="caption" tone="faint">
                 Сервер: {server}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/licenses')} accessibilityRole="link">
+              <Text variant="caption" tone="faint" style={{ textDecorationLine: 'underline' }}>
+                Лицензии и благодарности
               </Text>
             </Pressable>
             {showServer && <Input label="Адрес сервера" value={server} onChangeText={setServer} autoCapitalize="none" keyboardType="url" hint="Например, https://offix.example.ru — /api/v1 добавим сами" />}
