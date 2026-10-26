@@ -119,6 +119,9 @@ export function recordingRealtime(online: string[] = []) {
     },
     isOnline: (_c, u) => rt.online.has(u),
     onlineIn: () => [...rt.online],
+    disconnectUser(_c, u) {
+      events.push({ event: 'disconnect_user', users: [u], payloadFor: () => null });
+    },
     clear: () => {
       events.length = 0;
     },

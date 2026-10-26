@@ -16,4 +16,6 @@ await build({
   external,
 });
 cpSync('src/db/migrations', 'dist/migrations', { recursive: true });
+// Шрифт для PDF заметок: встроенные шрифты PDF не знают кириллицы.
+cpSync('assets', 'dist/assets', { recursive: true });
 console.log('server → dist/index.js');

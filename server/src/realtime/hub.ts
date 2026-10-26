@@ -19,9 +19,11 @@ export interface Realtime {
   isOnline(companyId: string, userId: string): boolean;
   /** Кто из компании сейчас в сети. */
   onlineIn(companyId: string): string[];
+  /** Сеансы завершены (смена пароля, «выйти везде», отключение): сокеты человека закрываются. */
+  disconnectUser(companyId: string, userId: string): void;
 }
 
-export const noRealtime: Realtime = { emit() {}, emitCompany() {}, isOnline: () => false, onlineIn: () => [] };
+export const noRealtime: Realtime = { emit() {}, emitCompany() {}, isOnline: () => false, onlineIn: () => [], disconnectUser() {} };
 
 export interface RealtimeHub extends Realtime {
   attach(io: Server): void;
@@ -44,6 +46,11 @@ export function createRealtimeHub(): RealtimeHub {
     },
     emitCompany(companyId, event, payload) {
       io?.to(companyRoom(companyId)).emit(event, payload);
+    },
+    disconnectUser(companyId, userId) {
+      if (!io) return;
+      io.to(userRoom(companyId, userId)).emit('session_revoked', {});
+      io.in(userRoom(companyId, userId)).disconnectSockets(true);
     },
     isOnline: (c, u) => (online.get(key(c, u)) ?? 0) > 0,
     onlineIn: (c) => [...online.keys()].filter((k) => k.startsWith(`${c}:`)).map((k) => k.slice(c.length + 1)),

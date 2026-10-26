@@ -1,4 +1,5 @@
 import { mediaLabel, summarizeAttachments, type Attachment, type ContactCard, type MediaSummary } from './media';
+import type { NoteShareCard } from './my-notes';
 
 /**
  * Мессенджер: личные чаты, группы и группы с темами. Здесь — общая логика
@@ -181,7 +182,7 @@ export function validateChatName(name: unknown): string | null {
 
 /** Можно ли ещё поправить сообщение (текст или подпись к медиа): своё, не удалённое, не служебное, в пределах 48 часов. */
 export function canEditMessage(m: { sender_id: string | null; kind: string; deleted: boolean; created_at: string }, userId: string, now: string): boolean {
-  if ((m.kind !== 'text' && m.kind !== 'media') || m.deleted || m.sender_id !== userId) return false;
+  if ((m.kind !== 'text' && m.kind !== 'media' && m.kind !== 'note') || m.deleted || m.sender_id !== userId) return false;
   return Date.parse(now) - Date.parse(m.created_at) <= EDIT_WINDOW_HOURS * 3_600_000;
 }
 
@@ -242,8 +243,8 @@ export interface ChatMessageRef {
   media?: MediaSummary | null;
 }
 
-/** media — фото, видео и файлы (альбом до 10); voice и video_note — одно вложение; contact — карточка сотрудника. */
-export const MESSAGE_KINDS = ['text', 'service', 'poll', 'media', 'voice', 'video_note', 'contact'] as const;
+/** media — фото, видео и файлы (альбом до 10); voice и video_note — одно вложение; contact — карточка сотрудника; note — личная заметка (снимок). */
+export const MESSAGE_KINDS = ['text', 'service', 'poll', 'media', 'voice', 'video_note', 'contact', 'note'] as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
 
 export interface ChatPollOption {
@@ -305,6 +306,8 @@ export interface ChatMessage {
   contact: ContactCard | null;
   /** Голосовое и кружочек: для получателя — я прослушал, для автора — прослушал кто-то другой. */
   listened: boolean;
+  /** Отправленная заметка: снимок на момент отправки. */
+  note?: NoteShareCard | null;
 }
 
 export interface ChatTopic {
@@ -397,9 +400,10 @@ export function chatTitle(c: { type: ChatType; name: string | null }, peerName: 
 }
 
 /** Сводка вложений полного сообщения: контакт или файлы. Ссылке на сообщение её присылает сервер. */
-export function mediaOf(m: { media?: MediaSummary | null; attachments?: readonly { kind: Attachment['kind']; name: string }[]; contact?: { display_name: string } | null }): MediaSummary | null {
+export function mediaOf(m: { media?: MediaSummary | null; attachments?: readonly { kind: Attachment['kind']; name: string }[]; contact?: { display_name: string } | null; note?: { title: string } | null }): MediaSummary | null {
   if (m.media !== undefined) return m.media;
   if (m.contact) return { kind: 'contact', count: 1, name: m.contact.display_name };
+  if (m.note) return { kind: 'note', count: 1, name: m.note.title };
   return summarizeAttachments([...(m.attachments ?? [])]);
 }
 
@@ -412,6 +416,7 @@ type PreviewSource = {
   media?: MediaSummary | null;
   attachments?: readonly { kind: Attachment['kind']; name: string }[];
   contact?: { display_name: string } | null;
+  note?: { title: string } | null;
 };
 
 /** Текст без отправителя: «📷 Смета», «🎤 Голосовое сообщение», «📊 Вопрос» — для цитаты, закрепа и ответа. */

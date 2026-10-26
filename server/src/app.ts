@@ -28,6 +28,10 @@ import { roadmapRouter } from './routes/roadmap';
 import { tasksRouter } from './routes/tasks';
 import { templatesRouter } from './routes/templates';
 import { usersRouter } from './routes/users';
+import { accountRouter } from './routes/account';
+import { contactsRouter } from './routes/contacts';
+import { myNotesRouter } from './routes/my-notes';
+import { qrPublicRouter } from './routes/qr';
 
 export interface AppOptions {
   db: Db;
@@ -81,13 +85,17 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   });
 
   const v1 = express.Router();
+  // Вход по QR опрашивается часто — свой лимит, до общего лимита /auth.
+  v1.use('/auth/qr', qrPublicRouter(db, config.jwtSecret, now, { rateLimit }));
   v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit }));
   // Файлы по подписанной ссылке и превью — без заголовка Authorization (<img>, <video>).
   v1.use('/files', filesPublicRouter(db, store, now));
   v1.use(requireAuth(db, config.jwtSecret));
   const mediaCtx = { store, now };
   v1.use('/files', filesRouter(db, mediaCtx, realtime));
-  v1.use('/users', usersRouter(db));
+  v1.use('/users', usersRouter(db, realtime));
+  v1.use('/account', accountRouter(db, config.jwtSecret, now, realtime));
+  v1.use('/contacts', contactsRouter(db, realtime));
   v1.use('/org', orgRouter(db));
   v1.use('/goals', goalsRouter(db, now));
   v1.use('/tasks', tasksRouter(db, now, mediaCtx));
@@ -102,6 +110,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
   v1.use('/chats', chatsRouter(chatDeps));
   v1.use('/messages', messagesRouter(chatDeps));
+  v1.use('/my-notes', myNotesRouter(chatDeps));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));

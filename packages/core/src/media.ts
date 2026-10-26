@@ -299,7 +299,7 @@ export interface Attachment {
 
 /** Краткая сводка вложений для превью в списке чатов и в цитате. */
 export interface MediaSummary {
-  kind: MediaKind | 'contact';
+  kind: MediaKind | 'contact' | 'note';
   count: number;
   /** Имя первого файла или имя контакта. */
   name: string | null;
@@ -389,7 +389,7 @@ const pluralRu = (n: number, one: string, few: string, many: string) => {
   return many;
 };
 
-/** «📷 Фото», «🖼 3 фото», «🎬 Видео», «📎 отчёт.pdf», «📎 4 файла», «🎤 Голосовое сообщение», «⚪ Видеосообщение», «👤 Анна Смирнова». */
+/** «📷 Фото», «🖼 3 фото», «🎬 Видео», «📎 отчёт.pdf», «📎 4 файла», «🎤 Голосовое сообщение», «⚪ Видеосообщение», «👤 Анна Смирнова», «📝 План на неделю». */
 export function mediaLabel(m: MediaSummary): string {
   const n = Math.max(1, m.count);
   switch (m.kind) {
@@ -405,6 +405,8 @@ export function mediaLabel(m: MediaSummary): string {
       return '⚪ Видеосообщение';
     case 'contact':
       return `👤 ${m.name ?? 'Контакт'}`;
+    case 'note':
+      return `📝 ${m.name?.trim() || 'Заметка'}`;
   }
 }
 

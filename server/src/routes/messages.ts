@@ -110,6 +110,8 @@ export function messagesRouter({ db, now, rt, onMessage, media }: ChatDeps): Rou
               kind: m.kind,
               text: m.text,
               contact_user_id: m.contact_user_id,
+              // Заметка пересылается тем же снимком: её смогут открыть и в новом чате.
+              note_share_id: m.note_share_id,
               topic_id: topicId,
               forwarded_from_id: m.id,
               // Пересылка пересланного ведёт к первоисточнику.
@@ -133,12 +135,13 @@ export function messagesRouter({ db, now, rt, onMessage, media }: ChatDeps): Rou
     const actor = actorOf(req);
     const body = parseBody(z.object({ text: z.string().max(MESSAGE_MAX + 1000) }), req.body);
     const { msg, access } = await openMessage(db, actor, idParam(req.params.id));
-    // Подпись к медиа можно и стереть; текст сообщения — нет.
-    const err = msg.kind === 'media' ? (body.text.length > MESSAGE_MAX ? `Не длиннее ${MESSAGE_MAX} символов` : null) : validateMessageText(body.text);
+    // Подпись к медиа и заметке можно и стереть; текст сообщения — нет.
+    const captioned = msg.kind === 'media' || msg.kind === 'note';
+    const err = captioned ? (body.text.length > MESSAGE_MAX ? `Не длиннее ${MESSAGE_MAX} символов` : null) : validateMessageText(body.text);
     if (err) throw invalid('Не удалось изменить сообщение', { text: err });
     if (msg.sender_id !== actor.id) throw forbidden('Изменить можно только своё сообщение');
     if (!canEditMessage({ ...msg, deleted: msg.deleted_for_all }, actor.id, at())) throw forbidden('Сообщение уже нельзя изменить');
-    const text = body.text.trim() || (msg.kind === 'media' ? null : body.text.trim());
+    const text = body.text.trim() || (captioned ? null : body.text.trim());
     if (text !== msg.text) {
       await db.query(`UPDATE messages SET text = $2, edited_at = $3 WHERE id = $1`, [msg.id, text, at()]);
       await broadcast(db, rt, access.chat, 'message_edited', { chat_id: access.chat.id, id: msg.id, text, edited_at: at() });

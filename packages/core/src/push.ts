@@ -5,7 +5,20 @@
  * показывает те же настройки и ведёт по нажатию на тот же экран.
  */
 
-export const NOTIFICATION_KINDS = ['goal_assigned', 'task_assigned', 'task_blocked', 'task_unblocked', 'reschedule', 'kpi_achieved', 'comment', 'goal_activated'] as const;
+export const NOTIFICATION_KINDS = [
+  'goal_assigned',
+  'task_assigned',
+  'task_blocked',
+  'task_unblocked',
+  'reschedule',
+  'kpi_achieved',
+  'comment',
+  'goal_activated',
+  // Пересланная заметка: просят свежую версию, автор поделился или отказал.
+  'note_request',
+  'note_request_approved',
+  'note_request_declined',
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /** Темы push в настройках: человеку проще выбрать четыре темы, чем восемь типов. */
@@ -17,7 +30,7 @@ export const PUSH_TOPIC_LABELS: Record<PushTopic, { title: string; hint: string 
   blockers: { title: 'Блокеры', hint: 'Задача в вашей зоне заблокирована или снова в работе' },
   goals: { title: 'Цели', hint: 'Вас назначили владельцем, цель запущена, KPI достиг цели' },
   comments: { title: 'Обсуждения', hint: 'Ответы и упоминания' },
-  messages: { title: 'Сообщения', hint: 'Личные и групповые чаты, кроме чатов без звука' },
+  messages: { title: 'Сообщения', hint: 'Личные и групповые чаты, кроме чатов без звука, и запросы заметок' },
 };
 
 export const KIND_TOPIC: Record<NotificationKind, PushTopic> = {
@@ -29,6 +42,9 @@ export const KIND_TOPIC: Record<NotificationKind, PushTopic> = {
   goal_activated: 'goals',
   kpi_achieved: 'goals',
   comment: 'comments',
+  note_request: 'messages',
+  note_request_approved: 'messages',
+  note_request_declined: 'messages',
 };
 
 export interface PushSettings {

@@ -1,7 +1,7 @@
 import type { Server as HttpServer } from 'node:http';
-import jwt from 'jsonwebtoken';
 import { Server } from 'socket.io';
 import { z } from 'zod';
+import { verifyToken } from '../auth/auth';
 import type { Db } from '../db/db';
 import { isUuid } from '../http/validate';
 import { companyRoom, userRoom, type RealtimeHub } from './hub';
@@ -28,13 +28,10 @@ export function attachSocket(server: HttpServer, hub: RealtimeHub, opts: { db: D
   io.use(async (socket, next) => {
     try {
       const token = typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : '';
-      const payload = jwt.verify(token, opts.secret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
-      const { rows } = await opts.db.query<SocketUser>(
-        `SELECT u.id, m.company_id, u.display_name FROM users u JOIN company_members m ON m.user_id = u.id WHERE u.id = $1 AND m.company_id = $2 AND u.active`,
-        [payload.sub, payload.cid],
-      );
-      if (!rows[0]) throw new Error('inactive');
-      socket.data.user = rows[0];
+      // Те же проверки, что у API: подпись, активность и версия токена.
+      const user = await verifyToken(opts.db, opts.secret, token);
+      if (!user) throw new Error('UNAUTHORIZED');
+      socket.data.user = { id: user.id, company_id: user.company_id, display_name: user.display_name } satisfies SocketUser;
       next();
     } catch {
       next(new Error('UNAUTHORIZED'));

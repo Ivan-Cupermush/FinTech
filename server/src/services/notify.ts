@@ -9,6 +9,8 @@ export interface NewNotification {
   body?: string | null;
   goal_id?: string | null;
   task_id?: string | null;
+  /** Данные для перехода: запрос заметки, просьба и т. п. */
+  data?: Record<string, unknown>;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface NewNotification {
 export async function notify(q: Queryable, n: NewNotification, actorId: string | null): Promise<void> {
   if (n.user_id === actorId) return;
   await q.query(
-    `INSERT INTO notifications (company_id, user_id, kind, title, body, goal_id, task_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [n.company_id, n.user_id, n.kind, n.title, n.body ?? null, n.goal_id ?? null, n.task_id ?? null],
+    `INSERT INTO notifications (company_id, user_id, kind, title, body, goal_id, task_id, actor_id, data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [n.company_id, n.user_id, n.kind, n.title, n.body ?? null, n.goal_id ?? null, n.task_id ?? null, actorId, JSON.stringify(n.data ?? {})],
   );
 }

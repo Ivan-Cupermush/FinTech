@@ -352,7 +352,7 @@ export interface AttachmentRow {
   id: string;
   company_id: string;
   uploaded_by: string | null;
-  owner_type: 'message' | 'task' | 'comment' | null;
+  owner_type: 'message' | 'task' | 'comment' | 'note' | 'note_share' | null;
   owner_id: string | null;
   position: number;
   kind: MediaKind;

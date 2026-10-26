@@ -4,7 +4,8 @@ import type { Queryable } from '../db/db';
 import { invalid } from '../http/errors';
 import { ATT_COLS, serializeAttachment, type AttachmentRow, type MediaStore } from './media';
 
-export type OwnerType = 'message' | 'task' | 'comment';
+/** note — личная заметка, note_share — снимок заметки, отправленной в чат. */
+export type OwnerType = 'message' | 'task' | 'comment' | 'note' | 'note_share';
 
 /** Хранилище и часы — чтобы подписывать ссылки на файлы в ответах API. */
 export interface MediaCtx {

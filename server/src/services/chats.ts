@@ -17,6 +17,9 @@ import {
   type ContactCard,
   type MediaSummary,
   type MessageKind,
+  type NoteShareCard,
+  noteExcerpt,
+  noteTitle,
   summarizeAttachments,
 } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
@@ -116,10 +119,11 @@ export interface MessageRow {
   forward_sender_name: string | null;
   forward_chat_title: string | null;
   contact_user_id: string | null;
+  note_share_id: string | null;
 }
 
 export const MSG_COLS = `m.id, m.chat_id, m.seq, m.topic_id, m.kind, m.sender_id, u.display_name AS sender_name, m.text, m.created_at, m.edited_at,
-       m.deleted_for_all, m.deleted_for, m.pinned_at, m.client_id, m.reply_to_id, m.external_reply_id, m.forward_sender_name, m.forward_chat_title, m.contact_user_id`;
+       m.deleted_for_all, m.deleted_for, m.pinned_at, m.client_id, m.reply_to_id, m.external_reply_id, m.forward_sender_name, m.forward_chat_title, m.contact_user_id, m.note_share_id`;
 export const MSG_SELECT = `SELECT ${MSG_COLS}
   FROM messages m LEFT JOIN users u ON u.id = m.sender_id`;
 
@@ -223,7 +227,7 @@ export async function loadContacts(q: Queryable, ids: (string | null)[]): Promis
 }
 
 /** Сводки вложений для превью: «📷 Фото», «📎 3 файла», «👤 Анна». */
-export async function mediaSummaries(q: Queryable, rows: { id: string; kind: MessageKind; contact_user_id?: string | null }[]): Promise<Map<string, MediaSummary>> {
+export async function mediaSummaries(q: Queryable, rows: { id: string; kind: MessageKind; contact_user_id?: string | null; note_share_id?: string | null }[]): Promise<Map<string, MediaSummary>> {
   const out = new Map<string, MediaSummary>();
   const withFiles = rows.filter((r) => r.kind === 'media' || r.kind === 'voice' || r.kind === 'video_note');
   const atts = await loadAttachments(
@@ -240,7 +244,24 @@ export async function mediaSummaries(q: Queryable, rows: { id: string; kind: Mes
     rows.filter((r) => r.kind === 'contact').map((r) => r.contact_user_id ?? null),
   );
   for (const r of rows) if (r.kind === 'contact') out.set(r.id, { kind: 'contact', count: 1, name: (r.contact_user_id && contacts.get(r.contact_user_id)?.display_name) || null });
+  const notes = await loadNoteCards(
+    q,
+    rows.filter((r) => r.kind === 'note').map((r) => r.note_share_id ?? null),
+  );
+  for (const r of rows) if (r.kind === 'note') out.set(r.id, { kind: 'note', count: 1, name: (r.note_share_id && notes.get(r.note_share_id)?.title) || null });
   return out;
+}
+
+/** Карточки отправленных заметок: заголовок, отрывок, сколько файлов. */
+export async function loadNoteCards(q: Queryable, ids: (string | null)[]): Promise<Map<string, NoteShareCard>> {
+  const list = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!list.length) return new Map();
+  const { rows } = await q.query<{ id: string; title: string; body: string; sender_id: string | null; files: number }>(
+    `SELECT s.id, s.title, s.body, s.sender_id, (SELECT COUNT(*)::int FROM attachments a WHERE a.owner_type = 'note_share' AND a.owner_id = s.id) AS files
+       FROM note_shares s WHERE s.id = ANY($1::uuid[])`,
+    [list],
+  );
+  return new Map(rows.map((r) => [r.id, { id: r.id, title: noteTitle(r.title), excerpt: noteExcerpt(r.body, '', 220), files_count: r.files, sender_id: r.sender_id }]));
 }
 
 const refOf = (r: MessageRow, media: Map<string, MediaSummary>): ChatMessageRef => ({
@@ -288,6 +309,10 @@ export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[]
   );
   const refMedia = await mediaSummaries(q, [...refs.values()]);
   const listened = await loadListened(q, viewerId, rows);
+  const notes = await loadNoteCards(
+    q,
+    rows.map((r) => (r.kind === 'note' && !r.deleted_for_all ? r.note_share_id : null)),
+  );
   return rows.map((r) => {
     const reply = r.reply_to_id ? refs.get(r.reply_to_id) : undefined;
     const ext = r.external_reply_id ? refs.get(r.external_reply_id) : undefined;
@@ -318,6 +343,7 @@ export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[]
       attachments: r.deleted_for_all ? [] : serializeAll(media, atts.get(r.id), viewerId),
       contact: r.kind === 'contact' && !r.deleted_for_all && r.contact_user_id ? (contacts.get(r.contact_user_id) ?? null) : null,
       listened: listened.has(r.id),
+      note: r.kind === 'note' && !r.deleted_for_all && r.note_share_id ? (notes.get(r.note_share_id) ?? null) : null,
     };
   });
 }
@@ -374,13 +400,14 @@ export interface NewMessage {
   forward_chat_title?: string | null;
   client_id?: string | null;
   contact_user_id?: string | null;
+  note_share_id?: string | null;
 }
 
 /** Записать сообщение. Своё сообщение сразу прочитано, скрытый чат возвращается в список у всех. */
 export async function insertMessage(q: Queryable, chat: ChatRow, senderId: string, m: NewMessage, at: string): Promise<MessageRow> {
   const { rows } = await q.query<{ id: string }>(
-    `INSERT INTO messages (chat_id, company_id, topic_id, kind, sender_id, text, reply_to_id, external_reply_id, forwarded_from_id, forward_sender_name, forward_chat_title, client_id, created_at, contact_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+    `INSERT INTO messages (chat_id, company_id, topic_id, kind, sender_id, text, reply_to_id, external_reply_id, forwarded_from_id, forward_sender_name, forward_chat_title, client_id, created_at, contact_user_id, note_share_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
     [
       chat.id,
       chat.company_id,
@@ -396,6 +423,7 @@ export async function insertMessage(q: Queryable, chat: ChatRow, senderId: strin
       m.client_id ?? null,
       at,
       m.contact_user_id ?? null,
+      m.note_share_id ?? null,
     ],
   );
   const row = (await q.query<MessageRow>(`${MSG_SELECT} WHERE m.id = $1`, [rows[0]!.id])).rows[0]!;

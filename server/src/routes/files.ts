@@ -28,6 +28,13 @@ export function contentDisposition(type: 'inline' | 'attachment', name: string):
 export async function canViewAttachment(q: Queryable, actor: AuthedActor, a: AttachmentRow): Promise<boolean> {
   if (a.company_id !== actor.company_id) return false;
   if (!a.owner_type) return a.uploaded_by === actor.id;
+  // Личная заметка — только владельцу.
+  if (a.owner_type === 'note') {
+    const { rows } = await q.query(`SELECT 1 FROM personal_notes WHERE id = $1 AND owner_id = $2`, [a.owner_id, actor.id]);
+    return rows.length > 0;
+  }
+  // Снимок заметки в чате — отправителю и участникам чатов, где есть неудалённое сообщение с ней.
+  if (a.owner_type === 'note_share') return canViewShare(q, actor, a.owner_id!);
   if (a.owner_type === 'message') {
     const { rows } = await q.query(
       `SELECT 1 FROM messages m JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = $2
@@ -49,6 +56,19 @@ export async function canViewAttachment(q: Queryable, actor: AuthedActor, a: Att
   } catch {
     return false;
   }
+}
+
+/** Пересланную заметку видит отправитель и участник любого чата, куда она попала (в том числе пересылкой). */
+export async function canViewShare(q: Queryable, actor: AuthedActor, shareId: string): Promise<boolean> {
+  const { rows } = await q.query(
+    `SELECT 1 FROM note_shares s
+      WHERE s.id = $1 AND s.company_id = $2
+        AND (s.sender_id = $3 OR EXISTS (
+              SELECT 1 FROM messages m JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = $3
+               WHERE m.note_share_id = s.id AND NOT m.deleted_for_all AND NOT ($3 = ANY(m.deleted_for))))`,
+    [shareId, actor.company_id, actor.id],
+  );
+  return rows.length > 0;
 }
 
 const SAFE_NAME = /^[0-9a-f]{32}\.jpg$/;
