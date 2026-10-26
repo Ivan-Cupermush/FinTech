@@ -1,7 +1,8 @@
-import { ArrowUp, BarChart3, Clock3, CornerUpLeft, Forward, Pencil, Plus, Smile, X } from 'lucide-react';
+import { ArrowUp, BarChart3, Clock3, CornerUpLeft, File as FileIcon, Forward, Image as ImageIcon, Mic, Pencil, Plus, Smile, UserRound, Video, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { EMOJI_CATEGORIES, MESSAGE_MAX, searchEmoji, type ChatMessage } from '@offix/core';
+import { EMOJI_CATEGORIES, MESSAGE_MAX, messageBody, searchEmoji, type ChatMessage } from '@offix/core';
 import { Menu, Popover } from './parts';
+import { VideoNoteRecorder, VoiceRecorder, canRecord, type Recording } from './recorder';
 
 export type ComposerMode = { kind: 'reply'; message: ChatMessage } | { kind: 'external'; message: ChatMessage; chatTitle: string } | { kind: 'edit'; message: ChatMessage } | null;
 
@@ -43,6 +44,11 @@ export function Composer({
   onSchedule,
   scheduledCount,
   onShowScheduled,
+  onFiles,
+  onContact,
+  onRecorded,
+  onError,
+  busy,
 }: {
   chatId: string;
   topicId: string | null;
@@ -57,6 +63,13 @@ export function Composer({
   onSchedule: (text: string) => void;
   scheduledCount: number;
   onShowScheduled: () => void;
+  /** Выбранные, вставленные или перетащенные файлы. */
+  onFiles: (files: File[], asFile: boolean) => void;
+  onContact: () => void;
+  onRecorded: (kind: 'voice' | 'video_note', r: Recording) => void;
+  onError: (message: string) => void;
+  /** «Отправка голосового… 40%» — над полем ввода. */
+  busy?: string | null;
 }) {
   const key = draftKey(chatId, topicId);
   const [text, setText] = useState(() => readDraft(key));
@@ -64,7 +77,13 @@ export function Composer({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [emoji, setEmoji] = useState<DOMRect | null>(null);
   const [more, setMore] = useState<DOMRect | null>(null);
+  const [recording, setRecording] = useState<null | 'voice' | 'video_note'>(null);
+  const photos = useRef<HTMLInputElement>(null);
+  const docs = useRef<HTMLInputElement>(null);
   const editing = mode?.kind === 'edit';
+  // Подпись альбома можно стереть совсем — фото останутся.
+  const captionOnly = editing && mode.message.kind === 'media' && mode.message.attachments.length > 0;
+  const mic = !text.trim() && !editing && canRecord();
 
   // Правка: в поле — текст сообщения; после правки возвращаем черновик.
   // Ответ набранное не трогает.
@@ -114,7 +133,7 @@ export function Composer({
   const tooLong = text.trim().length > MESSAGE_MAX;
   const submit = () => {
     const t = text.trim();
-    if (!t || tooLong) return;
+    if ((!t && !captionOnly) || tooLong) return;
     if (editing) {
       onEdit(mode.message, t);
       setText(readDraft(key));
@@ -156,17 +175,33 @@ export function Composer({
         <div className="composer-mode">
           {mode.kind === 'edit' ? <Pencil size={16} aria-hidden /> : mode.kind === 'external' ? <Forward size={16} aria-hidden /> : <CornerUpLeft size={16} aria-hidden />}
           <div className="composer-mode-text">
-            <b>{mode.kind === 'edit' ? 'Изменение сообщения' : mode.kind === 'external' ? `Ответ на сообщение из «${mode.chatTitle}»` : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}</b>
-            <span className="clip">{mode.message.kind === 'poll' ? `📊 ${mode.message.text}` : mode.message.text}</span>
+            <b>{mode.kind === 'edit' ? (captionOnly ? 'Изменение подписи' : 'Изменение сообщения') : mode.kind === 'external' ? `Ответ на сообщение из «${mode.chatTitle}»` : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}</b>
+            <span className="clip">{messageBody(mode.message)}</span>
           </div>
           <button type="button" className="composer-icon" onClick={onCancelMode} aria-label="Отменить">
             <X size={16} />
           </button>
         </div>
       )}
+      {busy && (
+        <div className="composer-mode composer-busy" role="status">
+          <span className="composer-busy-spin" aria-hidden />
+          <span className="clip">{busy}</span>
+        </div>
+      )}
       <div className="composer-glass wall-glass">
+        {recording === 'voice' ? (
+          <VoiceRecorder
+            onCancel={() => setRecording(null)}
+            onError={onError}
+            onDone={(r) => {
+              setRecording(null);
+              onRecorded('voice', r);
+            }}
+          />
+        ) : (
         <div className="composer">
-          <button type="button" className="composer-icon" aria-label="Ещё" onClick={(e) => setMore(e.currentTarget.getBoundingClientRect())} disabled={editing}>
+          <button type="button" className="composer-icon" aria-label="Вложения" title="Фото, файл, контакт, опрос" onClick={(e) => setMore(e.currentTarget.getBoundingClientRect())} disabled={editing}>
             <Plus size={20} />
           </button>
           <textarea
@@ -177,6 +212,12 @@ export function Composer({
             aria-label="Сообщение"
             onChange={(e) => change(e.target.value)}
             onKeyDown={onKey}
+            onPaste={(e) => {
+              const files = Array.from(e.clipboardData?.files ?? []);
+              if (!files.length || editing) return;
+              e.preventDefault();
+              onFiles(files, false);
+            }}
             onBlur={() => onTyping(true)}
             aria-invalid={tooLong}
           />
@@ -190,11 +231,30 @@ export function Composer({
           <button type="button" className="composer-icon" aria-label="Эмодзи" onClick={(e) => setEmoji(e.currentTarget.getBoundingClientRect())}>
             <Smile size={20} />
           </button>
-          <button type="button" className="composer-send" aria-label={editing ? 'Сохранить' : 'Отправить'} onClick={submit} disabled={!text.trim() || tooLong}>
-            <ArrowUp size={19} strokeWidth={2.4} />
-          </button>
+          {mic ? (
+            <button type="button" className="composer-send is-mic" aria-label="Записать голосовое" title="Записать голосовое" onClick={() => setRecording('voice')}>
+              <Mic size={19} strokeWidth={2.2} />
+            </button>
+          ) : (
+            <button type="button" className="composer-send" aria-label={editing ? 'Сохранить' : 'Отправить'} onClick={submit} disabled={(!text.trim() && !captionOnly) || tooLong}>
+              <ArrowUp size={19} strokeWidth={2.4} />
+            </button>
+          )}
         </div>
+        )}
       </div>
+      {recording === 'video_note' && (
+        <VideoNoteRecorder
+          onCancel={() => setRecording(null)}
+          onError={onError}
+          onDone={(r) => {
+            setRecording(null);
+            onRecorded('video_note', r);
+          }}
+        />
+      )}
+      <input ref={photos} type="file" accept="image/*,video/*" multiple hidden aria-label="Фото или видео" onChange={(e) => (e.target.files?.length && onFiles(Array.from(e.target.files), false), (e.target.value = ''))} />
+      <input ref={docs} type="file" multiple hidden aria-label="Файлы" onChange={(e) => (e.target.files?.length && onFiles(Array.from(e.target.files), true), (e.target.value = ''))} />
       {emoji && (
         <Popover anchor={emoji} onClose={() => setEmoji(null)} label="Эмодзи" className="emoji-pop">
           <EmojiPicker onPick={insert} />
@@ -204,9 +264,13 @@ export function Composer({
         <Menu
           anchor={more}
           align="start"
-          label="Ещё"
+          label="Вложения"
           onClose={() => setMore(null)}
           items={[
+            { label: 'Фото или видео', icon: <ImageIcon size={16} />, onSelect: () => photos.current?.click() },
+            { label: 'Файл', icon: <FileIcon size={16} />, onSelect: () => docs.current?.click() },
+            { label: 'Контакт', icon: <UserRound size={16} />, onSelect: onContact },
+            canRecord() && { label: 'Видеосообщение', icon: <Video size={16} />, onSelect: () => setRecording('video_note') },
             { label: 'Опрос', icon: <BarChart3 size={16} />, onSelect: onPoll },
             { label: text.trim() ? 'Отправить позже…' : 'Запланировать сообщение…', icon: <Clock3 size={16} />, onSelect: () => onSchedule(text.trim()) },
             scheduledCount > 0 && { label: `Отложенные (${scheduledCount})`, icon: <Clock3 size={16} />, onSelect: onShowScheduled },

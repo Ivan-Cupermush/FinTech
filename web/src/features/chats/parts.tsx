@@ -2,14 +2,16 @@ import { AlertCircle, Check, CheckCheck, Clock } from 'lucide-react';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { highlightRanges, initials } from '@offix/core';
+import { useAvatarSrc } from '../../lib/avatars';
 import { avatarHue } from '../../lib/color';
 
-/** Аватар чата: человек — инициалы его цвета, группа — стеклянная плитка с градиентом. */
-export function ChatAvatar({ title, group, online, size = 48, icon }: { title: string; group?: boolean; online?: boolean; size?: number; icon?: ReactNode }) {
+/** Аватар чата: человек — его фото или инициалы его цвета, группа — стеклянная плитка с градиентом. */
+export function ChatAvatar({ title, group, online, size = 48, icon, userId }: { title: string; group?: boolean; online?: boolean; size?: number; icon?: ReactNode; userId?: string | null }) {
   const hue = avatarHue(title);
+  const src = useAvatarSrc(group || icon ? null : userId, group || icon ? null : title);
   return (
-    <span className={`chat-ava ${group ? 'is-group' : ''}`} style={{ '--s': `${size}px`, '--h': hue } as CSSProperties} aria-hidden>
-      <span className="chat-ava-face">{icon ?? initials(title)}</span>
+    <span className={`chat-ava ${group ? 'is-group' : ''} ${src ? 'has-photo' : ''}`} style={{ '--s': `${size}px`, '--h': hue } as CSSProperties} aria-hidden>
+      <span className="chat-ava-face">{icon ?? (src ? <img src={src} alt="" loading="lazy" decoding="async" /> : initials(title))}</span>
       {online && <span className="chat-ava-online" />}
     </span>
   );

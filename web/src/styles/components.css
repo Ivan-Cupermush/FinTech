@@ -391,6 +391,19 @@
     background: hsl(var(--h) 35% 22%);
   }
 }
+.avatar.has-photo,
+.chat-ava.has-photo .chat-ava-face {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.avatar img,
+.chat-ava-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
 .avatar-stack {
   display: flex;
 }

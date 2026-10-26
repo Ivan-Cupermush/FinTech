@@ -116,6 +116,89 @@
   background: var(--surface);
   border: 1px solid var(--line);
 }
+.me-photo {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.me-photo-cam {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(150deg, #6a80ff, #2c45dc);
+  box-shadow: 0 0 0 2px var(--surface);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+.me-photo:hover .me-photo-cam,
+.me-photo:focus-visible .me-photo-cam {
+  opacity: 1;
+  transform: none;
+}
+/* Фото профиля: кольцо из живого градиента, при загрузке — прогресс. */
+.profile-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.profile-photo-ring {
+  --p: 0;
+  position: relative;
+  padding: 5px;
+  border-radius: 50%;
+  background: conic-gradient(from 200deg, #7b8cff, #c46bff, #ff8ab3, #ffc36b, #6be3ff, #7b8cff);
+  box-shadow: 0 18px 44px -18px rgba(70, 60, 220, 0.7);
+}
+.profile-photo-ring::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.profile-photo-ring[data-busy]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 255, 255, 0.85) calc(var(--p) * 360deg), transparent 0);
+  mask: radial-gradient(circle, transparent 64%, #000 65%);
+}
+.profile-photo-ring .avatar {
+  position: relative;
+  font-size: 44px;
+}
+.profile-photo-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-photo-who b {
+  font-size: 17px;
+}
+.profile-photo-note {
+  max-width: 340px;
+  font-size: 13.5px;
+}
+.profile-photo-actions {
+  justify-content: center;
+  gap: 8px;
+}
 .main {
   min-width: 0;
   padding: 28px clamp(16px, 4vw, 44px) 60px;

@@ -10,6 +10,7 @@ import { Dialog, Panel, Skeleton } from '../../ui/Misc';
 import { TaskStatusPill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
 import { Discussion } from '../discussion/Discussion';
+import { TaskFiles } from '../files/TaskFiles';
 
 const ACTIONS: { to: TaskStatus; label: string; icon: React.ReactNode; variant: 'primary' | 'secondary' | 'danger' }[] = [
   { to: 'in_progress', label: 'Взять в работу', icon: <CircleDot size={16} />, variant: 'primary' },
@@ -142,7 +143,7 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
 
           <dl className="stack" style={{ '--gap': '12px', margin: 0 } as React.CSSProperties}>
             {[
-              ['Исполнитель', t.assignee ? <span className="row" style={{ gap: 8 }}><Avatar name={t.assignee.display_name} size={22} />{t.assignee.display_name}</span> : '—'],
+              ['Исполнитель', t.assignee ? <span className="row" style={{ gap: 8 }}><Avatar name={t.assignee.display_name} size={22} id={t.assignee.id} />{t.assignee.display_name}</span> : '—'],
               ['Команда', t.team?.name ?? '—'],
               ['Подразделение', t.unit?.name ?? '—'],
               ['Период', t.start_at || t.due_at ? `${t.start_at ? formatDate(t.start_at, { short: true, today }) : '…'} — ${t.due_at ? formatDate(t.due_at, { short: true, today }) : '…'}` : '—'],
@@ -161,12 +162,14 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
             </div>
           )}
 
+          <TaskFiles task={t} />
+
           {t.participants.length > 0 && (
             <div>
               <div className="eyebrow" style={{ marginBottom: 6 }}>Участники</div>
               {t.participants.map((p) => (
                 <div key={p.user_id + p.role} className="row" style={{ gap: 8, padding: '4px 0', fontSize: 14 }}>
-                  <Avatar name={p.display_name} size={22} /> {p.display_name}
+                  <Avatar name={p.display_name} size={22} id={p.user_id} /> {p.display_name}
                   <span className="faint">· {TASK_ROLE_LABELS[p.role as TaskRole] ?? p.role}</span>
                 </div>
               ))}

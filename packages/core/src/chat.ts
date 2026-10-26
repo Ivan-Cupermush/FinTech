@@ -1,4 +1,4 @@
-import { mediaLabel, type Attachment, type ContactCard, type MediaSummary } from './media';
+import { mediaLabel, summarizeAttachments, type Attachment, type ContactCard, type MediaSummary } from './media';
 
 /**
  * Мессенджер: личные чаты, группы и группы с темами. Здесь — общая логика
@@ -396,21 +396,42 @@ export function chatTitle(c: { type: ChatType; name: string | null }, peerName: 
   return peerName ?? 'Избранное';
 }
 
-/** Строка в списке чатов: «Вы: …», «Анна: …» в группе, служебное — как есть. */
-export function messagePreview(
-  m: { kind: MessageKind; text: string | null; deleted: boolean; sender_id?: string | null; sender_name: string | null; media?: MediaSummary | null } | null,
-  meId: string,
-  isGroup: boolean,
-): string {
-  if (!m) return 'Нет сообщений';
+/** Сводка вложений полного сообщения: контакт или файлы. Ссылке на сообщение её присылает сервер. */
+export function mediaOf(m: { media?: MediaSummary | null; attachments?: readonly { kind: Attachment['kind']; name: string }[]; contact?: { display_name: string } | null }): MediaSummary | null {
+  if (m.media !== undefined) return m.media;
+  if (m.contact) return { kind: 'contact', count: 1, name: m.contact.display_name };
+  return summarizeAttachments([...(m.attachments ?? [])]);
+}
+
+type PreviewSource = {
+  kind: MessageKind;
+  text: string | null;
+  deleted: boolean;
+  sender_id?: string | null;
+  sender_name: string | null;
+  media?: MediaSummary | null;
+  attachments?: readonly { kind: Attachment['kind']; name: string }[];
+  contact?: { display_name: string } | null;
+};
+
+/** Текст без отправителя: «📷 Смета», «🎤 Голосовое сообщение», «📊 Вопрос» — для цитаты, закрепа и ответа. */
+export function messageBody(m: PreviewSource): string {
   if (m.deleted) return 'Сообщение удалено';
   const text = (m.text ?? '').replace(/\s+/g, ' ').trim();
-  let body = m.kind === 'poll' ? `📊 ${m.text ?? 'Опрос'}` : text;
-  if (m.media) {
-    const label = mediaLabel(m.media);
+  const media = mediaOf(m);
+  if (media) {
+    const label = mediaLabel(media);
     // С подписью — значок и подпись: «📷 Смета на ноябрь».
-    body = text && (m.media.kind === 'photo' || m.media.kind === 'video' || m.media.kind === 'file') && m.media.count === 1 ? `${label.split(' ')[0]} ${text}` : text ? `${label}, ${text}` : label;
+    return text && (media.kind === 'photo' || media.kind === 'video' || media.kind === 'file') && media.count === 1 ? `${label.split(' ')[0]} ${text}` : text ? `${label}, ${text}` : label;
   }
+  return m.kind === 'poll' ? `📊 ${m.text ?? 'Опрос'}` : text;
+}
+
+/** Строка в списке чатов: «Вы: …», «Анна: …» в группе, служебное — как есть. */
+export function messagePreview(m: PreviewSource | null, meId: string, isGroup: boolean): string {
+  if (!m) return 'Нет сообщений';
+  if (m.deleted) return 'Сообщение удалено';
+  const body = messageBody(m);
   if (m.kind === 'service') return body;
   if (m.sender_id === meId) return `Вы: ${body}`;
   return isGroup && m.sender_name ? `${m.sender_name.split(' ')[0]}: ${body}` : body;

@@ -142,7 +142,7 @@ function People({ admin, myRole }: { admin: boolean; myRole?: CompanyRole }) {
         <div className="list">
           {(users.data ?? []).map((m) => (
             <div key={m.id} className="list-row" style={{ cursor: 'default', opacity: m.active ? 1 : 0.55 }}>
-              <Avatar name={m.display_name} size={32} />
+              <Avatar name={m.display_name} size={32} id={m.id} />
               <span className="grow stack" style={{ '--gap': '2px' } as React.CSSProperties}>
                 <span style={{ fontWeight: 560 }}>
                   {m.display_name} {!m.active && <span className="faint">· отключён</span>}

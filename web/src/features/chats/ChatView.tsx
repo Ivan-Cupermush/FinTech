@@ -23,8 +23,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { buildFeed, canEditMessage, chatListTime, lastSeenText, messagePreview, typingText, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
+import { buildFeed, canEditMessage, chatListTime, lastSeenText, messageBody, messagePreview, typingText, type Attachment, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
 import { ApiError } from '../../lib/api';
+import { uploadFile } from '../../lib/files';
 import { useMe } from '../../lib/queries';
 import { Button } from '../../ui/Button';
 import { Dialog, Skeleton } from '../../ui/Misc';
@@ -33,8 +34,12 @@ import { Backdrop } from '../../ui/fx/Backdrop';
 import { useMediaQuery } from '../../ui/fx/support';
 import { ChatInfo } from './ChatInfo';
 import { Composer, type ComposerMode } from './Composer';
-import { chatApi, ck, jumpTo, loadNewer, loadOlder, markListRead, patchMessage, removeMessages, sendMessage, useChat, useChatSearch, useHistory, usePinned, useScheduled } from './data';
-import { ChatPickerDialog, ConfirmDialog, PollDialog, ScheduleDialog, ScheduledDialog, TopicDialog, VotersDialog } from './dialogs';
+import { chatApi, ck, jumpTo, loadNewer, loadOlder, markListRead, patchMessage, removeMessages, sendMessage, useChat, useChatSearch, useHistory, usePinned, useScheduled, type SendInput } from './data';
+import { AttachDialog } from './attach';
+import { ChatPickerDialog, ConfirmDialog, ContactPickerDialog, PollDialog, ScheduleDialog, ScheduledDialog, TopicDialog, VotersDialog } from './dialogs';
+import { isVisual } from './media';
+import type { Recording } from './recorder';
+import { MediaViewer, type ViewerItem } from './viewer';
 import { Bubble, type BubbleActions } from './MessageBubble';
 import { ChatAvatar, Highlighted, Menu, TypingDots } from './parts';
 import { typingKey, useRealtime } from './realtime';
@@ -46,6 +51,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
   const detail = useChat(chatId);
   const [params, setParams] = useSearchParams();
   const [info, setInfo] = useState(false);
+  const [jumpReq, setJumpReq] = useState<{ id: string } | null>(null);
   const rt = useRealtime();
   const navigate = useNavigate();
   const topicId = params.get('topic');
@@ -78,9 +84,18 @@ export function ChatScreen({ chatId }: { chatId: string }) {
       ) : chat.is_supergroup && !topic ? (
         <TopicList chat={chat} onInfo={() => setInfo(true)} onOpen={(id) => setParams({ topic: id })} />
       ) : (
-        <ChatView key={topic?.id ?? 'main'} chat={chat} topic={topic} onInfo={() => setInfo(true)} onTopics={() => setParams({})} />
+        <ChatView key={topic?.id ?? 'main'} chat={chat} topic={topic} onInfo={() => setInfo(true)} onTopics={() => setParams({})} jumpReq={jumpReq} />
       )}
-      {info && chat && <ChatInfo chat={chat} onClose={() => setInfo(false)} />}
+      {info && chat && (
+        <ChatInfo
+          chat={chat}
+          onClose={() => setInfo(false)}
+          onJump={(id) => {
+            setInfo(false);
+            setJumpReq({ id });
+          }}
+        />
+      )}
     </Backdrop>
   );
 }
@@ -122,7 +137,7 @@ function ChatHeader({ chat, topic, onBack, onInfo, children, sub }: { chat: Chat
               {topic.icon}
             </span>
           ) : (
-            <ChatAvatar title={chat.title} group={group} online={peerOnline} size={40} />
+            <ChatAvatar title={chat.title} group={group} online={peerOnline} size={40} userId={chat.peer?.id} />
           )}
           <span className="chat-head-text">
             <b className="clip">{topic ? topic.name : chat.title}</b>
@@ -235,6 +250,9 @@ function TopicList({ chat, onInfo, onOpen }: { chat: ChatDetail; onInfo: () => v
 
 type Dialogs =
   | { kind: 'poll' }
+  | { kind: 'attach'; files: File[]; asFile: boolean }
+  | { kind: 'contact' }
+  | { kind: 'viewer'; items: ViewerItem[]; index: number }
   | { kind: 'schedule'; text: string }
   | { kind: 'scheduled' }
   | { kind: 'forward'; ids: string[] }
@@ -243,7 +261,10 @@ type Dialogs =
   | { kind: 'delete'; messages: ChatMessage[] }
   | null;
 
-function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: ChatTopic | null; onInfo: () => void; onTopics: () => void }) {
+/** Сообщения, которые можно переслать: всё, кроме служебных и опросов. */
+const forwardable = (m: ChatMessage) => m.kind !== 'service' && m.kind !== 'poll';
+
+function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail; topic: ChatTopic | null; onInfo: () => void; onTopics: () => void; jumpReq?: { id: string } | null }) {
   const topicId = topic?.id ?? null;
   const history = useHistory(chat.id, topicId);
   const pinned = usePinned(chat.id, topicId);
@@ -270,6 +291,9 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
   const [pinIndex, setPinIndex] = useState(0);
   const [below, setBelow] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
   const search = useChatSearch(chat.id, searchOpen ? q : '', topicId);
 
   const feed = useRef<HTMLDivElement>(null);
@@ -318,6 +342,11 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
     },
     [qc, chat.id, topicId, scrollToMessage, toast],
   );
+
+  // Переход к сообщению из галереи в карточке чата.
+  useEffect(() => {
+    if (jumpReq) void jump(jumpReq.id);
+  }, [jumpReq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Переход из поиска или ответ из другого чата — один раз при открытии.
   useEffect(() => {
@@ -395,15 +424,65 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
     };
   }, [messages, atBottom, chat.id, chat.is_supergroup, topicId, qc, data?.has_after, data?.my_last_read_seq]);
 
-  const send = async (text: string) => {
+  const send = async (text: string, extra: Pick<SendInput, 'attachments' | 'contact'> = {}) => {
     const m = mode;
     setMode(null);
     try {
-      await sendMessage(qc, chat.id, topicId, { id: meId, display_name: me.data?.display_name ?? '' }, { text, topic_id: topicId, reply_to: m?.kind === 'reply' ? m.message : null, external_reply: m?.kind === 'external' ? m.message : null });
+      await sendMessage(qc, chat.id, topicId, { id: meId, display_name: me.data?.display_name ?? '' }, { text, topic_id: topicId, reply_to: m?.kind === 'reply' ? m.message : null, external_reply: m?.kind === 'external' ? m.message : null, ...extra });
     } catch (e) {
       toast(errText(e), 'error');
     }
   };
+
+  /** Альбомы уходят по очереди: каждый — отдельным сообщением, ответ — у первого. */
+  const sendBatches = async (batches: { attachments: Attachment[]; text: string }[]) => {
+    for (const b of batches) await send(b.text, { attachments: b.attachments });
+  };
+
+  const sendRecording = async (kind: 'voice' | 'video_note', r: Recording) => {
+    const what = kind === 'voice' ? 'голосового' : 'видеосообщения';
+    setBusy(`Отправка ${what}…`);
+    try {
+      const att = await uploadFile(r.file, { fields: { kind, duration: r.duration.toFixed(1), waveform: r.waveform }, onProgress: (p) => setBusy(`Отправка ${what}… ${Math.round(p * 100)}%`) });
+      setBusy(null);
+      await send('', { attachments: [att] });
+    } catch (e) {
+      setBusy(null);
+      toast(errText(e), 'error');
+    }
+  };
+
+  const onFiles = (files: File[], asFile: boolean) => {
+    if (files.length) setDialog({ kind: 'attach', files, asFile });
+  };
+
+  // Перетащить файлы в чат — как в любом мессенджере.
+  const dragEvents = closedForMeOf(topic, chat)
+    ? {}
+    : {
+        onDragEnter: (e: React.DragEvent) => {
+          if (!e.dataTransfer?.types?.includes('Files')) return;
+          e.preventDefault();
+          dragDepth.current += 1;
+          setDragging(true);
+        },
+        onDragOver: (e: React.DragEvent) => {
+          if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
+        },
+        onDragLeave: () => {
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (!dragDepth.current) setDragging(false);
+        },
+        onDrop: (e: React.DragEvent) => {
+          dragDepth.current = 0;
+          setDragging(false);
+          const files = Array.from(e.dataTransfer?.files ?? []);
+          if (!files.length) return;
+          e.preventDefault();
+          const media = files.every((f) => /^(image|video)\//.test(f.type));
+          onFiles(files, !media);
+        },
+      };
 
   const actions: BubbleActions = useMemo(
     () => ({
@@ -445,7 +524,33 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
       voters: (m) => setDialog({ kind: 'voters', message: m }),
       retry: (m) => {
         removeMessages(qc, chat.id, [m.id]);
-        void sendMessage(qc, chat.id, topicId, { id: meId, display_name: me.data?.display_name ?? '' }, { text: m.text ?? '', topic_id: topicId }, m.client_id ?? undefined).catch((e) => toast(errText(e), 'error'));
+        void sendMessage(qc, chat.id, topicId, { id: meId, display_name: me.data?.display_name ?? '' }, { text: m.text ?? '', topic_id: topicId, attachments: m.attachments, contact: m.contact }, m.client_id ?? undefined).catch((e) => toast(errText(e), 'error'));
+      },
+      openMedia: (m, index) => {
+        // Листать можно всё загруженное в ленте, а не только этот альбом.
+        const all = (qc.getQueryData<{ messages: ChatMessage[] }>(ck.history(chat.id, topicId))?.messages ?? []).filter((x) => !x.deleted);
+        const items: ViewerItem[] = [];
+        let at = 0;
+        for (const x of all)
+          x.attachments.filter(isVisual).forEach((a, i) => {
+            if (x.id === m.id && i === index) at = items.length;
+            items.push({ attachment: a, message_id: x.id, sender_id: x.sender_id, sender_name: x.sender_name, created_at: x.created_at });
+          });
+        setDialog({ kind: 'viewer', items, index: at });
+      },
+      listen: (m) => {
+        patchMessage(qc, chat.id, m.id, (x) => ({ ...x, listened: true }));
+        void chatApi.listen(m.id).catch(() => undefined);
+      },
+      writeTo: (c) => {
+        if (c.id === meId) return;
+        chatApi
+          .direct(c.id)
+          .then((x) => {
+            void qc.invalidateQueries({ queryKey: ck.list });
+            navigate(`/app/chats/${x.id}`);
+          })
+          .catch((e) => toast(errText(e), 'error'));
       },
     }),
     [qc, chat.id, topicId, jump, navigate, toast, meId, me.data?.display_name],
@@ -475,17 +580,25 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
 
   const pins = pinned.data ?? [];
   const pin = pins[Math.min(pinIndex, pins.length - 1)];
-  const closedForMe = !!topic?.closed && !chat.can_manage_topics;
+  const closedForMe = closedForMeOf(topic, chat);
   const selectedMessages = selected ? messages.filter((m) => selected.has(m.id)) : [];
 
   return (
-    <div className="chat-view">
+    <div className={`chat-view ${dragging ? 'is-dragging' : ''}`} {...dragEvents}>
+      {dragging && (
+        <div className="chat-drop" aria-hidden>
+          <div className="chat-drop-card wall-glass">
+            <b>Отпустите, чтобы отправить</b>
+            <span>Фото и видео — альбомом, остальное — файлами</span>
+          </div>
+        </div>
+      )}
       {selected ? (
         <div className="chat-select-bar" role="toolbar" aria-label="Выбранные сообщения">
           <Button variant="ghost" size="sm" icon={<X size={18} />} onClick={() => setSelected(null)} aria-label="Снять выделение" />
           <b>Выбрано: {selected.size}</b>
           <span className="grow" />
-          <Button variant="secondary" size="sm" icon={<Forward size={16} />} disabled={selectedMessages.some((m) => m.kind !== 'text')} onClick={() => setDialog({ kind: 'forward', ids: selectedMessages.map((m) => m.id) })}>
+          <Button variant="secondary" size="sm" icon={<Forward size={16} />} disabled={!selectedMessages.every(forwardable)} onClick={() => setDialog({ kind: 'forward', ids: selectedMessages.map((m) => m.id) })}>
             Переслать
           </Button>
           <Button variant="danger" size="sm" icon={<Trash2 size={16} />} onClick={() => setDialog({ kind: 'delete', messages: selectedMessages })}>
@@ -526,7 +639,7 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
             </span>
             <span className="pinned-text">
               <b>{pins.length > 1 ? `Закреплённое ${Math.min(pinIndex, pins.length - 1) + 1} из ${pins.length}` : 'Закреплённое сообщение'}</b>
-              <span className="clip">{pin.kind === 'poll' ? `📊 ${pin.text}` : pin.text}</span>
+              <span className="clip">{messageBody(pin)}</span>
             </span>
           </button>
           {can('pin_messages') && (
@@ -544,7 +657,7 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
         )}
         {data && !data.has_before && (
           <div className="feed-start">
-            <ChatAvatar title={topic?.name ?? chat.title} group={group} size={64} icon={topic ? topic.icon : undefined} />
+            <ChatAvatar title={topic?.name ?? chat.title} group={group} size={64} icon={topic ? topic.icon : undefined} userId={chat.peer?.id} />
             <b>{topic ? topic.name : chat.title}</b>
             <span className="faint">{group ? (topic ? 'Начало темы' : 'Начало группы') : 'Начало переписки'}</span>
           </div>
@@ -627,6 +740,11 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
           onSchedule={(text) => setDialog({ kind: 'schedule', text })}
           scheduledCount={scheduled.data?.length ?? 0}
           onShowScheduled={() => setDialog({ kind: 'scheduled' })}
+          onFiles={onFiles}
+          onContact={() => setDialog({ kind: 'contact' })}
+          onRecorded={(kind, r) => void sendRecording(kind, r)}
+          onError={(msg) => toast(msg, 'error')}
+          busy={busy}
         />
       )}
 
@@ -638,8 +756,8 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
           onClose={() => setMenu(null)}
           items={[
             { label: 'Ответить', icon: <CornerUpLeft size={16} />, onSelect: () => setMode({ kind: 'reply', message: menu.m }) },
-            menu.m.kind === 'text' && { label: 'Ответить в другом чате', icon: <MessageSquareReply size={16} />, onSelect: () => setDialog({ kind: 'external', message: menu.m }) },
-            menu.m.kind === 'text' && { label: 'Переслать', icon: <Forward size={16} />, onSelect: () => setDialog({ kind: 'forward', ids: [menu.m.id] }) },
+            forwardable(menu.m) && { label: 'Ответить в другом чате', icon: <MessageSquareReply size={16} />, onSelect: () => setDialog({ kind: 'external', message: menu.m }) },
+            forwardable(menu.m) && { label: 'Переслать', icon: <Forward size={16} />, onSelect: () => setDialog({ kind: 'forward', ids: [menu.m.id] }) },
             !!menu.m.text && {
               label: 'Копировать текст',
               icon: <Copy size={16} />,
@@ -666,6 +784,17 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
         />
       )}
 
+      {dialog?.kind === 'attach' && <AttachDialog files={dialog.files} asFile={dialog.asFile} onClose={() => setDialog(null)} onSend={(b) => void sendBatches(b)} />}
+      {dialog?.kind === 'contact' && (
+        <ContactPickerDialog
+          onClose={() => setDialog(null)}
+          onPick={(u) => {
+            setDialog(null);
+            void send('', { contact: { id: u.id, display_name: u.display_name, position: u.position ?? null, avatar_url: u.avatar_url ?? null } });
+          }}
+        />
+      )}
+      {dialog?.kind === 'viewer' && <MediaViewer items={dialog.items} index={dialog.index} onClose={() => setDialog(null)} onJump={(id) => void jump(id)} />}
       {dialog?.kind === 'poll' && <PollDialog chatId={chat.id} topicId={topicId} onClose={() => setDialog(null)} onCreated={() => scrollToBottom(true)} />}
       {dialog?.kind === 'schedule' && <ScheduleDialog chatId={chat.id} topicId={topicId} initialText={dialog.text} onClose={() => setDialog(null)} onDone={() => void qc.invalidateQueries({ queryKey: ck.scheduled(chat.id) })} />}
       {dialog?.kind === 'scheduled' && <ScheduledDialog chatId={chat.id} onClose={() => setDialog(null)} />}
@@ -723,6 +852,10 @@ function ChatView({ chat, topic, onInfo, onTopics }: { chat: ChatDetail; topic: 
       )}
     </div>
   );
+}
+
+function closedForMeOf(topic: ChatTopic | null, chat: ChatDetail) {
+  return !!topic?.closed && !chat.can_manage_topics;
 }
 
 function DeleteDialog({ count, forAll, peerName, onDelete, onClose }: { count: number; forAll: boolean; peerName: string | null; onDelete: (how: 'me' | 'all') => Promise<void>; onClose: () => void }) {

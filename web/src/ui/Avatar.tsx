@@ -1,11 +1,16 @@
 import { initials } from '@offix/core';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { useAvatarSrc } from '../lib/avatars';
 import { avatarHue } from '../lib/color';
 
-export function Avatar({ name, size = 28, title }: { name: string; size?: number; title?: string }) {
+/** Фото, если человек его загрузил; иначе — инициалы его цвета. */
+export function Avatar({ name, size = 28, title, id }: { name: string; size?: number; title?: string; id?: string | null }) {
+  const src = useAvatarSrc(id, name);
+  const [broken, setBroken] = useState<string | null>(null);
+  const photo = src && broken !== src;
   return (
-    <span className="avatar" style={{ '--s': `${size}px`, '--h': avatarHue(name) } as CSSProperties} title={title ?? name} aria-hidden={!title}>
-      {initials(name)}
+    <span className={`avatar ${photo ? 'has-photo' : ''}`} style={{ '--s': `${size}px`, '--h': avatarHue(name) } as CSSProperties} title={title ?? name} aria-hidden={!title}>
+      {photo ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setBroken(src)} /> : initials(name)}
     </span>
   );
 }

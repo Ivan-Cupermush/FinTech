@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { messagePreview, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary } from '@offix/core';
 import { connectChatSocket, type ChatSocket } from '../../lib/socket';
 import { useAuth } from '../../lib/auth';
+import { avatarsKey } from '../../lib/avatars';
 import { addMessages, chatApi, ck, patchMessage, removeMessages, setOthersRead } from './data';
 
 export interface Typist {
@@ -148,6 +149,14 @@ export function ChatRealtimeProvider({ meId, children }: { meId: string | undefi
         }),
       stop_typing: (p: { chat_id: string; topic_id: string | null; user_id: string }) => dropTypist(p.chat_id, p.topic_id, p.user_id),
       scheduled_changed: (p: { chat_id: string }) => void qc.invalidateQueries({ queryKey: ck.scheduled(p.chat_id) }),
+      // Автор видит, что голосовое прослушали; слушатель — у себя на другом устройстве.
+      message_listened: (p: { chat_id: string; message_id: string; user_id: string; sender_id: string | null }) => {
+        if (p.user_id === meId || p.sender_id === meId) patchMessage(qc, p.chat_id, p.message_id, (m) => ({ ...m, listened: true }));
+      },
+      avatar_changed: (p: { user_id: string }) => {
+        void qc.invalidateQueries({ queryKey: avatarsKey });
+        if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
+      },
     };
     for (const [event, fn] of Object.entries(on)) s.on(event, fn);
     return () => {

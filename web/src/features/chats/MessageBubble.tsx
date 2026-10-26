@@ -1,8 +1,9 @@
 import { CheckCircle2, CircleSlash, CornerUpLeft, Forward, MoreHorizontal, Pin, RotateCcw, SmilePlus, XCircle } from 'lucide-react';
 import { memo, useState, type CSSProperties, type MouseEvent } from 'react';
-import { REACTIONS, moscowTime, type ChatMessage, type ChatPoll } from '@offix/core';
+import { REACTIONS, messageBody, moscowTime, type ChatMessage, type ChatPoll, type ContactCard } from '@offix/core';
 import { avatarHue } from '../../lib/color';
 import { Avatar } from '../../ui/Avatar';
+import { Album, ContactView, FileRow, VideoNote, VoicePlayer, isVisual } from './media';
 import { Popover, RichText, Ticks } from './parts';
 
 const TOUCH = () => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none)').matches;
@@ -19,6 +20,12 @@ export interface BubbleActions {
   closePoll: (m: ChatMessage) => void;
   voters: (m: ChatMessage) => void;
   retry: (m: ChatMessage) => void;
+  /** Открыть фото или видео альбома во весь экран. */
+  openMedia: (m: ChatMessage, index: number) => void;
+  /** Голосовое или кружочек прослушаны впервые. */
+  listen: (m: ChatMessage) => void;
+  /** «Написать» на карточке контакта. */
+  writeTo: (c: ContactCard) => void;
 }
 
 export const Bubble = memo(function Bubble({
@@ -73,6 +80,26 @@ export const Bubble = memo(function Bubble({
     actions.menu(m, { x: e.clientX, y: e.clientY });
   };
   const myReaction = m.reactions.find((r) => r.mine)?.emoji ?? null;
+  const visual = m.attachments.filter(isVisual);
+  const files = m.attachments.filter((a) => a.kind === 'file');
+  const sound = m.kind === 'voice' || m.kind === 'video_note' ? (m.attachments[0] ?? null) : null;
+  const round = m.kind === 'video_note' && !!sound;
+  const header = showName || !!m.forwarded_from || !!m.reply_to || !!m.external_reply;
+  const caption = !!m.text?.trim();
+  const textBlock = m.kind === 'text' || (m.kind === 'media' && caption);
+  const overPhoto = visual.length > 0 && !caption && !files.length;
+  const bubbleCls = [
+    'bubble',
+    m.poll && 'has-poll',
+    visual.length && 'has-album',
+    overPhoto && !header && 'is-media-only',
+    round && 'is-round',
+    // У голосового время — в строке с длительностью, как в Telegram.
+    m.kind === 'voice' ? 'is-voice' : !textBlock && !overPhoto && 'meta-block',
+    overPhoto && 'meta-over',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -84,9 +111,9 @@ export const Bubble = memo(function Bubble({
       data-seq={m.seq}
     >
       {selecting && <span className={`msg-check ${selected ? 'on' : ''}`} role="checkbox" aria-checked={selected} aria-label="Выбрать сообщение" />}
-      {group && !mine && <span className="msg-ava">{last ? <Avatar name={name} size={32} /> : null}</span>}
+      {group && !mine && <span className="msg-ava">{last ? <Avatar name={name} size={32} id={m.sender_id} /> : null}</span>}
       <div className="msg-col">
-        <div className={`bubble ${m.poll ? 'has-poll' : ''}`}>
+        <div className={bubbleCls}>
           {showName && (
             <div className="bubble-name" style={{ '--h': avatarHue(name) } as CSSProperties}>
               {name}
@@ -101,7 +128,7 @@ export const Bubble = memo(function Bubble({
           {m.reply_to && (
             <button type="button" className="bubble-quote" onClick={(e) => (e.stopPropagation(), actions.jump(m.reply_to!.id))} style={{ '--h': avatarHue(m.reply_to.sender_name ?? '') } as CSSProperties}>
               <b>{m.reply_to.sender_name ?? 'Удалённый аккаунт'}</b>
-              <span className="clip">{m.reply_to.deleted ? 'Сообщение удалено' : m.reply_to.kind === 'poll' ? `📊 ${m.reply_to.text}` : m.reply_to.text}</span>
+              <span className="clip">{messageBody(m.reply_to)}</span>
             </button>
           )}
           {m.external_reply && (
@@ -109,12 +136,22 @@ export const Bubble = memo(function Bubble({
               <b>
                 {m.external_reply.sender_name ?? 'Удалённый аккаунт'} · {m.external_reply.chat_title}
               </b>
-              <span className="clip">{m.external_reply.deleted ? 'Сообщение удалено' : m.external_reply.text}</span>
+              <span className="clip">{messageBody(m.external_reply)}</span>
             </button>
           )}
-          {m.poll ? (
-            <PollView m={m} poll={m.poll} canClose={canClosePoll || mine} actions={actions} />
-          ) : (
+          {m.poll && <PollView m={m} poll={m.poll} canClose={canClosePoll || mine} actions={actions} />}
+          {visual.length > 0 && <Album items={visual} onOpen={(i) => !selecting && actions.openMedia(m, i)} />}
+          {files.length > 0 && (
+            <div className="bubble-files">
+              {files.map((a) => (
+                <FileRow key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+          {sound && m.kind === 'voice' && <VoicePlayer a={sound} listened={m.listened} mine={mine} onListen={() => actions.listen(m)} />}
+          {round && sound && <VideoNote a={sound} listened={m.listened} mine={mine} onListen={() => actions.listen(m)} />}
+          {m.contact && <ContactView c={m.contact} onWrite={actions.writeTo} />}
+          {textBlock && (
             <div className="bubble-text">
               <RichText text={m.text ?? ''} highlight={highlight} />
               <span className="bubble-meta-spacer" aria-hidden style={{ '--meta-w': `${40 + (mine ? 18 : 0) + (m.edited_at ? 62 : 0) + (m.pinned ? 14 : 0)}px` } as CSSProperties} />

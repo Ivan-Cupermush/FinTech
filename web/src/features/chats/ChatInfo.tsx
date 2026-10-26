@@ -11,13 +11,14 @@ import { Panel } from '../../ui/Misc';
 import { useToast } from '../../ui/Toast';
 import { chatApi, ck } from './data';
 import { AddMembersDialog, AdminDialog, ConfirmDialog } from './dialogs';
+import { ChatGalleryView } from './gallery';
 import { ChatAvatar, Menu } from './parts';
 import { useRealtime } from './realtime';
 
 const ROLE: Record<ChatMember['role'], string> = { creator: 'создатель', admin: 'администратор', member: '' };
 
 /** Карточка чата: участники и их права, мои настройки, темы, выход и удаление. */
-export function ChatInfo({ chat, onClose }: { chat: ChatDetail; onClose: () => void }) {
+export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose: () => void; onJump: (messageId: string) => void }) {
   const me = useMe();
   const rt = useRealtime();
   const qc = useQueryClient();
@@ -61,7 +62,7 @@ export function ChatInfo({ chat, onClose }: { chat: ChatDetail; onClose: () => v
     <Panel title="Информация" subtitle={group ? (chat.is_supergroup ? 'Группа с темами' : 'Группа') : 'Личный чат'} onClose={onClose}>
       <div className="info">
         <div className="info-hero">
-          <ChatAvatar title={chat.title} group={group} size={88} />
+          <ChatAvatar title={chat.title} group={group} size={88} userId={chat.peer?.id} />
           {renaming ? (
             <form
               className="info-rename"
@@ -126,7 +127,7 @@ export function ChatInfo({ chat, onClose }: { chat: ChatDetail; onClose: () => v
               return (
                 <div key={m.id} className="info-member">
                   <span className="info-member-ava">
-                    <Avatar name={m.display_name} size={40} />
+                    <Avatar name={m.display_name} size={40} id={m.id} />
                     {online(m) && <span className="chat-ava-online" />}
                   </span>
                   <span className="grow">
@@ -143,6 +144,8 @@ export function ChatInfo({ chat, onClose }: { chat: ChatDetail; onClose: () => v
             })}
           </section>
         )}
+
+        <ChatGalleryView chatId={chat.id} onJump={onJump} />
 
         <div className="info-danger">
           {!group && (

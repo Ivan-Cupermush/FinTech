@@ -17,6 +17,7 @@ import {
   type ChatMember,
   type ChatPermission,
   type ChatTopic,
+  type Member,
 } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe, useUsers } from '../../lib/queries';
@@ -45,7 +46,7 @@ function PeopleList({ selected, onToggle, exclude = [], single }: { selected: st
           const on = selected.includes(u.id) || off;
           return (
             <button key={u.id} type="button" className={`people-row ${on ? 'is-on' : ''}`} disabled={off} role={single ? 'option' : 'checkbox'} aria-checked={on} aria-selected={single ? on : undefined} onClick={() => onToggle(u.id)}>
-              <Avatar name={u.display_name} size={36} />
+              <Avatar name={u.display_name} size={36} id={u.id} />
               <span className="grow">
                 <span className="clip people-name">{u.display_name}</span>
                 <span className="clip faint">{off ? 'уже в чате' : (u.position ?? '')}</span>
@@ -57,6 +58,23 @@ function PeopleList({ selected, onToggle, exclude = [], single }: { selected: st
         {users.data && !people.length && <p className="faint">Никого не нашлось</p>}
       </div>
     </div>
+  );
+}
+
+/** Поделиться контактом коллеги: карточка с кнопкой «Написать». */
+export function ContactPickerDialog({ onClose, onPick }: { onClose: () => void; onPick: (u: Member) => void }) {
+  const users = useUsers();
+  return (
+    <Dialog title="Отправить контакт" onClose={onClose}>
+      <PeopleList
+        selected={[]}
+        single
+        onToggle={(id) => {
+          const u = users.data?.find((x) => x.id === id);
+          if (u) onPick(u);
+        }}
+      />
+    </Dialog>
   );
 }
 
@@ -194,7 +212,7 @@ export function ChatPickerDialog({ title, exclude, onPick, onClose }: { title: s
       <div className="people-list" role="listbox" aria-label="Чаты">
         {list.map((c) => (
           <button key={c.id} type="button" role="option" aria-selected={false} className="people-row" onClick={() => onPick(c.id, c.title)}>
-            <ChatAvatar title={c.title} group={c.type === 'group'} size={36} />
+            <ChatAvatar title={c.title} group={c.type === 'group'} size={36} userId={c.peer?.id} />
             <span className="grow">
               <span className="clip people-name">{c.title}</span>
               <span className="clip faint">{c.type === 'group' ? `${c.members_count} участников` : (c.peer?.position ?? 'Личный чат')}</span>
@@ -429,7 +447,7 @@ export function VotersDialog({ messageId, options, onClose }: { messageId: strin
             </div>
             {v.people.map((p) => (
               <div key={p.id} className="row" style={{ gap: 10 }}>
-                <Avatar name={p.display_name} size={28} />
+                <Avatar name={p.display_name} size={28} id={p.id} />
                 <span>{p.display_name}</span>
               </div>
             ))}

@@ -1,8 +1,9 @@
-import { Bell, BookOpen, Building2, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
+import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
 import { useAuth } from '../lib/auth';
+import { AvatarProvider } from '../lib/avatars';
 import { useChatsUnread } from '../features/chats/data';
 import { ChatRealtimeProvider } from '../features/chats/realtime';
 import { useDashboard, useMe } from '../lib/queries';
@@ -10,6 +11,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Logo } from '../ui/Logo';
 import { Glass } from '../ui/fx/Glass';
+import { ProfilePhotoDialog } from './ProfilePhoto';
 
 const NAV = [
   { to: '/app', label: 'Пульс', icon: LayoutGrid, end: true },
@@ -56,6 +58,7 @@ export function Shell() {
   const dash = useDashboard();
   const navigate = useNavigate();
   const [theme, toggleTheme] = useTheme();
+  const [photo, setPhoto] = useState(false);
   const unread = dash.data?.unread_notifications ?? 0;
   const chatsUnread = useChatsUnread(!!me.data).data?.unread ?? 0;
   const { pathname } = useLocation();
@@ -69,6 +72,7 @@ export function Shell() {
   const isDark = theme === 'dark' || (theme === 'system' && typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
+    <AvatarProvider enabled={!!me.data}>
     <ChatRealtimeProvider meId={me.data?.id}>
     <div className={`shell ${inChat ? 'is-in-chat' : ''}`}>
       <aside className="sidebar" aria-label="Навигация">
@@ -95,7 +99,12 @@ export function Shell() {
           </div>
           {me.data && (
             <div className="me-card">
-              <Avatar name={me.data.display_name} size={34} />
+              <button type="button" className="me-photo" onClick={() => setPhoto(true)} aria-label="Фото профиля" title="Сменить фото">
+                <Avatar name={me.data.display_name} size={34} id={me.data.id} />
+                <span className="me-photo-cam" aria-hidden>
+                  <Camera size={11} strokeWidth={2.4} />
+                </span>
+              </button>
               <div className="grow">
                 <div className="clip" style={{ fontWeight: 600, fontSize: 14 }}>
                   {me.data.display_name}
@@ -123,7 +132,9 @@ export function Shell() {
           ))}
         </nav>
       </Glass>
+      {photo && me.data && <ProfilePhotoDialog me={me.data} onClose={() => setPhoto(false)} />}
     </div>
     </ChatRealtimeProvider>
+    </AvatarProvider>
   );
 }

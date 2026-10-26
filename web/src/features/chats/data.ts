@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { mergeMessages, type ChatDetail, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSearchHit, type ChatSummary, type PollVoters, type ScheduledMessage } from '@offix/core';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { mediaOf, mergeMessages, type Attachment, type ChatDetail, type ChatGallery, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSearchHit, type ChatStats, type ChatSummary, type ContactCard, type GalleryTab, type MessageKind, type PollVoters, type ScheduledMessage } from '@offix/core';
 import { api, newIdempotencyKey } from '../../lib/api';
 
 /** Ключи кэша чатов. История — по чату и теме («main» — без тем). */
@@ -13,6 +13,8 @@ export const ck = {
   search: (q: string) => ['chat-search', q] as const,
   searchIn: (id: string, q: string) => ['chat-search-in', id, q] as const,
   voters: (id: string) => ['poll-voters', id] as const,
+  gallery: (id: string, tab: GalleryTab) => ['chat-gallery', id, tab] as const,
+  stats: (id: string) => ['chat-stats', id] as const,
 };
 
 const topicQuery = (topic: string | null) => (topic ? `topic_id=${topic}` : '');
@@ -23,6 +25,17 @@ export const useChat = (id: string | null) => useQuery({ queryKey: ck.detail(id 
 export const usePinned = (id: string, topic: string | null) => useQuery({ queryKey: ck.pinned(id, topic), queryFn: () => api<ChatMessage[]>(`/chats/${id}/pinned?${topicQuery(topic)}`) });
 export const useScheduled = (id: string) => useQuery({ queryKey: ck.scheduled(id), queryFn: () => api<ScheduledMessage[]>(`/chats/${id}/scheduled`) });
 export const useVoters = (messageId: string | null) => useQuery({ queryKey: ck.voters(messageId ?? ''), queryFn: () => api<PollVoters[]>(`/messages/${messageId}/voters`), enabled: !!messageId });
+
+/** Медиа, файлы, голосовые и ссылки чата — страницами по сообщениям, альбом не рвётся. */
+export function useGallery(id: string, tab: GalleryTab) {
+  return useInfiniteQuery({
+    queryKey: ck.gallery(id, tab),
+    queryFn: ({ pageParam }) => api<ChatGallery>(`/chats/${id}/media?tab=${tab}&limit=60${pageParam ? `&before=${pageParam}` : ''}`),
+    initialPageParam: 0,
+    getNextPageParam: (p) => p.next_before ?? undefined,
+  });
+}
+export const useChatStats = (id: string) => useQuery({ queryKey: ck.stats(id), queryFn: () => api<ChatStats>(`/chats/${id}/stats`), staleTime: 30_000 });
 
 export function useGlobalSearch(q: string) {
   const query = q.trim();
@@ -118,6 +131,17 @@ export interface SendInput {
   topic_id?: string | null;
   reply_to?: ChatMessage | null;
   external_reply?: ChatMessage | null;
+  /** Уже загруженные файлы: альбом, файлы, голосовое или кружочек. */
+  attachments?: Attachment[];
+  contact?: ContactCard | null;
+}
+
+/** Вид сообщения по содержимому — как его определит сервер. */
+export function kindOf(input: Pick<SendInput, 'attachments' | 'contact'>): MessageKind {
+  if (input.contact) return 'contact';
+  const first = input.attachments?.[0];
+  if (!first) return 'text';
+  return first.kind === 'voice' || first.kind === 'video_note' ? first.kind : 'media';
 }
 
 /** Отправка с мгновенным появлением в ленте: локальное сообщение заменяется настоящим по client_id. */
@@ -128,7 +152,7 @@ export async function sendMessage(qc: QueryClient, chatId: string, topic: string
     chat_id: chatId,
     seq: Number.MAX_SAFE_INTEGER - 1000 + Math.random(),
     topic_id: topic,
-    kind: 'text',
+    kind: kindOf(input),
     sender_id: me.id,
     sender_name: me.display_name,
     text: input.text,
@@ -137,20 +161,28 @@ export async function sendMessage(qc: QueryClient, chatId: string, topic: string
     deleted: false,
     pinned: false,
     client_id: clientId,
-    reply_to: input.reply_to ? { id: input.reply_to.id, sender_name: input.reply_to.sender_name, text: input.reply_to.text, kind: input.reply_to.kind, deleted: false } : null,
+    reply_to: input.reply_to ? { id: input.reply_to.id, sender_name: input.reply_to.sender_name, text: input.reply_to.text, kind: input.reply_to.kind, deleted: false, media: mediaOf(input.reply_to) } : null,
     external_reply: null,
     forwarded_from: null,
     reactions: [],
     poll: null,
     read: false,
-    attachments: [],
-    contact: null,
+    attachments: input.attachments ?? [],
+    contact: input.contact ?? null,
     listened: false,
   };
   qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [local]) } : h));
   try {
     const msg = await api<ChatMessage>(`/chats/${chatId}/messages`, {
-      body: { text: input.text, client_id: clientId, topic_id: topic, reply_to_id: input.reply_to?.id, external_reply_id: input.external_reply?.id },
+      body: {
+        text: input.text,
+        client_id: clientId,
+        topic_id: topic,
+        reply_to_id: input.reply_to?.id,
+        external_reply_id: input.external_reply?.id,
+        attachment_ids: input.attachments?.length ? input.attachments.map((a) => a.id) : undefined,
+        contact_user_id: input.contact?.id,
+      },
     });
     qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [msg]) } : h));
     void qc.invalidateQueries({ queryKey: ck.list });
@@ -203,4 +235,5 @@ export const chatApi = {
   createTopic: (chatId: string, body: { name: string; icon: string; color: string }) => api(`/chats/${chatId}/topics`, { body }),
   editTopic: (chatId: string, topicId: string, body: { name?: string; icon?: string; color?: string; closed?: boolean }) => api(`/chats/${chatId}/topics/${topicId}`, { method: 'PATCH', body }),
   dropTopic: (chatId: string, topicId: string) => api(`/chats/${chatId}/topics/${topicId}`, { method: 'DELETE' }),
+  listen: (messageId: string) => api(`/messages/${messageId}/listen`, { method: 'POST' }),
 };

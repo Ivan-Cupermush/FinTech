@@ -151,7 +151,7 @@ function ChatRow({ chat: c, active, meId, now, q }: { chat: ChatSummary; active:
   return (
     <div className={`chat-row ${active ? 'is-active' : ''} ${c.unread && !muted ? 'is-unread' : ''}`} role="listitem" onContextMenu={openMenu}>
       <Link to={`/app/chats/${c.id}`} className="chat-row-link" aria-current={active ? 'page' : undefined} aria-label={`${c.title}${c.unread ? `, ${c.unread} непрочитанных` : ''}`}>
-        <ChatAvatar title={c.title} group={c.type === 'group'} online={online} icon={c.type === 'private' && !c.peer ? <Archive size={20} /> : undefined} />
+        <ChatAvatar title={c.title} group={c.type === 'group'} online={online} userId={c.peer?.id} icon={c.type === 'private' && !c.peer ? <Archive size={20} /> : undefined} />
         <span className="chat-row-main">
           <span className="chat-row-top">
             <span className="chat-row-title clip">{q ? <Highlighted text={c.title} q={q} /> : c.title}</span>

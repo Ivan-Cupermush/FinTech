@@ -12,7 +12,9 @@ import {
   isReaction,
   lastSeenText,
   matchesQuery,
+  mediaOf,
   mergeMessages,
+  messageBody,
   messagePreview,
   muteUntil,
   normText,
@@ -166,6 +168,22 @@ describe('подписи', () => {
     expect(messagePreview({ ...m, deleted: true }, 'u1', true)).toBe('Сообщение удалено');
     expect(messagePreview({ ...m, kind: 'poll', text: 'Обед?' }, 'u1', false)).toBe('📊 Обед?');
     expect(messagePreview({ ...m, kind: 'service', text: 'Анна создаёт группу' }, 'u2', true)).toBe('Анна создаёт группу');
+  });
+  it('превью с вложениями: сводка с сервера или из самих вложений', () => {
+    const m = { kind: 'media' as MessageKind, text: '', deleted: false, sender_id: 'u2', sender_name: 'Анна Смирнова' };
+    const photo = { kind: 'photo' as const, name: '1.jpg' };
+    expect(messagePreview({ ...m, attachments: [photo] }, 'u1', true)).toBe('Анна: 📷 Фото');
+    expect(messagePreview({ ...m, text: 'Доска', attachments: [photo] }, 'u1', false)).toBe('📷 Доска');
+    expect(messagePreview({ ...m, attachments: [photo, photo, photo] }, 'u2', false)).toBe('Вы: 🖼 3 фото');
+    expect(messagePreview({ ...m, text: 'Смотрите', attachments: [photo, { kind: 'video', name: 'v.mp4' }] }, 'u1', false)).toBe('🖼 2 медиа, Смотрите');
+    expect(messageBody({ ...m, kind: 'voice', attachments: [{ kind: 'voice', name: 'voice.m4a' }] })).toBe('🎤 Голосовое сообщение');
+    expect(messageBody({ ...m, kind: 'contact', contact: { display_name: 'Ольга Смирнова' } })).toBe('👤 Ольга Смирнова');
+    // Сводка с сервера важнее: у ссылки на сообщение вложений нет.
+    expect(messageBody({ ...m, media: { kind: 'file', count: 1, name: 'отчёт.pdf' }, attachments: [photo] })).toBe('📎 отчёт.pdf');
+    expect(messageBody({ ...m, deleted: true, attachments: [photo] })).toBe('Сообщение удалено');
+    expect(messageBody({ kind: 'poll', text: 'Обед?', deleted: false, sender_name: null })).toBe('📊 Обед?');
+    expect(mediaOf({ attachments: [] })).toBeNull();
+    expect(mediaOf({ media: null, attachments: [photo] })).toBeNull();
   });
   it('был(а) в сети', () => {
     const now = '2026-10-10T12:00:00Z'; // 15:00 МСК
