@@ -1,8 +1,6 @@
 import { ArrowUp, BarChart3, Clock3, CornerUpLeft, Forward, Pencil, Plus, Smile, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { EMOJI_CATEGORIES, MESSAGE_MAX, searchEmoji, type ChatMessage } from '@offix/core';
-import { Glass } from '../../ui/fx/Glass';
-import { useDarkTheme } from '../../ui/fx/support';
 import { Menu, Popover } from './parts';
 
 export type ComposerMode = { kind: 'reply'; message: ChatMessage } | { kind: 'external'; message: ChatMessage; chatTitle: string } | { kind: 'edit'; message: ChatMessage } | null;
@@ -66,7 +64,6 @@ export function Composer({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [emoji, setEmoji] = useState<DOMRect | null>(null);
   const [more, setMore] = useState<DOMRect | null>(null);
-  const dark = useDarkTheme();
   const editing = mode?.kind === 'edit';
 
   // Правка: в поле — текст сообщения; после правки возвращаем черновик.
@@ -167,7 +164,7 @@ export function Composer({
           </button>
         </div>
       )}
-      <Glass className="composer-glass" radius={26} overLight={!dark} elasticity={0} displacement={36} blur={0.4} clip>
+      <div className="composer-glass wall-glass">
         <div className="composer">
           <button type="button" className="composer-icon" aria-label="Ещё" onClick={(e) => setMore(e.currentTarget.getBoundingClientRect())} disabled={editing}>
             <Plus size={20} />
@@ -197,7 +194,7 @@ export function Composer({
             <ArrowUp size={19} strokeWidth={2.4} />
           </button>
         </div>
-      </Glass>
+      </div>
       {emoji && (
         <Popover anchor={emoji} onClose={() => setEmoji(null)} label="Эмодзи" className="emoji-pop">
           <EmojiPicker onPick={insert} />

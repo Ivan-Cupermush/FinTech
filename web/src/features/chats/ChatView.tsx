@@ -30,8 +30,7 @@ import { Button } from '../../ui/Button';
 import { Dialog, Skeleton } from '../../ui/Misc';
 import { useToast } from '../../ui/Toast';
 import { Backdrop } from '../../ui/fx/Backdrop';
-import { Glass } from '../../ui/fx/Glass';
-import { useDarkTheme, useMediaQuery } from '../../ui/fx/support';
+import { useMediaQuery } from '../../ui/fx/support';
 import { ChatInfo } from './ChatInfo';
 import { Composer, type ComposerMode } from './Composer';
 import { chatApi, ck, jumpTo, loadNewer, loadOlder, markListRead, patchMessage, removeMessages, sendMessage, useChat, useChatSearch, useHistory, usePinned, useScheduled } from './data';
@@ -87,7 +86,6 @@ export function ChatScreen({ chatId }: { chatId: string }) {
 }
 
 function ChatHeader({ chat, topic, onBack, onInfo, children, sub }: { chat: ChatDetail; topic: ChatTopic | null; onBack?: () => void; onInfo: () => void; children?: React.ReactNode; sub?: React.ReactNode }) {
-  const dark = useDarkTheme();
   const rt = useRealtime();
   const narrow = useMediaQuery('(max-width: 900px)');
   const navigate = useNavigate();
@@ -115,7 +113,7 @@ function ChatHeader({ chat, topic, onBack, onInfo, children, sub }: { chat: Chat
   );
   const back = onBack ?? (narrow ? () => navigate('/app/chats') : undefined);
   return (
-    <Glass className="chat-head-glass" radius={24} overLight={!dark} elasticity={0} displacement={30} blur={0.5} clip>
+    <div className="chat-head-glass wall-glass">
       <header className="chat-head">
         {back && <Button variant="ghost" size="sm" icon={<ArrowLeft size={18} />} onClick={back} aria-label={topic ? 'К темам' : 'К списку чатов'} />}
         <button type="button" className="chat-head-who" onClick={onInfo} aria-label={`${topic ? topic.name : chat.title}: информация о чате`}>
@@ -136,7 +134,7 @@ function ChatHeader({ chat, topic, onBack, onInfo, children, sub }: { chat: Chat
           <Button variant="ghost" size="sm" icon={<Info size={18} />} onClick={onInfo} aria-label="Информация" />
         </div>
       </header>
-    </Glass>
+    </div>
   );
 }
 

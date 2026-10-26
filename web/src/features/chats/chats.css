@@ -15,6 +15,11 @@
   --wall-pill-line: rgba(255, 255, 255, 0.8);
   --wall-ink: #1b2142;
   --wall-shadow: 0 10px 30px -14px rgba(20, 30, 110, 0.45);
+  --wall-glass: color-mix(in srgb, #ffffff 72%, transparent);
+  --wall-sheen: rgba(255, 255, 255, 0.85);
+  --poll-fill: rgba(255, 255, 255, 0.62);
+  --poll-fill-hover: rgba(255, 255, 255, 0.92);
+  --poll-line: rgba(20, 30, 110, 0.12);
   --hl: #ffd65c;
   display: grid;
   grid-template-columns: minmax(300px, 368px) minmax(0, 1fr);
@@ -34,6 +39,11 @@
   --wall-pill-line: rgba(255, 255, 255, 0.1);
   --wall-ink: #e8eaff;
   --wall-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+  --wall-glass: rgba(14, 16, 38, 0.62);
+  --wall-sheen: rgba(255, 255, 255, 0.12);
+  --poll-fill: rgba(255, 255, 255, 0.07);
+  --poll-fill-hover: rgba(255, 255, 255, 0.13);
+  --poll-line: rgba(255, 255, 255, 0.14);
   --hl: #c99a1e;
 }
 @media (prefers-color-scheme: dark) {
@@ -47,6 +57,11 @@
     --wall-pill-line: rgba(255, 255, 255, 0.1);
     --wall-ink: #e8eaff;
     --wall-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+    --wall-glass: rgba(14, 16, 38, 0.62);
+    --wall-sheen: rgba(255, 255, 255, 0.12);
+    --poll-fill: rgba(255, 255, 255, 0.07);
+    --poll-fill-hover: rgba(255, 255, 255, 0.13);
+    --poll-line: rgba(255, 255, 255, 0.14);
     --hl: #c99a1e;
   }
 }
@@ -180,6 +195,11 @@
   padding: 0 6px 10px;
   overflow-x: auto;
   scrollbar-width: none;
+  /* На узком экране последняя папка не должна обрываться об край. */
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.chat-filters::-webkit-scrollbar {
+  display: none;
 }
 .chat-filters button {
   flex: none;
@@ -187,7 +207,7 @@
   align-items: center;
   gap: 6px;
   height: 30px;
-  padding: 0 12px;
+  padding: 0 11px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: transparent;
@@ -471,18 +491,28 @@
   padding: 12px 12px 14px;
 }
 
-/* Шапка — жидкое стекло, которое преломляет обои. */
+/*
+ * Стекло над обоями. Жидкое стекло сюда не ставим: оно берёт картинку из-под
+ * себя, а под шапкой и полем ввода живой градиент на canvas — отражать нечего,
+ * остаётся серая плита. Своё стекло с размытием и бликом выглядит честнее.
+ */
+.wall-glass {
+  position: relative;
+  border-radius: 24px;
+  background: var(--wall-glass);
+  border: 1px solid var(--wall-pill-line);
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 var(--wall-sheen),
+    var(--wall-shadow);
+}
 .chat-head-glass {
   flex: none;
   z-index: 3;
 }
-.chat-head-glass .glass,
-.composer-glass .glass {
-  background: color-mix(in srgb, var(--surface) 58%, transparent);
-  border: 1px solid var(--wall-pill-line);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
-    var(--wall-shadow);
+.composer-glass {
+  border-radius: 26px;
 }
 .chat-head {
   display: flex;
@@ -689,7 +719,7 @@
   z-index: 2;
   display: flex;
   justify-content: center;
-  margin: 12px 0 6px;
+  margin: 14px 0 8px;
   pointer-events: none;
 }
 .feed-day span,
@@ -706,10 +736,14 @@
   box-shadow: var(--wall-shadow);
 }
 .feed-new {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 12px 0 8px;
+  /* При открытии лента встаёт на этот разделитель: оставляем место плавающей дате. */
+  scroll-margin-top: 48px;
   color: var(--wall-ink);
   font-size: 12.5px;
   font-weight: 650;
@@ -925,14 +959,15 @@
   margin-bottom: 2px;
   font-size: 13px;
   font-weight: 650;
-  color: hsl(var(--h) 65% 42%);
+  /* oklch, а не hsl: у всех имён одинаковая яркость, жёлтый не уходит в хаки. */
+  color: oklch(0.55 0.16 var(--h));
 }
 :root[data-theme='dark'] .bubble-name {
-  color: hsl(var(--h) 85% 74%);
+  color: oklch(0.84 0.13 var(--h));
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .bubble-name {
-    color: hsl(var(--h) 85% 74%);
+    color: oklch(0.84 0.13 var(--h));
   }
 }
 .bubble-fwd {
@@ -1149,8 +1184,8 @@
   min-height: 40px;
   padding: 8px 12px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  background: color-mix(in srgb, currentColor 5%, transparent);
+  border: 1px solid var(--poll-line);
+  background: var(--poll-fill);
   color: inherit;
   font: inherit;
   font-size: 14.5px;
@@ -1159,7 +1194,7 @@
   transition: background var(--dur);
 }
 .poll-option:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  background: var(--poll-fill-hover);
 }
 .poll-mark {
   flex: none;
