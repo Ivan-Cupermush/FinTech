@@ -181,6 +181,42 @@ describe('медиа в ленте', () => {
     expect(await screen.findByText('Анна: 🎤 Голосовое сообщение')).toBeInTheDocument();
   });
 
+  it('лента остаётся внизу, когда сжимается позже (закреп, превью); прокрученную вверх не трогает', async () => {
+    const observers: Array<() => void> = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          observers.push(cb);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { feed } = await openFeed();
+    // В jsdom у ленты нет размеров — задаём их сами.
+    const box = { scrollHeight: 2000, clientHeight: 700, scrollTop: 1300 };
+    Object.defineProperty(feed, 'scrollHeight', { get: () => box.scrollHeight, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { get: () => box.clientHeight, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { get: () => box.scrollTop, set: (v: number) => (box.scrollTop = Math.min(v, box.scrollHeight - box.clientHeight)), configurable: true });
+    fireEvent.scroll(feed);
+    const resize = () => act(() => observers.forEach((cb) => cb()));
+    // Закреп появился над лентой: она стала ниже на 64 px — конец всё равно виден.
+    box.clientHeight = 636;
+    resize();
+    expect(box.scrollTop).toBe(2000 - 636);
+    // Догрузилось превью — лента выросла, держимся конца.
+    box.scrollHeight = 2240;
+    resize();
+    expect(box.scrollTop).toBe(2240 - 636);
+    // Читаем старое: прокрутили вверх — размеры меняются, место чтения не прыгает.
+    box.scrollTop = 400;
+    fireEvent.scroll(feed);
+    box.scrollHeight = 2400;
+    resize();
+    expect(box.scrollTop).toBe(400);
+  });
+
   it('просмотр во весь экран: листается по всем фото ленты, Esc закрывает', async () => {
     const shot = msg('m8', 8, { kind: 'media', text: 'Вид сверху', sender_id: 'u-olga', sender_name: 'Ольга Смирнова', attachments: [att('p8')] });
     const { feed } = await openFeed({ 'GET /chats/c-team/messages': { ...HISTORY, messages: [...HISTORY.messages, shot] } });

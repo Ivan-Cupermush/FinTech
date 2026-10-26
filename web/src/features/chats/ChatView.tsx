@@ -304,6 +304,8 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
   const firstScroll = useRef(true);
   const lastCount = useRef(0);
   const jumping = useRef(!!navState?.jump);
+  // Читаем конец ленты: тогда при изменении размеров ленты остаёмся внизу.
+  const stuck = useRef(true);
 
   const data = history.data;
   if (readMark.current === null && data) readMark.current = data.my_last_read_seq;
@@ -316,6 +318,7 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
     const el = feed.current;
     if (el?.scrollTo) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
     else if (el) el.scrollTop = el.scrollHeight;
+    stuck.current = true;
     setBelow(0);
   };
 
@@ -377,12 +380,32 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
       else setBelow((b) => b + (messages.length - lastCount.current));
     }
     lastCount.current = messages.length;
+    stuck.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }, [messages, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Лента сжалась или выросла (закреп появился позже, поле ввода стало выше,
+  // догрузилось превью) — если читали конец, конец и остаётся на виду.
+  useEffect(() => {
+    const el = feed.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (stuck.current && !jumping.current && !restore.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    const mo = new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach((n) => n instanceof Element && ro.observe(n))));
+    mo.observe(el, { childList: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [chat.id, topicId]);
 
   const onScroll = async () => {
     const el = feed.current;
     if (!el || !data) return;
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stuck.current = bottom;
     setAtBottom(bottom);
     if (bottom) setBelow(0);
     if (loading.current) return;
