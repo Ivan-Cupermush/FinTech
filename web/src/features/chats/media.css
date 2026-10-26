@@ -1062,6 +1062,7 @@ video.viewer-media {
   padding: 8px 2px;
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent);
   text-align: center;
 }
 .chat-stats-tile b {
