@@ -22,3 +22,4 @@ export * from './discussion';
 export * from './notes';
 export * from './integrations';
 export * from './credits';
+export * from './chat';
