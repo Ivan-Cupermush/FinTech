@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { BellOff, MessagesSquare, Pin, Search, SquarePen } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { chatListTime, isMuted, muteUntil, type ChatSummary } from '@offix/core';
 import { CHAT_FILTERS, chatsStats, filterChats, isOnline, rowPreview, type ChatFilter } from '../../lib/chat-logic';
 import { chatApi, ck, typistNames, useChatLive, useChats } from '../../lib/chats';
@@ -104,8 +104,9 @@ export default function ChatsTab() {
                 accessibilityHint="Долгое касание — действия с чатом"
                 onPress={() => router.push({ pathname: c.is_supergroup ? '/chat/[id]/topics' : '/chat/[id]', params: { id: c.id } })}
                 onLongPress={() => chatActions(c, now, refresh)}
-                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 18, borderTopWidth: i ? 1 : 0, borderTopColor: p.line, backgroundColor: pressed ? p.surface2 : 'transparent' })}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 18, backgroundColor: pressed ? p.surface2 : 'transparent' })}
               >
+                {i > 0 && <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 72, right: 8, height: StyleSheet.hairlineWidth, backgroundColor: p.line }} />}
                 <ChatAvatar title={c.title} group={c.type === 'group'} online={online} size={52} />
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

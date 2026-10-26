@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Lock, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { chatListTime, messagePreview, TOPIC_COLORS, TOPIC_ICONS, TOPIC_NAME_MAX, type ChatTopic } from '@offix/core';
 import { chatApi, ck, useChat } from '../../../lib/chats';
 import { useMe } from '../../../lib/queries';
@@ -70,8 +70,9 @@ export default function TopicsScreen() {
               accessibilityLabel={`${t.name}${t.unread ? `, ${t.unread} непрочитанных` : ''}${t.closed ? ', закрыта' : ''}`}
               onPress={() => open(t)}
               onLongPress={() => manage(t)}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 16, borderTopWidth: i ? 1 : 0, borderTopColor: p.line, backgroundColor: pressed ? p.surface2 : 'transparent' })}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 16, backgroundColor: pressed ? p.surface2 : 'transparent' })}
             >
+              {i > 0 && <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 66, right: 8, height: StyleSheet.hairlineWidth, backgroundColor: p.line }} />}
               <View style={{ width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: `${t.color}26`, borderWidth: 1, borderColor: `${t.color}55` }}>
                 <Text style={{ fontSize: 22 }}>{t.icon}</Text>
               </View>

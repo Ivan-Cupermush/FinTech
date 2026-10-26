@@ -341,6 +341,8 @@ export default function ChatScreen() {
                   placeholder={topic ? `Сообщение в «${topic.name}»` : 'Сообщение'}
                   placeholderTextColor={w.inkSoft}
                   multiline
+                  // В веб-сборке многострочное поле по умолчанию в несколько строк — начинаем с одной.
+                  numberOfLines={Platform.OS === 'web' ? 1 : undefined}
                   accessibilityLabel="Сообщение"
                   style={[{ flex: 1, minHeight: 40, maxHeight: 140, paddingTop: 10, paddingBottom: 10, color: w.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: 'top' }, NO_WEB_OUTLINE]}
                 />
