@@ -6,6 +6,7 @@ import {
   canEditGoal,
   canTransitionTask,
   isValidIsoDate,
+  TASK_FILES_MAX,
   TASK_STATUS_LABELS,
   wouldCreateCycle,
   type TaskStatus,
@@ -18,6 +19,7 @@ import { audit, diff } from '../services/audit';
 import { effectiveAccess, getVisibleGoal } from '../services/goals';
 import { notify } from '../services/notify';
 import { loadOrg } from '../services/org';
+import { claimDrafts, deleteAttachments, loadAttachments, serializeAll, type MediaCtx } from '../services/attachments';
 import { getVisibleTask, loadTasks, serializeTask, taskPermissions } from '../services/tasks';
 
 const dateField = z.string().max(30).nullable().optional();
@@ -86,7 +88,7 @@ async function addDependency(q: Queryable, actor: AuthedActor, fromId: string, t
   await q.query(`INSERT INTO task_dependencies (company_id, from_task_id, to_task_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [actor.company_id, fromId, toId]);
 }
 
-export function tasksRouter(db: Db, now: () => Date): Router {
+export function tasksRouter(db: Db, now: () => Date, media: MediaCtx): Router {
   const r = Router();
 
   /** Мои задачи и задачи, которые я вижу. ?mine=1 — где я исполнитель. */
@@ -194,7 +196,8 @@ export function tasksRouter(db: Db, now: () => Date): Router {
       `SELECT p.user_id, p.role, u.display_name FROM task_participants p JOIN users u ON u.id = p.user_id WHERE p.task_id = $1 ORDER BY p.role`,
       [id],
     );
-    res.json({ data: { ...serializeTask(task, perms), history: history.rows, dependencies: deps.rows, participants: participants.rows } });
+    const files = serializeAll(media, (await loadAttachments(db, 'task', [id])).get(id), actor.id);
+    res.json({ data: { ...serializeTask(task, perms), history: history.rows, dependencies: deps.rows, participants: participants.rows, files } });
   });
 
   r.patch('/:id', async (req, res) => {
@@ -356,6 +359,49 @@ export function tasksRouter(db: Db, now: () => Date): Router {
       const del = await q.query(`DELETE FROM task_dependencies WHERE from_task_id = $1 AND to_task_id = $2 AND company_id = $3 RETURNING to_task_id`, [fromId, id, actor.company_id]);
       if (!del.rows.length) throw notFound('Зависимость не найдена');
       await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, actor_id: actor.id, event_type: 'task.dependency_removed', old_values: { depends_on: fromId } });
+    });
+    res.status(204).end();
+  });
+
+  // ------------------------------------------------------------ файлы задачи
+
+  /** Файлы к задаче: ТЗ, сканы, результат. Прикрепляет тот, кто может менять задачу или её статус. */
+  r.post('/:id/files', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const body = parseBody(z.object({ attachment_ids: z.array(z.string().refine(isUuid)).min(1).max(TASK_FILES_MAX) }), req.body);
+    const data = await db.tx(async (q) => {
+      const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      if (actor.role === 'observer' || !(perms.edit || perms.status)) throw forbidden('Прикреплять файлы может исполнитель, автор или руководитель');
+      const had = (await q.query<{ n: number; pos: number }>(`SELECT COUNT(*)::int AS n, COALESCE(MAX(position) + 1, 0)::int AS pos FROM attachments WHERE owner_type = 'task' AND owner_id = $1`, [id])).rows[0]!;
+      if (had.n + new Set(body.attachment_ids).size > TASK_FILES_MAX) throw invalid('Не удалось прикрепить файлы', { attachment_ids: `К задаче — не больше ${TASK_FILES_MAX} файлов` });
+      const added = await claimDrafts(q, actor, body.attachment_ids, { type: 'task', id }, { message: 'Не удалось прикрепить файлы', startAt: had.pos });
+      await audit(q, {
+        company_id: actor.company_id,
+        entity_type: 'task',
+        entity_id: id,
+        goal_id: task.goal_ids[0] ?? null,
+        actor_id: actor.id,
+        event_type: 'task.files_added',
+        new_values: { files: added.map((a) => a.name) },
+      });
+      return serializeAll(media, (await loadAttachments(q, 'task', [id])).get(id), actor.id);
+    });
+    res.status(201).json({ data });
+  });
+
+  /** Убрать файл: свой — всегда, чужой — тот, кто может менять задачу. */
+  r.delete('/:id/files/:fileId', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const fileId = idParam(req.params.fileId);
+    await db.tx(async (q) => {
+      const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      const f = (await q.query<{ uploaded_by: string | null; name: string }>(`SELECT uploaded_by, name FROM attachments WHERE id = $1 AND owner_type = 'task' AND owner_id = $2`, [fileId, id])).rows[0];
+      if (!f) throw notFound('Файл не найден');
+      if (actor.role === 'observer' || !(perms.edit || (f.uploaded_by === actor.id && perms.status))) throw forbidden('Удалить чужой файл может автор задачи или руководитель');
+      await deleteAttachments(q, media.store, { attachmentIds: [fileId] });
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.file_removed', old_values: { file: f.name } });
     });
     res.status(204).end();
   });

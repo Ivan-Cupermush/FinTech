@@ -42,6 +42,9 @@ const msg = (id: string, seq: number, over: Partial<ChatMessage> = {}): ChatMess
   reactions: [],
   poll: null,
   read: false,
+  attachments: [],
+  contact: null,
+  listened: false,
   ...over,
 });
 

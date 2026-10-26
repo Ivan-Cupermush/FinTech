@@ -14,12 +14,17 @@ import {
   type ChatSummary,
   type ChatTopic,
   type ChatType,
+  type ContactCard,
+  type MediaSummary,
   type MessageKind,
+  summarizeAttachments,
 } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
 import type { Realtime } from '../realtime/hub';
+import { loadAttachments, serializeAll, type MediaCtx } from './attachments';
+import type { AttachmentRow } from './media';
 
 export interface ChatRow {
   id: string;
@@ -110,10 +115,12 @@ export interface MessageRow {
   external_reply_id: string | null;
   forward_sender_name: string | null;
   forward_chat_title: string | null;
+  contact_user_id: string | null;
 }
 
-export const MSG_SELECT = `SELECT m.id, m.chat_id, m.seq, m.topic_id, m.kind, m.sender_id, u.display_name AS sender_name, m.text, m.created_at, m.edited_at,
-       m.deleted_for_all, m.deleted_for, m.pinned_at, m.client_id, m.reply_to_id, m.external_reply_id, m.forward_sender_name, m.forward_chat_title
+export const MSG_COLS = `m.id, m.chat_id, m.seq, m.topic_id, m.kind, m.sender_id, u.display_name AS sender_name, m.text, m.created_at, m.edited_at,
+       m.deleted_for_all, m.deleted_for, m.pinned_at, m.client_id, m.reply_to_id, m.external_reply_id, m.forward_sender_name, m.forward_chat_title, m.contact_user_id`;
+export const MSG_SELECT = `SELECT ${MSG_COLS}
   FROM messages m LEFT JOIN users u ON u.id = m.sender_id`;
 
 /** Сообщение, видимое человеку: в его чате, не удалено для всех и не удалено им для себя. */
@@ -207,24 +214,61 @@ export function groupReactions(raw: ReactionRaw[], viewerId: string): ChatReacti
     .sort((a, b) => b.count - a.count);
 }
 
-const refOf = (r: MessageRow): ChatMessageRef => ({
+/** Карточки контактов по id: имя, должность, фото. */
+export async function loadContacts(q: Queryable, ids: (string | null)[]): Promise<Map<string, ContactCard>> {
+  const list = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!list.length) return new Map();
+  const { rows } = await q.query<ContactCard>(`SELECT id, display_name, position, avatar_url FROM users WHERE id = ANY($1::uuid[])`, [list]);
+  return new Map(rows.map((r) => [r.id, r]));
+}
+
+/** Сводки вложений для превью: «📷 Фото», «📎 3 файла», «👤 Анна». */
+export async function mediaSummaries(q: Queryable, rows: { id: string; kind: MessageKind; contact_user_id?: string | null }[]): Promise<Map<string, MediaSummary>> {
+  const out = new Map<string, MediaSummary>();
+  const withFiles = rows.filter((r) => r.kind === 'media' || r.kind === 'voice' || r.kind === 'video_note');
+  const atts = await loadAttachments(
+    q,
+    'message',
+    withFiles.map((r) => r.id),
+  );
+  for (const r of withFiles) {
+    const s = summarizeAttachments(atts.get(r.id) ?? []);
+    if (s) out.set(r.id, s);
+  }
+  const contacts = await loadContacts(
+    q,
+    rows.filter((r) => r.kind === 'contact').map((r) => r.contact_user_id ?? null),
+  );
+  for (const r of rows) if (r.kind === 'contact') out.set(r.id, { kind: 'contact', count: 1, name: (r.contact_user_id && contacts.get(r.contact_user_id)?.display_name) || null });
+  return out;
+}
+
+const refOf = (r: MessageRow, media: Map<string, MediaSummary>): ChatMessageRef => ({
   id: r.id,
   sender_name: r.sender_name,
   text: r.deleted_for_all ? null : r.text,
   kind: r.kind,
   deleted: r.deleted_for_all,
+  media: r.deleted_for_all ? null : (media.get(r.id) ?? null),
 });
 
-/** Строки сообщений → ответ API: цитаты, реакции, опросы и галочки прочтения. */
-export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[], othersReadSeq: number): Promise<ChatMessage[]> {
+/** Кто прослушал голосовые и кружочки: для автора — кто-то другой, для остальных — сам человек. */
+async function loadListened(q: Queryable, viewerId: string, rows: MessageRow[]): Promise<Set<string>> {
+  const ids = rows.filter((r) => r.kind === 'voice' || r.kind === 'video_note').map((r) => r.id);
+  if (!ids.length) return new Set();
+  const { rows: ls } = await q.query<{ message_id: string; user_id: string }>(`SELECT message_id, user_id FROM message_listens WHERE message_id = ANY($1::uuid[])`, [ids]);
+  const sender = new Map(rows.map((r) => [r.id, r.sender_id]));
+  return new Set(ls.filter((l) => (sender.get(l.message_id) === viewerId ? l.user_id !== viewerId : l.user_id === viewerId)).map((l) => l.message_id));
+}
+
+/** Строки сообщений → ответ API: цитаты, реакции, опросы, вложения и галочки прочтения. */
+export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[], othersReadSeq: number, media: MediaCtx): Promise<ChatMessage[]> {
   if (!rows.length) return [];
   const refIds = [...new Set(rows.flatMap((r) => [r.reply_to_id, r.external_reply_id]).filter((x): x is string => !!x))];
   const refs = new Map<string, MessageRow & { chat_type: ChatType; chat_name: string | null }>();
   if (refIds.length) {
     const { rows: rr } = await q.query<MessageRow & { chat_type: ChatType; chat_name: string | null }>(
-      `SELECT m.id, m.chat_id, m.seq, m.topic_id, m.kind, m.sender_id, u.display_name AS sender_name, m.text, m.created_at, m.edited_at,
-              m.deleted_for_all, m.deleted_for, m.pinned_at, m.client_id, m.reply_to_id, m.external_reply_id, m.forward_sender_name, m.forward_chat_title,
-              c.type AS chat_type, c.name AS chat_name
+      `SELECT ${MSG_COLS}, c.type AS chat_type, c.name AS chat_name
          FROM messages m LEFT JOIN users u ON u.id = m.sender_id JOIN chats c ON c.id = m.chat_id WHERE m.id = ANY($1::uuid[])`,
       [refIds],
     );
@@ -233,6 +277,17 @@ export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[]
   const ids = rows.map((r) => r.id);
   const reactions = await loadReactions(q, ids);
   const polls = await loadPolls(q, rows.filter((r) => r.kind === 'poll').map((r) => r.id));
+  const atts: Map<string, AttachmentRow[]> = await loadAttachments(
+    q,
+    'message',
+    rows.filter((r) => !r.deleted_for_all).map((r) => r.id),
+  );
+  const contacts = await loadContacts(
+    q,
+    rows.map((r) => (r.kind === 'contact' ? r.contact_user_id : null)),
+  );
+  const refMedia = await mediaSummaries(q, [...refs.values()]);
+  const listened = await loadListened(q, viewerId, rows);
   return rows.map((r) => {
     const reply = r.reply_to_id ? refs.get(r.reply_to_id) : undefined;
     const ext = r.external_reply_id ? refs.get(r.external_reply_id) : undefined;
@@ -251,8 +306,8 @@ export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[]
       deleted: r.deleted_for_all,
       pinned: !!r.pinned_at,
       client_id: r.client_id,
-      reply_to: reply ? refOf(reply) : null,
-      external_reply: ext ? { ...refOf(ext), chat_id: ext.chat_id, chat_title: ext.chat_type === 'group' ? (ext.chat_name ?? 'Группа') : (ext.sender_name ?? 'Личные сообщения') } : null,
+      reply_to: reply ? refOf(reply, refMedia) : null,
+      external_reply: ext ? { ...refOf(ext, refMedia), chat_id: ext.chat_id, chat_title: ext.chat_type === 'group' ? (ext.chat_name ?? 'Группа') : (ext.sender_name ?? 'Личные сообщения') } : null,
       forwarded_from: r.forward_sender_name || r.forward_chat_title ? { sender_name: r.forward_sender_name, chat_title: r.forward_chat_title } : null,
       reactions: groupReactions(
         reactions.filter((x) => x.message_id === r.id),
@@ -260,8 +315,18 @@ export async function hydrate(q: Queryable, viewerId: string, rows: MessageRow[]
       ),
       poll: poll ? serializePoll(poll, viewerId) : null,
       read: r.sender_id === viewerId && r.seq <= othersReadSeq,
+      attachments: r.deleted_for_all ? [] : serializeAll(media, atts.get(r.id), viewerId),
+      contact: r.kind === 'contact' && !r.deleted_for_all && r.contact_user_id ? (contacts.get(r.contact_user_id) ?? null) : null,
+      listened: listened.has(r.id),
     };
   });
+}
+
+/** То же сообщение для другого человека: ссылки на файлы подписаны на него. */
+export function resignFor(msg: ChatMessage, userId: string, media: MediaCtx): ChatMessage {
+  if (!msg.attachments.length) return msg;
+  const nowMs = media.now().getTime();
+  return { ...msg, attachments: msg.attachments.map((a) => ({ ...a, url: media.store.sign(a.id, userId, nowMs) })) };
 }
 
 /** До какого номера прочитали остальные: в личном — собеседник, в группе — хотя бы один. */
@@ -308,13 +373,14 @@ export interface NewMessage {
   forward_sender_name?: string | null;
   forward_chat_title?: string | null;
   client_id?: string | null;
+  contact_user_id?: string | null;
 }
 
 /** Записать сообщение. Своё сообщение сразу прочитано, скрытый чат возвращается в список у всех. */
 export async function insertMessage(q: Queryable, chat: ChatRow, senderId: string, m: NewMessage, at: string): Promise<MessageRow> {
   const { rows } = await q.query<{ id: string }>(
-    `INSERT INTO messages (chat_id, company_id, topic_id, kind, sender_id, text, reply_to_id, external_reply_id, forwarded_from_id, forward_sender_name, forward_chat_title, client_id, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+    `INSERT INTO messages (chat_id, company_id, topic_id, kind, sender_id, text, reply_to_id, external_reply_id, forwarded_from_id, forward_sender_name, forward_chat_title, client_id, created_at, contact_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
     [
       chat.id,
       chat.company_id,
@@ -329,6 +395,7 @@ export async function insertMessage(q: Queryable, chat: ChatRow, senderId: strin
       m.forward_chat_title ?? null,
       m.client_id ?? null,
       at,
+      m.contact_user_id ?? null,
     ],
   );
   const row = (await q.query<MessageRow>(`${MSG_SELECT} WHERE m.id = $1`, [rows[0]!.id])).rows[0]!;
@@ -378,6 +445,7 @@ interface ListRow extends ChatRow {
   lm_sender_id: string | null;
   lm_sender_name: string | null;
   lm_created_at: string | null;
+  lm_contact_id: string | null;
   lm_deleted: boolean | null;
   peer_id: string | null;
   peer_name: string | null;
@@ -394,11 +462,11 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
             (SELECT COUNT(*)::int FROM chat_members x WHERE x.chat_id = c.id) AS members_count,
             (SELECT COUNT(*)::int FROM messages m LEFT JOIN topic_reads tr ON tr.topic_id = m.topic_id AND tr.user_id = cm.user_id
               WHERE m.chat_id = c.id AND ${UNREAD_FILTER}) AS unread,
-            lm.id AS lm_id, lm.kind AS lm_kind, lm.text AS lm_text, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name, lm.created_at AS lm_created_at, FALSE AS lm_deleted,
+            lm.id AS lm_id, lm.kind AS lm_kind, lm.text AS lm_text, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name, lm.created_at AS lm_created_at, lm.contact_user_id AS lm_contact_id, FALSE AS lm_deleted,
             peer.id AS peer_id, peer.display_name AS peer_name, peer.position AS peer_position, peer.last_seen_at AS peer_last_seen_at
        FROM chat_members cm JOIN chats c ON c.id = cm.chat_id
        LEFT JOIN LATERAL (
-         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
           WHERE m.chat_id = c.id AND NOT m.deleted_for_all AND NOT (cm.user_id = ANY(m.deleted_for)) ORDER BY m.seq DESC LIMIT 1
        ) lm ON TRUE
        LEFT JOIN LATERAL (
@@ -407,6 +475,10 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
        ) peer ON TRUE
       WHERE cm.user_id = $1 AND cm.company_id = $2 AND ($3::uuid IS NULL OR c.id = $3::uuid)`,
     [actor.id, actor.company_id, chatId ?? null],
+  );
+  const media = await mediaSummaries(
+    q,
+    rows.filter((r) => r.lm_id).map((r) => ({ id: r.lm_id!, kind: r.lm_kind!, contact_user_id: r.lm_contact_id })),
   );
   const out: ChatSummary[] = [];
   for (const r of rows) {
@@ -424,7 +496,9 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
           ? { id: r.peer_id, display_name: r.peer_name!, position: r.peer_position, online: rt.isOnline(actor.company_id, r.peer_id), last_seen_at: r.peer_last_seen_at }
           : null,
       members_count: r.members_count,
-      last_message: r.lm_id ? { id: r.lm_id, kind: r.lm_kind!, text: r.lm_text, sender_id: r.lm_sender_id, sender_name: r.lm_sender_name, created_at: r.lm_created_at!, deleted: false } : null,
+      last_message: r.lm_id
+        ? { id: r.lm_id, kind: r.lm_kind!, text: r.lm_text, sender_id: r.lm_sender_id, sender_name: r.lm_sender_name, created_at: r.lm_created_at!, deleted: false, media: media.get(r.lm_id) ?? null }
+        : null,
       unread: r.unread,
       pinned: !!r.pinned_at,
       muted: !!r.muted_until && Date.parse(r.muted_until) > Date.parse(at),
@@ -454,21 +528,26 @@ export async function loadTopics(q: Queryable, chatId: string, userId: string): 
     lm_sender_id: string | null;
     lm_sender_name: string | null;
     lm_created_at: string | null;
+    lm_contact_id: string | null;
   }>(
     `SELECT t.id, t.name, t.icon, t.color, t.closed, t.is_general, t.created_at,
             COALESCE(tr.last_read_seq, cm.last_read_seq)::bigint AS last_read_seq,
             (SELECT COUNT(*)::int FROM messages m WHERE m.topic_id = t.id AND m.kind <> 'service' AND NOT m.deleted_for_all) AS messages,
             (SELECT COUNT(*)::int FROM messages m WHERE m.topic_id = t.id AND ${UNREAD_FILTER}) AS unread,
-            lm.id AS lm_id, lm.kind AS lm_kind, lm.text AS lm_text, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name, lm.created_at AS lm_created_at
+            lm.id AS lm_id, lm.kind AS lm_kind, lm.text AS lm_text, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name, lm.created_at AS lm_created_at, lm.contact_user_id AS lm_contact_id
        FROM topics t JOIN chat_members cm ON cm.chat_id = t.chat_id AND cm.user_id = $2
        LEFT JOIN topic_reads tr ON tr.topic_id = t.id AND tr.user_id = $2
        LEFT JOIN LATERAL (
-         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
           WHERE m.topic_id = t.id AND NOT m.deleted_for_all AND NOT ($2 = ANY(m.deleted_for)) ORDER BY m.seq DESC LIMIT 1
        ) lm ON TRUE
       WHERE t.chat_id = $1
       ORDER BY t.is_general DESC, COALESCE(lm.created_at, t.created_at) DESC`,
     [chatId, userId],
+  );
+  const media = await mediaSummaries(
+    q,
+    rows.filter((t) => t.lm_id).map((t) => ({ id: t.lm_id!, kind: t.lm_kind!, contact_user_id: t.lm_contact_id })),
   );
   return rows.map((t) => ({
     id: t.id,
@@ -480,7 +559,9 @@ export async function loadTopics(q: Queryable, chatId: string, userId: string): 
     unread: t.unread,
     messages: t.messages,
     last_read_seq: t.last_read_seq,
-    last_message: t.lm_id ? { id: t.lm_id, kind: t.lm_kind!, text: t.lm_text, sender_id: t.lm_sender_id, sender_name: t.lm_sender_name, created_at: t.lm_created_at!, deleted: false } : null,
+    last_message: t.lm_id
+      ? { id: t.lm_id, kind: t.lm_kind!, text: t.lm_text, sender_id: t.lm_sender_id, sender_name: t.lm_sender_name, created_at: t.lm_created_at!, deleted: false, media: media.get(t.lm_id) ?? null }
+      : null,
   }));
 }
 
@@ -548,8 +629,8 @@ export async function broadcast(q: Queryable, rt: Realtime, chat: Pick<ChatRow, 
   rt.emit(chat.company_id, [...ids, ...extra], event, payload);
 }
 
-/** Новое сообщение в реальном времени: у получателей своей реакции и голоса ещё нет — payload общий. */
-export async function broadcastMessage(q: Queryable, rt: Realtime, chat: ChatRow, row: MessageRow) {
-  const [msg] = await hydrate(q, row.sender_id ?? '', [row], 0);
-  await broadcast(q, rt, chat, 'new_message', { chat_id: chat.id, message: msg });
+/** Новое сообщение в реальном времени: реакций и голосов ещё нет, отличаются только подписи ссылок на файлы. */
+export async function broadcastMessage(q: Queryable, rt: Realtime, chat: ChatRow, row: MessageRow, media: MediaCtx) {
+  const [msg] = await hydrate(q, row.sender_id ?? '', [row], 0, media);
+  await broadcast(q, rt, chat, 'new_message', (uid: string) => ({ chat_id: chat.id, message: resignFor(msg!, uid, media) }));
 }

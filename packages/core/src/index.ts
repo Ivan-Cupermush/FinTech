@@ -24,3 +24,4 @@ export * from './integrations';
 export * from './credits';
 export * from './chat';
 export * from './emoji';
+export * from './media';

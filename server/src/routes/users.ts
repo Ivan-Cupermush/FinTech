@@ -16,7 +16,7 @@ export function usersRouter(db: Db): Router {
   r.get('/me', async (req, res) => {
     const actor = actorOf(req);
     const { rows } = await db.query(
-      `SELECT u.id, u.email, u.display_name, u.position, m.role, c.id AS company_id, c.name AS company_name, c.setup_mode
+      `SELECT u.id, u.email, u.display_name, u.position, u.avatar_url, m.role, c.id AS company_id, c.name AS company_name, c.setup_mode
          FROM users u JOIN company_members m ON m.user_id = u.id JOIN companies c ON c.id = m.company_id
         WHERE u.id = $1 AND c.id = $2`,
       [actor.id, actor.company_id],
@@ -35,7 +35,7 @@ export function usersRouter(db: Db): Router {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
     const includeInactive = req.query.include_inactive === '1' && canManageOrg(actor);
     const { rows } = await db.query(
-      `SELECT u.id, u.display_name, u.position, u.email, u.active, m.role,
+      `SELECT u.id, u.display_name, u.position, u.email, u.active, u.avatar_url, m.role,
               COALESCE((SELECT json_agg(json_build_object('id', o.id, 'name', o.name, 'is_manager', mm.is_manager) ORDER BY mm.is_primary DESC, o.name)
                  FROM org_memberships mm JOIN org_units o ON o.id = mm.unit_id
                 WHERE mm.user_id = u.id AND mm.company_id = m.company_id AND mm.ended_at IS NULL), '[]'::json) AS units

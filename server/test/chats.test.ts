@@ -620,9 +620,9 @@ describe('отложенные сообщения', () => {
     await (await ctx.as('igor')).post(`${API}/chats/${temp}/scheduled`, { text: 'Не дойдёт', send_at: later(1.5 * HOUR) });
     await (await ctx.as('igor')).post(`${API}/chats/${temp}/leave`);
     rt.clear();
-    expect(await dispatchScheduled(ctx.db, rt, later(2 * HOUR))).toBe(1);
+    expect(await dispatchScheduled(ctx.db, rt, later(2 * HOUR), ctx.media)).toBe(1);
     expect(rt.of('new_message')).toHaveLength(1);
-    expect(await dispatchScheduled(ctx.db, rt, later(2 * HOUR))).toBe(0);
+    expect(await dispatchScheduled(ctx.db, rt, later(2 * HOUR), ctx.media)).toBe(0);
     expect((await history('igor', chat)).messages.at(-1)!.text).toBe('Через час');
     expect((await history('anna', temp)).messages.some((m) => m.text === 'Не дойдёт')).toBe(false);
     const left = (await anna.get(`${API}/chats/${chat}/scheduled`)).body.data;

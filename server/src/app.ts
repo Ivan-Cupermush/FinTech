@@ -2,7 +2,7 @@ import compression from 'compression';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { requireAuth } from './auth/auth';
-import type { Config } from './config';
+import { loadUploadsConfig, type Config, type UploadsConfig } from './config';
 import type { Db } from './db/db';
 import { errorHandler, notFound } from './http/errors';
 import type { FetchLike } from './services/integrations';
@@ -10,7 +10,9 @@ import { noRealtime, type Realtime } from './realtime/hub';
 import { messagePushHook } from './services/chat-jobs';
 import type { PushSender } from './services/push';
 import type { ChatPushMessage } from '@offix/core';
+import { createMediaStore, type MediaStore } from './services/media';
 import { chatsRouter } from './routes/chats';
+import { filesPublicRouter, filesRouter } from './routes/files';
 import { messagesRouter } from './routes/messages';
 import { authRouter } from './routes/auth';
 import { discussionsRouter } from './routes/discussions';
@@ -29,7 +31,7 @@ import { usersRouter } from './routes/users';
 
 export interface AppOptions {
   db: Db;
-  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'> };
+  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'>; uploads?: UploadsConfig };
   now?: () => Date;
   rateLimit?: boolean;
   /** Запросы интеграций в 1С и Moodle; в тестах и демо — поддельные системы. */
@@ -38,13 +40,23 @@ export interface AppOptions {
   realtime?: Realtime;
   /** Push о сообщениях в чатах; не задан — не шлём. */
   messagePush?: PushSender<ChatPushMessage>;
+  /** Хранилище файлов; не задано — создаётся по config.uploads (или UPLOADS_DIR). */
+  media?: MediaStore;
 }
 
-export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush }: AppOptions): Express {
+export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush, media }: AppOptions): Express {
+  const store = media ?? createMediaStore(config.uploads ?? loadUploadsConfig(), config.jwtSecret);
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(helmet());
+  // API отдаёт JSON и файлы: страниц нет, исполнять нечего. Файлы и превью
+  // ставят свой заголовок (sandbox) и разрешают встраивание с сайта и из приложения.
+  app.use(
+    helmet({
+      contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"], imgSrc: ["'self'", 'data:', 'blob:'], mediaSrc: ["'self'", 'blob:'] } },
+      crossOriginResourcePolicy: { policy: 'same-site' },
+    }),
+  );
   app.use(compression());
   app.use(express.json({ limit: '200kb' }));
   app.use((req, res, next) => {
@@ -64,25 +76,30 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
 
   app.get('/api/health', async (_req, res) => {
     await db.query('SELECT 1');
-    res.json({ ok: true });
+    // Без ffmpeg у видео нет обложки, а голосовые из браузера не перекодируются.
+    res.json({ ok: true, media: { ffmpeg: await store.hasFfmpeg(), max_upload_bytes: store.maxBytes } });
   });
 
   const v1 = express.Router();
   v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit }));
+  // Файлы по подписанной ссылке и превью — без заголовка Authorization (<img>, <video>).
+  v1.use('/files', filesPublicRouter(db, store, now));
   v1.use(requireAuth(db, config.jwtSecret));
+  const mediaCtx = { store, now };
+  v1.use('/files', filesRouter(db, mediaCtx, realtime));
   v1.use('/users', usersRouter(db));
   v1.use('/org', orgRouter(db));
   v1.use('/goals', goalsRouter(db, now));
-  v1.use('/tasks', tasksRouter(db, now));
+  v1.use('/tasks', tasksRouter(db, now, mediaCtx));
   v1.use('/notifications', notificationsRouter(db));
   v1.use('/metrics', metricsRouter(db, now));
   v1.use('/report', reportRouter(db, now, { mailAvailable: !!config.mail?.enabled }));
   v1.use('/push', pushRouter(db));
   v1.use('/templates', templatesRouter(db, now));
-  v1.use('/discussions', discussionsRouter(db));
+  v1.use('/discussions', discussionsRouter(db, mediaCtx));
   v1.use('/notes', notesRouter(db));
   v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
-  const chatDeps = { db, now, rt: realtime, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
+  const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
   v1.use('/chats', chatsRouter(chatDeps));
   v1.use('/messages', messagesRouter(chatDeps));
   v1.use('/', roadmapRouter(db, now));

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   CHAT_PERMISSIONS,
+  ALBUM_MAX,
   CHAT_PINS_MAX,
   GROUP_MEMBERS_MAX,
   MESSAGE_MAX,
@@ -13,7 +14,16 @@ import {
   validateMessageText,
   validatePoll,
   validateScheduleAt,
+  GALLERY_TABS,
+  extractLinks,
+  linkHost,
+  type ChatGallery,
+  type ChatGalleryItem,
+  type ChatStats,
+  type GalleryTab,
   type ChatHistory,
+  type MediaKind,
+  type MessageKind,
   type ChatSearchHit,
   type ScheduledMessage,
 } from '@offix/core';
@@ -22,6 +32,7 @@ import type { Db, Queryable } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import type { Realtime } from '../realtime/hub';
+import { claimDrafts, deleteAttachments, loadAttachments, messageKindFor, serializeAll, type MediaCtx } from '../services/attachments';
 import {
   MSG_SELECT,
   broadcast,
@@ -54,6 +65,8 @@ export interface ChatDeps {
   db: Db;
   now: () => Date;
   rt: Realtime;
+  /** Файлы: подпись ссылок, удаление вместе с сообщением. */
+  media: MediaCtx;
   /** После нового сообщения: push тем, кого нет в сети. */
   onMessage?: (chat: ChatRow, row: MessageRow) => void;
 }
@@ -62,7 +75,11 @@ const uuid = z.string().refine(isUuid);
 const textField = z.string().max(MESSAGE_MAX + 1000);
 
 const sendSchema = z.object({
-  text: textField,
+  text: textField.default(''),
+  /** Загруженные черновики: альбом фото и видео, файлы, голосовое или кружочек. */
+  attachment_ids: z.array(uuid).max(ALBUM_MAX).optional(),
+  /** Карточка сотрудника. */
+  contact_user_id: uuid.optional(),
   client_id: z.string().min(1).max(64).optional(),
   reply_to_id: uuid.nullable().optional(),
   external_reply_id: uuid.nullable().optional(),
@@ -89,13 +106,18 @@ const SCHEDULED_COLS = `id, chat_id, topic_id, text, send_at, created_at`;
  * (core chatRights). Каждое изменение рассылается участникам в реальном
  * времени, а всё, что умеет сокет, есть и обычными запросами.
  */
-export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
+export function chatsRouter({ db, now, rt, onMessage, media }: ChatDeps): Router {
   const r = Router();
   const at = () => now().toISOString();
 
   const deliver = async (q: Queryable, chat: ChatRow, row: MessageRow) => {
-    await broadcastMessage(q, rt, chat, row);
+    await broadcastMessage(q, rt, chat, row, media);
     if (row.kind !== 'service') onMessage?.(chat, row);
+  };
+  /** Чат удаляется целиком — с ним и файлы сообщений. */
+  const dropChatFiles = async (q: Queryable, chatId: string) => {
+    const ids = (await q.query<{ id: string }>(`SELECT id FROM messages WHERE chat_id = $1`, [chatId])).rows.map((m) => m.id);
+    if (ids.length) await deleteAttachments(q, media.store, { type: 'message', ids });
   };
   const changed = (q: Queryable, chat: ChatRow, extra: string[] = []) => broadcast(q, rt, chat, 'chat_updated', { chat_id: chat.id }, extra);
 
@@ -128,7 +150,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       params,
     );
     const titles = new Map((await listChats(db, actor, rt, at())).map((c) => [c.id, c.title]));
-    const hydrated = await hydrate(db, actor.id, rows, 0);
+    const hydrated = await hydrate(db, actor.id, rows, 0, media);
     const data: ChatSearchHit[] = hydrated.map((m, i) => ({ ...m, chat_title: titles.get(m.chat_id) ?? rows[i]!.chat_name ?? 'Чат', chat_type: rows[i]!.chat_type, topic_name: rows[i]!.topic_name }));
     res.json({ data });
   });
@@ -224,6 +246,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       const a = await openChat(q, actor, idParam(req.params.id));
       if (a.chat.type === 'group' && !a.rights.isCreator) throw forbidden('Удалить группу может только её создатель');
       const ids = await memberIds(q, a.chat.id);
+      await dropChatFiles(q, a.chat.id);
       await q.query(`DELETE FROM chats WHERE id = $1`, [a.chat.id]);
       return ids;
     });
@@ -240,6 +263,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       await q.query(`DELETE FROM chat_members WHERE chat_id = $1 AND user_id = $2`, [a.chat.id, actor.id]);
       const left = await memberIds(q, a.chat.id);
       if (!left.length) {
+        await dropChatFiles(q, a.chat.id);
         await q.query(`DELETE FROM chats WHERE id = $1`, [a.chat.id]);
         return;
       }
@@ -467,7 +491,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
     }
     const others = await othersReadSeq(db, a.chat.id, actor.id, topicId);
     const data: ChatHistory = {
-      messages: await hydrate(db, actor.id, rows, others),
+      messages: await hydrate(db, actor.id, rows, others, media),
       has_before: hasBefore,
       has_after: hasAfter,
       my_last_read_seq: await myReadSeq(db, a.chat.id, actor.id, topicId),
@@ -484,7 +508,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       `${MSG_SELECT} WHERE m.chat_id = $1 AND m.pinned_at IS NOT NULL AND NOT m.deleted_for_all AND NOT ($2 = ANY(m.deleted_for)) AND ($3::uuid IS NULL OR m.topic_id = $3::uuid) ORDER BY m.seq DESC`,
       [a.chat.id, actor.id, topicId],
     );
-    res.json({ data: await hydrate(db, actor.id, rows, await othersReadSeq(db, a.chat.id, actor.id, topicId)) });
+    res.json({ data: await hydrate(db, actor.id, rows, await othersReadSeq(db, a.chat.id, actor.id, topicId), media) });
   });
 
   r.get('/:id/search', async (req, res) => {
@@ -503,7 +527,91 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
         ORDER BY m.seq DESC LIMIT 50`,
       params,
     );
-    res.json({ data: await hydrate(db, actor.id, rows, await othersReadSeq(db, a.chat.id, actor.id, topicId)) });
+    res.json({ data: await hydrate(db, actor.id, rows, await othersReadSeq(db, a.chat.id, actor.id, topicId), media) });
+  });
+
+  // ------------------------------------------------------------ медиа чата
+
+  const GALLERY_KINDS: Record<Exclude<GalleryTab, 'links'>, MediaKind[]> = { media: ['photo', 'video'], files: ['file'], voice: ['voice', 'video_note'] };
+  const VISIBLE = `m.chat_id = $1 AND NOT m.deleted_for_all AND NOT ($2 = ANY(m.deleted_for))`;
+
+  /**
+   * Медиа, файлы, голосовые и ссылки чата — новые первыми, страницами по
+   * сообщениям (альбом не разрывается). Во всех темах группы сразу.
+   */
+  r.get('/:id/media', async (req, res) => {
+    const actor = actorOf(req);
+    const a = await openChat(db, actor, idParam(req.params.id));
+    const tab = (GALLERY_TABS as readonly string[]).includes(String(req.query.tab)) ? (req.query.tab as GalleryTab) : 'media';
+    const before = typeof req.query.before === 'string' && /^\d+$/.test(req.query.before) ? Number(req.query.before) : Number.MAX_SAFE_INTEGER;
+    const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 100);
+    const items: ChatGalleryItem[] = [];
+    let next: number | null = null;
+    if (tab === 'links') {
+      const { rows } = await db.query<MessageRow>(`${MSG_SELECT} WHERE ${VISIBLE} AND m.seq < $3 AND m.text ~* 'https?://' ORDER BY m.seq DESC LIMIT ${limit + 1}`, [a.chat.id, actor.id, before]);
+      for (const m of rows.slice(0, limit))
+        for (const url of extractLinks(m.text)) items.push({ message_id: m.id, seq: m.seq, sender_id: m.sender_id, sender_name: m.sender_name, created_at: m.created_at, attachment: null, link: { url, host: linkHost(url), text: m.text } });
+      next = rows.length > limit ? rows[limit - 1]!.seq : null;
+    } else {
+      const kinds = GALLERY_KINDS[tab];
+      const { rows } = await db.query<MessageRow>(
+        `${MSG_SELECT} WHERE ${VISIBLE} AND m.seq < $3 AND EXISTS (SELECT 1 FROM attachments x WHERE x.owner_type = 'message' AND x.owner_id = m.id AND x.kind = ANY($4::text[]))
+          ORDER BY m.seq DESC LIMIT ${limit + 1}`,
+        [a.chat.id, actor.id, before, kinds],
+      );
+      const page = rows.slice(0, limit);
+      const atts = await loadAttachments(
+        db,
+        'message',
+        page.map((m) => m.id),
+      );
+      for (const m of page)
+        for (const att of serializeAll(media, atts.get(m.id), actor.id).filter((x) => kinds.includes(x.kind)))
+          items.push({ message_id: m.id, seq: m.seq, sender_id: m.sender_id, sender_name: m.sender_name, created_at: m.created_at, attachment: att, link: null });
+      next = rows.length > limit ? page[page.length - 1]!.seq : null;
+    }
+    const data: ChatGallery = { items, next_before: next };
+    res.json({ data });
+  });
+
+  /** Статистика чата: сколько сообщений, фото, файлов и места, кто пишет больше всех. */
+  r.get('/:id/stats', async (req, res) => {
+    const actor = actorOf(req);
+    const a = await openChat(db, actor, idParam(req.params.id));
+    const p = [a.chat.id, actor.id];
+    const totals = (
+      await db.query<{ messages: number; links: number; first_at: string | null }>(
+        `SELECT COUNT(*) FILTER (WHERE m.kind <> 'service')::int AS messages, COUNT(*) FILTER (WHERE m.text ~* 'https?://')::int AS links, MIN(m.created_at) FILTER (WHERE m.kind <> 'service') AS first_at
+           FROM messages m WHERE ${VISIBLE}`,
+        p,
+      )
+    ).rows[0]!;
+    const byKind = (
+      await db.query<{ kind: MediaKind; n: number; bytes: number }>(
+        `SELECT x.kind, COUNT(*)::int AS n, COALESCE(SUM(x.size), 0)::bigint AS bytes FROM attachments x JOIN messages m ON x.owner_type = 'message' AND x.owner_id = m.id
+          WHERE ${VISIBLE} GROUP BY x.kind`,
+        p,
+      )
+    ).rows;
+    const n = (k: MediaKind) => byKind.find((r) => r.kind === k)?.n ?? 0;
+    const top = await db.query<{ id: string; display_name: string; messages: number }>(
+      `SELECT u.id, u.display_name, COUNT(*)::int AS messages FROM messages m JOIN users u ON u.id = m.sender_id
+        WHERE ${VISIBLE} AND m.kind <> 'service' GROUP BY u.id, u.display_name ORDER BY messages DESC, u.display_name LIMIT 5`,
+      p,
+    );
+    const data: ChatStats = {
+      messages: totals.messages,
+      photos: n('photo'),
+      videos: n('video'),
+      files: n('file'),
+      voice: n('voice'),
+      video_notes: n('video_note'),
+      links: totals.links,
+      bytes: byKind.reduce((sum, r) => sum + Number(r.bytes), 0),
+      first_message_at: totals.first_at,
+      top_senders: top.rows,
+    };
+    res.json({ data });
   });
 
   // ------------------------------------------------------------ отправка
@@ -529,14 +637,18 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
   r.post('/:id/messages', async (req, res) => {
     const actor = actorOf(req);
     const body = parseBody(sendSchema, req.body);
-    const err = validateMessageText(body.text);
-    if (err) throw invalid('Не удалось отправить сообщение', { text: err });
+    const files = body.attachment_ids ?? [];
+    const MSG = 'Не удалось отправить сообщение';
+    if (body.contact_user_id && (files.length || body.text.trim())) throw invalid(MSG, { contact_user_id: 'Контакт отправляется отдельным сообщением' });
+    // С файлами текст — подпись, может быть пустой; без файлов и контакта — обязателен.
+    const err = files.length || body.contact_user_id ? (body.text.length > MESSAGE_MAX ? `Не длиннее ${MESSAGE_MAX} символов` : null) : validateMessageText(body.text);
+    if (err) throw invalid(MSG, { text: err });
     const chatId = idParam(req.params.id);
     // Повтор с тем же client_id — то же сообщение, без дубля.
     if (body.client_id) {
       const dup = (await db.query<MessageRow>(`${MSG_SELECT} WHERE m.sender_id = $1 AND m.client_id = $2 AND m.chat_id = $3`, [actor.id, body.client_id, chatId])).rows[0];
       if (dup) {
-        const [msg] = await hydrate(db, actor.id, [dup], await othersReadSeq(db, chatId, actor.id, dup.topic_id));
+        const [msg] = await hydrate(db, actor.id, [dup], await othersReadSeq(db, chatId, actor.id, dup.topic_id), media);
         res.json({ data: msg });
         return;
       }
@@ -545,17 +657,34 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       const a = await openChat(q, actor, chatId);
       const topicId = await resolveTopic(q, a, body.topic_id);
       await checkReplies(q, actor, a, body.reply_to_id, body.external_reply_id);
+      let kind: MessageKind = 'text';
+      if (body.contact_user_id) {
+        if (!(await companyPeople(q, actor.company_id, [body.contact_user_id])).length) throw invalid(MSG, { contact_user_id: 'Сотрудник не найден' });
+        kind = 'contact';
+      }
+      if (files.length) {
+        const { rows: drafts } = await q.query<{ id: string; kind: MediaKind }>(
+          `SELECT id, kind FROM attachments WHERE id = ANY($1::uuid[]) AND company_id = $2 AND uploaded_by = $3 AND owner_id IS NULL`,
+          [files, actor.company_id, actor.id],
+        );
+        const k = messageKindFor(drafts.map((d) => d.kind));
+        if (drafts.length === new Set(files).size && !k) throw invalid(MSG, { attachment_ids: 'Голосовое и видеосообщение отправляются отдельно' });
+        if (k && k !== 'media' && body.text.trim()) throw invalid(MSG, { text: 'У голосового и видеосообщения нет подписи' });
+        kind = k ?? 'media';
+      }
+      const text = body.text.trim() || (kind === 'text' ? body.text.trim() : null);
       const row = await insertMessage(
         q,
         a.chat,
         actor.id,
-        { text: body.text.trim(), topic_id: topicId, reply_to_id: body.reply_to_id, external_reply_id: body.external_reply_id, client_id: body.client_id },
+        { kind, text, topic_id: topicId, reply_to_id: body.reply_to_id, external_reply_id: body.external_reply_id, client_id: body.client_id, contact_user_id: body.contact_user_id ?? null },
         at(),
       );
+      if (files.length) await claimDrafts(q, actor, files, { type: 'message', id: row.id }, { message: MSG });
       return { chat: a.chat, row };
     });
     await deliver(db, chat, row);
-    const [msg] = await hydrate(db, actor.id, [row], 0);
+    const [msg] = await hydrate(db, actor.id, [row], 0, media);
     res.status(201).json({ data: msg });
   });
 
@@ -584,7 +713,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       return { chat: a.chat, row };
     });
     await deliver(db, chat, row);
-    const [msg] = await hydrate(db, actor.id, [row], 0);
+    const [msg] = await hydrate(db, actor.id, [row], 0, media);
     res.status(201).json({ data: msg });
   });
 
@@ -675,7 +804,7 @@ export function chatsRouter({ db, now, rt, onMessage }: ChatDeps): Router {
     });
     await deliver(db, chat, row);
     rt.emit(actor.company_id, [actor.id], 'scheduled_changed', { chat_id: chatId });
-    const [msg] = await hydrate(db, actor.id, [row], 0);
+    const [msg] = await hydrate(db, actor.id, [row], 0, media);
     res.status(201).json({ data: msg });
   });
 

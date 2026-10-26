@@ -1,3 +1,4 @@
+import type { Attachment } from './media';
 import type { CompanyRole } from './access';
 import type { Direction, KpiProgress } from './kpi';
 import type { GoalStatus, GoalType } from './goal';
@@ -90,6 +91,8 @@ export interface TaskDetail extends Task {
   history: { status: TaskStatus; blocked_reason: BlockerReason | null; note: string | null; at: string; actor_name: string | null }[];
   dependencies: { id: string; title: string; status: TaskStatus; due_at: string | null; direction: 'before' | 'after' }[];
   participants: { user_id: string; role: string; display_name: string }[];
+  /** Файлы задачи: ТЗ, сканы, результат. */
+  files: Attachment[];
 }
 
 export interface Roadmap {
@@ -144,6 +147,8 @@ export interface Me {
   email: string;
   display_name: string;
   position: string | null;
+  /** Фото профиля: /api/v1/files/avatars/…; нет — инициалы. */
+  avatar_url?: string | null;
   role: CompanyRole;
   company_id: string;
   company_name: string;
@@ -157,6 +162,7 @@ export interface Member {
   position: string | null;
   email: string;
   active: boolean;
+  avatar_url?: string | null;
   role: CompanyRole;
   units: { id: string; name: string; is_manager: boolean }[];
 }

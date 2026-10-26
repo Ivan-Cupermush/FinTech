@@ -1,7 +1,8 @@
 import { chatPushMessage, chatTitle, messagePreview, shouldPushMessage, type ChatPushMessage } from '@offix/core';
 import type { Db } from '../db/db';
 import type { Realtime } from '../realtime/hub';
-import { broadcastMessage, insertMessage, totalUnread, type ChatRow, type MessageRow } from './chats';
+import { sweepDrafts, type MediaCtx } from './attachments';
+import { broadcastMessage, insertMessage, mediaSummaries, totalUnread, type ChatRow, type MessageRow } from './chats';
 import { loadPushSettings, type PushSender } from './push';
 
 export interface ChatPushResult {
@@ -19,7 +20,8 @@ export async function sendChatPush(db: Db, sender: PushSender<ChatPushMessage>, 
   if (row.kind === 'service' || !row.sender_id) return result;
   const { rows: members } = await db.query<{ user_id: string; muted_until: string | null }>(`SELECT user_id, muted_until FROM chat_members WHERE chat_id = $1 AND user_id <> $2`, [chat.id, row.sender_id]);
   const messages: ChatPushMessage[] = [];
-  const text = messagePreview({ kind: row.kind, text: row.text, deleted: false, sender_id: null, sender_name: null }, '', false);
+  const media = (await mediaSummaries(db, [row])).get(row.id) ?? null;
+  const text = messagePreview({ kind: row.kind, text: row.text, deleted: false, sender_id: null, sender_name: null, media }, '', false);
   for (const m of members) {
     if (rt.isOnline(chat.company_id, m.user_id) || !shouldPushMessage(await loadPushSettings(db, m.user_id, chat.company_id), m.muted_until, at).send) {
       result.skipped++;
@@ -43,7 +45,7 @@ export async function sendChatPush(db: Db, sender: PushSender<ChatPushMessage>, 
  * Отложенные сообщения, время которых пришло. Если автор уже не в чате —
  * сообщение просто снимается. SKIP LOCKED — чтобы два процесса не отправили дважды.
  */
-export async function dispatchScheduled(db: Db, rt: Realtime, at: string, onMessage?: (chat: ChatRow, row: MessageRow) => void): Promise<number> {
+export async function dispatchScheduled(db: Db, rt: Realtime, at: string, media: MediaCtx, onMessage?: (chat: ChatRow, row: MessageRow) => void): Promise<number> {
   const sent = await db.tx(async (q) => {
     const { rows } = await q.query<{ id: string; chat_id: string; topic_id: string | null; sender_id: string; text: string; reply_to_id: string | null }>(
       `DELETE FROM scheduled_messages WHERE id IN (SELECT id FROM scheduled_messages WHERE send_at <= $1 ORDER BY send_at LIMIT 100 FOR UPDATE SKIP LOCKED)
@@ -66,20 +68,34 @@ export async function dispatchScheduled(db: Db, rt: Realtime, at: string, onMess
     return out;
   });
   for (const { chat, row } of sent) {
-    await broadcastMessage(db, rt, chat, row);
+    await broadcastMessage(db, rt, chat, row, media);
     onMessage?.(chat, row);
   }
   return sent.length;
 }
 
-export function startScheduledLoop(db: Db, rt: Realtime, opts: { intervalMs?: number; now?: () => Date; onMessage?: (chat: ChatRow, row: MessageRow) => void; onError?: (e: unknown) => void } = {}): () => void {
+/**
+ * Фоновая работа мессенджера: отложенные сообщения каждые 5 секунд и уборка
+ * неотправленных черновиков файлов — раз в час.
+ */
+export function startScheduledLoop(
+  db: Db,
+  rt: Realtime,
+  media: MediaCtx,
+  opts: { intervalMs?: number; now?: () => Date; onMessage?: (chat: ChatRow, row: MessageRow) => void; onError?: (e: unknown) => void } = {},
+): () => void {
   const now = opts.now ?? (() => new Date());
   let running = false;
+  let lastSweep = 0;
   const timer = setInterval(async () => {
     if (running) return;
     running = true;
     try {
-      await dispatchScheduled(db, rt, now().toISOString(), opts.onMessage);
+      await dispatchScheduled(db, rt, now().toISOString(), media, opts.onMessage);
+      if (now().getTime() - lastSweep > 3_600_000) {
+        lastSweep = now().getTime();
+        await sweepDrafts(db, media.store, now());
+      }
     } catch (e) {
       opts.onError?.(e);
     } finally {

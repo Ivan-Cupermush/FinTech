@@ -28,6 +28,7 @@ const comment = (id: string, over: Partial<DiscussionComment> = {}): DiscussionC
   author_name: 'Дмитрий Орлов',
   mention_ids: [],
   created_at: '2026-10-19T09:00:00.000Z',
+  attachments: [],
   ...over,
 });
 

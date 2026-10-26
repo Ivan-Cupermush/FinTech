@@ -1,3 +1,4 @@
+import type { Attachment } from './media';
 /**
  * Обсуждение цели и задачи: ветка комментариев с ответами и @упоминаниями.
  * Упоминание хранится обычным текстом «@Имя Фамилия» — так комментарий
@@ -23,6 +24,8 @@ export interface DiscussionComment {
   author_name: string;
   mention_ids: string[];
   created_at: string;
+  /** Файлы к комментарию: фото, документы. */
+  attachments: Attachment[];
 }
 
 export interface Discussion {

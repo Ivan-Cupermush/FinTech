@@ -143,6 +143,9 @@ export async function sendMessage(qc: QueryClient, chatId: string, topic: string
     reactions: [],
     poll: null,
     read: false,
+    attachments: [],
+    contact: null,
+    listened: false,
   };
   qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [local]) } : h));
   try {

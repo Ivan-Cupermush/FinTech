@@ -107,6 +107,9 @@ export function optimisticMessage(o: { chatId: string; topicId: string | null; m
     reactions: [],
     poll: null,
     read: false,
+    attachments: [],
+    contact: null,
+    listened: false,
   };
 }
 

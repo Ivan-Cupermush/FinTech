@@ -5,6 +5,7 @@ import { actorOf, type AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
+import { copyAttachments, deleteAttachments } from '../services/attachments';
 import {
   MSG_SELECT,
   broadcast,
@@ -39,13 +40,13 @@ function canDeleteForAll(a: ChatAccess, m: MessageRow, actorId: string): boolean
  * Действия с сообщением: `/api/v1/messages/:id`. Сообщение видит только
  * участник его чата; удалённое для всех или «для себя» — 404.
  */
-export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
+export function messagesRouter({ db, now, rt, onMessage, media }: ChatDeps): Router {
   const r = Router();
   const at = () => now().toISOString();
 
   const reloadOne = async (q: Queryable, actor: AuthedActor, id: string) => {
     const row = (await q.query<MessageRow>(`${MSG_SELECT} WHERE m.id = $1`, [id])).rows[0]!;
-    const [msg] = await hydrate(q, actor.id, [row], await othersReadSeq(q, row.chat_id, actor.id, row.topic_id));
+    const [msg] = await hydrate(q, actor.id, [row], await othersReadSeq(q, row.chat_id, actor.id, row.topic_id), media);
     return msg!;
   };
 
@@ -60,8 +61,10 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       const a = await openChat(q, actor, visible[0]!.chat_id);
       if (mode === 'all') {
         if (visible.some((m) => !canDeleteForAll(a, m, actor.id))) throw forbidden('Чужие сообщения может удалить администратор');
-        await q.query(`UPDATE messages SET deleted_for_all = TRUE, text = NULL, pinned_at = NULL WHERE id = ANY($1::uuid[])`, [visible.map((m) => m.id)]);
+        await q.query(`UPDATE messages SET deleted_for_all = TRUE, text = NULL, pinned_at = NULL, contact_user_id = NULL WHERE id = ANY($1::uuid[])`, [visible.map((m) => m.id)]);
         await q.query(`DELETE FROM message_reactions WHERE message_id = ANY($1::uuid[])`, [visible.map((m) => m.id)]);
+        // Удалено для всех — файлы стираются с диска (если их не держит пересланная копия).
+        await deleteAttachments(q, media.store, { type: 'message', ids: visible.map((m) => m.id) });
       } else {
         await q.query(`UPDATE messages SET deleted_for = array_append(deleted_for, $2) WHERE id = ANY($1::uuid[]) AND NOT ($2 = ANY(deleted_for))`, [visible.map((m) => m.id), actor.id]);
       }
@@ -95,7 +98,7 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
         [body.message_ids, actor.id, actor.company_id],
       );
       if (src.length !== new Set(body.message_ids).size) throw notFound('Сообщение не найдено');
-      if (src.some((m) => m.kind !== 'text')) throw invalid('Не удалось переслать', { message_ids: 'Пересылать можно только текстовые сообщения' });
+      if (src.some((m) => m.kind === 'service' || m.kind === 'poll')) throw invalid('Не удалось переслать', { message_ids: 'Служебные сообщения и опросы не пересылаются' });
       const out: MessageRow[] = [];
       for (const m of src) {
         out.push(
@@ -104,7 +107,9 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
             target.chat,
             actor.id,
             {
+              kind: m.kind,
               text: m.text,
+              contact_user_id: m.contact_user_id,
               topic_id: topicId,
               forwarded_from_id: m.id,
               // Пересылка пересланного ведёт к первоисточнику.
@@ -114,23 +119,26 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
             at(),
           ),
         );
+        // Файлы пересылаются той же записью на диске — без копирования байтов.
+        if (m.kind === 'media' || m.kind === 'voice' || m.kind === 'video_note') await copyAttachments(q, { type: 'message', id: m.id }, { type: 'message', id: out[out.length - 1]!.id }, actor.id);
       }
       return { chat: target.chat, rows: out };
     });
-    for (const row of rows) await broadcastMessage(db, rt, chat, row);
+    for (const row of rows) await broadcastMessage(db, rt, chat, row, media);
     if (rows[0]) onMessage?.(chat, rows[rows.length - 1]!);
-    res.status(201).json({ data: await hydrate(db, actor.id, rows, 0) });
+    res.status(201).json({ data: await hydrate(db, actor.id, rows, 0, media) });
   });
 
   r.patch('/:id', async (req, res) => {
     const actor = actorOf(req);
     const body = parseBody(z.object({ text: z.string().max(MESSAGE_MAX + 1000) }), req.body);
-    const err = validateMessageText(body.text);
-    if (err) throw invalid('Не удалось изменить сообщение', { text: err });
     const { msg, access } = await openMessage(db, actor, idParam(req.params.id));
+    // Подпись к медиа можно и стереть; текст сообщения — нет.
+    const err = msg.kind === 'media' ? (body.text.length > MESSAGE_MAX ? `Не длиннее ${MESSAGE_MAX} символов` : null) : validateMessageText(body.text);
+    if (err) throw invalid('Не удалось изменить сообщение', { text: err });
     if (msg.sender_id !== actor.id) throw forbidden('Изменить можно только своё сообщение');
     if (!canEditMessage({ ...msg, deleted: msg.deleted_for_all }, actor.id, at())) throw forbidden('Сообщение уже нельзя изменить');
-    const text = body.text.trim();
+    const text = body.text.trim() || (msg.kind === 'media' ? null : body.text.trim());
     if (text !== msg.text) {
       await db.query(`UPDATE messages SET text = $2, edited_at = $3 WHERE id = $1`, [msg.id, text, at()]);
       await broadcast(db, rt, access.chat, 'message_edited', { chat_id: access.chat.id, id: msg.id, text, edited_at: at() });
@@ -154,7 +162,7 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
       await q.query(`UPDATE messages SET pinned_at = $2, pinned_by = $3 WHERE id = $1`, [msg.id, pinned ? at() : null, pinned ? actor.id : null]);
       if (pinned && access.chat.type === 'group') {
         const row = await serviceMessage(q, access.chat, actor.id, serviceText.pinned(actor.display_name), at(), msg.topic_id);
-        await broadcastMessage(q, rt, access.chat, row);
+        await broadcastMessage(q, rt, access.chat, row, media);
       }
     });
     await broadcast(db, rt, access.chat, 'message_pinned', { chat_id: access.chat.id, id: msg.id, pinned, topic_id: msg.topic_id });
@@ -199,6 +207,23 @@ export function messagesRouter({ db, now, rt, onMessage }: ChatDeps): Router {
     await db.query(`DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2`, [msg.id, actor.id]);
     await reactionsChanged(access.chat, msg.id);
     res.json({ data: groupReactions(await loadReactions(db, [msg.id]), actor.id) });
+  });
+
+  // ------------------------------------------------------------ голосовые
+
+  /**
+   * Прослушал голосовое или посмотрел кружочек. Своё не считается. Автор и
+   * сам слушатель получают событие: у автора гаснет точка «не прослушано».
+   */
+  r.post('/:id/listen', async (req, res) => {
+    const actor = actorOf(req);
+    const { msg, access } = await openMessage(db, actor, idParam(req.params.id));
+    if (msg.kind !== 'voice' && msg.kind !== 'video_note') throw invalid('Не удалось отметить', { message: 'Это не голосовое и не видеосообщение' });
+    if (msg.sender_id !== actor.id) {
+      const { rows } = await db.query(`INSERT INTO message_listens (message_id, user_id, listened_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING message_id`, [msg.id, actor.id, at()]);
+      if (rows.length) await broadcast(db, rt, access.chat, 'message_listened', { chat_id: access.chat.id, message_id: msg.id, user_id: actor.id, sender_id: msg.sender_id });
+    }
+    res.status(204).end();
   });
 
   // ------------------------------------------------------------ опросы

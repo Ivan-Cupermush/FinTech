@@ -51,7 +51,10 @@ describe('вход и регистрация', () => {
   });
 
   it('health', async () => {
-    expect((await request(ctx.app).get('/api/health')).body).toEqual({ ok: true });
+    const body = (await request(ctx.app).get('/api/health')).body;
+    expect(body.ok).toBe(true);
+    expect(typeof body.media.ffmpeg).toBe('boolean');
+    expect(body.media.max_upload_bytes).toBe(200 * 1024 * 1024);
   });
 
   it('неизвестный метод API — 404 в общем формате', async () => {

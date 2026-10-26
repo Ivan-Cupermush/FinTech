@@ -1,3 +1,5 @@
+import { mediaLabel, type Attachment, type ContactCard, type MediaSummary } from './media';
+
 /**
  * Мессенджер: личные чаты, группы и группы с темами. Здесь — общая логика
  * сервера, сайта и приложения: права в чате, поиск по сообщениям, проверки
@@ -177,9 +179,9 @@ export function validateChatName(name: unknown): string | null {
   return null;
 }
 
-/** Можно ли ещё поправить сообщение: своё, не удалённое, не служебное, в пределах 48 часов. */
+/** Можно ли ещё поправить сообщение (текст или подпись к медиа): своё, не удалённое, не служебное, в пределах 48 часов. */
 export function canEditMessage(m: { sender_id: string | null; kind: string; deleted: boolean; created_at: string }, userId: string, now: string): boolean {
-  if (m.kind !== 'text' || m.deleted || m.sender_id !== userId) return false;
+  if ((m.kind !== 'text' && m.kind !== 'media') || m.deleted || m.sender_id !== userId) return false;
   return Date.parse(now) - Date.parse(m.created_at) <= EDIT_WINDOW_HOURS * 3_600_000;
 }
 
@@ -236,9 +238,13 @@ export interface ChatMessageRef {
   text: string | null;
   kind: MessageKind;
   deleted: boolean;
+  /** Вложения или контакт — для подписи «📷 Фото», «🎤 Голосовое сообщение». */
+  media?: MediaSummary | null;
 }
 
-export type MessageKind = 'text' | 'service' | 'poll';
+/** media — фото, видео и файлы (альбом до 10); voice и video_note — одно вложение; contact — карточка сотрудника. */
+export const MESSAGE_KINDS = ['text', 'service', 'poll', 'media', 'voice', 'video_note', 'contact'] as const;
+export type MessageKind = (typeof MESSAGE_KINDS)[number];
 
 export interface ChatPollOption {
   id: string;
@@ -294,6 +300,11 @@ export interface ChatMessage {
   poll: ChatPoll | null;
   /** Своё сообщение прочитано собеседником (в группе — хотя бы одним). */
   read: boolean;
+  /** Фото, видео, файлы, голосовое или кружочек — в порядке отправки. */
+  attachments: Attachment[];
+  contact: ContactCard | null;
+  /** Голосовое и кружочек: для получателя — я прослушал, для автора — прослушал кто-то другой. */
+  listened: boolean;
 }
 
 export interface ChatTopic {
@@ -386,10 +397,20 @@ export function chatTitle(c: { type: ChatType; name: string | null }, peerName: 
 }
 
 /** Строка в списке чатов: «Вы: …», «Анна: …» в группе, служебное — как есть. */
-export function messagePreview(m: { kind: MessageKind; text: string | null; deleted: boolean; sender_id?: string | null; sender_name: string | null } | null, meId: string, isGroup: boolean): string {
+export function messagePreview(
+  m: { kind: MessageKind; text: string | null; deleted: boolean; sender_id?: string | null; sender_name: string | null; media?: MediaSummary | null } | null,
+  meId: string,
+  isGroup: boolean,
+): string {
   if (!m) return 'Нет сообщений';
   if (m.deleted) return 'Сообщение удалено';
-  const body = m.kind === 'poll' ? `📊 ${m.text ?? 'Опрос'}` : (m.text ?? '').replace(/\s+/g, ' ').trim();
+  const text = (m.text ?? '').replace(/\s+/g, ' ').trim();
+  let body = m.kind === 'poll' ? `📊 ${m.text ?? 'Опрос'}` : text;
+  if (m.media) {
+    const label = mediaLabel(m.media);
+    // С подписью — значок и подпись: «📷 Смета на ноябрь».
+    body = text && (m.media.kind === 'photo' || m.media.kind === 'video' || m.media.kind === 'file') && m.media.count === 1 ? `${label.split(' ')[0]} ${text}` : text ? `${label}, ${text}` : label;
+  }
   if (m.kind === 'service') return body;
   if (m.sender_id === meId) return `Вы: ${body}`;
   return isGroup && m.sender_name ? `${m.sender_name.split(' ')[0]}: ${body}` : body;
