@@ -6,6 +6,12 @@ import type { Config } from './config';
 import type { Db } from './db/db';
 import { errorHandler, notFound } from './http/errors';
 import type { FetchLike } from './services/integrations';
+import { noRealtime, type Realtime } from './realtime/hub';
+import { messagePushHook } from './services/chat-jobs';
+import type { PushSender } from './services/push';
+import type { ChatPushMessage } from '@offix/core';
+import { chatsRouter } from './routes/chats';
+import { messagesRouter } from './routes/messages';
 import { authRouter } from './routes/auth';
 import { discussionsRouter } from './routes/discussions';
 import { goalsRouter } from './routes/goals';
@@ -28,9 +34,13 @@ export interface AppOptions {
   rateLimit?: boolean;
   /** Запросы интеграций в 1С и Moodle; в тестах и демо — поддельные системы. */
   integrationFetch?: FetchLike;
+  /** События в реальном времени; без сокета — молчат. */
+  realtime?: Realtime;
+  /** Push о сообщениях в чатах; не задан — не шлём. */
+  messagePush?: PushSender<ChatPushMessage>;
 }
 
-export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch }: AppOptions): Express {
+export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush }: AppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -72,6 +82,9 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/discussions', discussionsRouter(db));
   v1.use('/notes', notesRouter(db));
   v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
+  const chatDeps = { db, now, rt: realtime, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
+  v1.use('/chats', chatsRouter(chatDeps));
+  v1.use('/messages', messagesRouter(chatDeps));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));

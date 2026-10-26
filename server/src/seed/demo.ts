@@ -3,6 +3,7 @@ import { hashPassword } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
 import { sealSecret } from '../services/secret-box';
 import { DEMO_1C_URL } from './fake-systems';
+import { seedDemoChats, type DemoChats } from './demo-chats';
 
 /**
  * Демо-организация для показа и тестов: сквозной сценарий из ТЗ.
@@ -18,6 +19,7 @@ export interface DemoIds {
   units: Record<string, string>;
   goals: Record<string, string>;
   tasks: Record<string, string>;
+  chats: DemoChats;
 }
 
 type DemoUser = 'director' | 'olga' | 'anna' | 'igor' | 'dima' | 'maria' | 'sergey' | 'elena' | 'observer';
@@ -365,6 +367,7 @@ export async function seedDemo(db: Db, opts: { now?: Date; companyName?: string 
     await run(ts(-6, 15), 'error', 0, 0, 0, 'Система отклонила логин и пароль', 'manual');
     await run(ts(-5, 7), 'ok', 112, 1, 0, null, 'manual');
 
-    return { companyId, users, units, goals, tasks };
+    const chats = await seedDemoChats(q, companyId, users, now);
+    return { companyId, users, units, goals, tasks, chats };
   });
 }

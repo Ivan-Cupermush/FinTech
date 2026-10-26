@@ -268,6 +268,8 @@ export interface ChatReaction {
   mine: boolean;
   /** Первые несколько, кто поставил — для подсказки. */
   people: string[];
+  /** Кто поставил — чтобы после события в реальном времени знать, моя ли реакция. */
+  user_ids: string[];
 }
 
 export interface ChatMessage {
@@ -300,9 +302,13 @@ export interface ChatTopic {
   icon: string;
   color: string;
   closed: boolean;
-  last_message: ChatMessageRef & { created_at: string } | null;
+  /** Общая тема: появляется при включении тем, удалить нельзя. */
+  is_general: boolean;
+  last_message: (ChatMessageRef & { created_at: string; sender_id: string | null }) | null;
   unread: number;
   messages: number;
+  /** До какого номера я прочитал эту тему. */
+  last_read_seq: number;
 }
 
 export interface ChatSummary {
@@ -340,6 +346,26 @@ export interface ChatDetail extends ChatSummary {
   my_last_read_seq: number;
   /** Номер, до которого прочитали остальные — для галочек. */
   others_read_seq: number;
+}
+
+/** История чата: страница сообщений и отметки прочтения. */
+export interface ChatHistory {
+  messages: ChatMessage[];
+  has_before: boolean;
+  has_after: boolean;
+  my_last_read_seq: number;
+  others_read_seq: number;
+}
+
+export interface ChatSearchHit extends ChatMessage {
+  chat_title: string;
+  chat_type: ChatType;
+  topic_name: string | null;
+}
+
+export interface PollVoters {
+  option_id: string;
+  people: ChatPerson[];
 }
 
 export interface ScheduledMessage {
