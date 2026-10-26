@@ -23,6 +23,7 @@ import {
   shouldPushMessage,
   sortChats,
   switchLayout,
+  typingText,
   validateChatName,
   validateMessageText,
   validatePoll,
@@ -260,5 +261,20 @@ describe('push о сообщениях', () => {
   });
   it('нажатие ведёт в чат', () => {
     expect(pushRoute({ chat_id: 'c1', task_id: 't1' })).toBe('/chat/c1');
+  });
+});
+
+describe('кто печатает', () => {
+  it('в личном — без имени, в группе — по именам', () => {
+    expect(typingText([], true)).toBe('');
+    expect(typingText(['Ольга Смирнова'], false)).toBe('печатает');
+    expect(typingText(['Ольга Смирнова'], true)).toBe('Ольга печатает');
+    expect(typingText(['Ольга Смирнова', 'Игорь Лебедев'], true)).toBe('Ольга и Игорь печатают');
+  });
+  it('много людей — числом, с верным окончанием', () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `Имя${i} Фамилия`);
+    expect(typingText(names(3), true)).toBe('3 человека печатают');
+    expect(typingText(names(5), true)).toBe('5 человек печатают');
+    expect(typingText(names(22), true)).toBe('22 человека печатают');
   });
 });

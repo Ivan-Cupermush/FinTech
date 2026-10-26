@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Archive, Bell, BellOff, CheckCheck, MessagesSquare, MoreHorizontal, Pin, PinOff, Search, SquarePen, X } from 'lucide-react';
 import { useMemo, useState, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MUTE_PRESETS, chatListTime, isMuted, matchesQuery, messagePreview, muteUntil, sortChats, type ChatSearchHit, type ChatSummary } from '@offix/core';
+import { MUTE_PRESETS, chatListTime, isMuted, matchesQuery, messagePreview, muteUntil, sortChats, typingText, type ChatSearchHit, type ChatSummary } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe } from '../../lib/queries';
 import { Button } from '../../ui/Button';
@@ -11,7 +11,7 @@ import { useToast } from '../../ui/Toast';
 import { PageHero } from '../../ui/fx/PageHero';
 import { useMediaQuery } from '../../ui/fx/support';
 import { chatApi, ck, markListRead, useChats, useGlobalSearch } from './data';
-import { ChatAvatar, Highlighted, Menu, TypingDots, typingText } from './parts';
+import { ChatAvatar, Highlighted, Menu, TypingDots } from './parts';
 import { typingKey, useRealtime } from './realtime';
 
 type Filter = 'all' | 'unread' | 'groups' | 'private';

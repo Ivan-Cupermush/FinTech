@@ -409,6 +409,16 @@ export function lastSeenText(online: boolean, lastSeen: string | null, now: stri
   return `был(а) ${moscowDateShort(lastSeen)}`;
 }
 
+/** Кто печатает: «печатает» в личном, «Анна печатает», «Анна и Игорь печатают», «3 человека печатают». */
+export function typingText(names: string[], group: boolean): string {
+  if (!names.length) return '';
+  if (!group) return 'печатает';
+  const first = names.map((n) => n.split(' ')[0]!);
+  if (first.length === 1) return `${first[0]} печатает`;
+  if (first.length === 2) return `${first[0]} и ${first[1]} печатают`;
+  return `${first.length} ${plural(first.length, 'человек', 'человека', 'человек')} печатают`;
+}
+
 function plural(n: number, one: string, few: string, many: string): string {
   const m10 = n % 10;
   const m100 = n % 100;

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { buildFeed, canEditMessage, chatListTime, lastSeenText, messagePreview, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
+import { buildFeed, canEditMessage, chatListTime, lastSeenText, messagePreview, typingText, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe } from '../../lib/queries';
 import { Button } from '../../ui/Button';
@@ -36,7 +36,7 @@ import { Composer, type ComposerMode } from './Composer';
 import { chatApi, ck, jumpTo, loadNewer, loadOlder, markListRead, patchMessage, removeMessages, sendMessage, useChat, useChatSearch, useHistory, usePinned, useScheduled } from './data';
 import { ChatPickerDialog, ConfirmDialog, PollDialog, ScheduleDialog, ScheduledDialog, TopicDialog, VotersDialog } from './dialogs';
 import { Bubble, type BubbleActions } from './MessageBubble';
-import { ChatAvatar, Highlighted, Menu, TypingDots, typingText } from './parts';
+import { ChatAvatar, Highlighted, Menu, TypingDots } from './parts';
 import { typingKey, useRealtime } from './realtime';
 
 const errText = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз');

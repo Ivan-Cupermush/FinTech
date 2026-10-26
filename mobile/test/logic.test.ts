@@ -182,7 +182,7 @@ describe('шапки экранов', () => {
   });
   it('настройки push коротко говорят, что включено', () => {
     expect(pushSummary({ muted: [], quiet_hours: true }, 1)).toBe('Все темы включены · ночью тихо.');
-    expect(pushSummary({ muted: ['comments'], quiet_hours: false }, 2)).toBe('Включено 3 из 4 тем.');
+    expect(pushSummary({ muted: ['comments'], quiet_hours: false }, 2)).toBe('Включено 4 из 5 тем.');
     expect(pushSummary({ muted: [], quiet_hours: true }, 0)).toMatch(/не привязан/);
   });
 });

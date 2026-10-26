@@ -151,12 +151,3 @@ export function TypingDots() {
   );
 }
 
-/** Имена печатающих: «Анна печатает», «Анна и Игорь печатают», «3 человека печатают». */
-export function typingText(names: string[], group: boolean): string {
-  if (!names.length) return '';
-  if (!group) return 'печатает';
-  const first = names.map((n) => n.split(' ')[0]!);
-  if (first.length === 1) return `${first[0]} печатает`;
-  if (first.length === 2) return `${first[0]} и ${first[1]} печатают`;
-  return `${first.length} ${first.length < 5 ? 'человека' : 'человек'} печатают`;
-}
