@@ -501,6 +501,18 @@ export function dayLabel(day: string, now: string): string {
   return `${d} ${MONTHS_FULL[m! - 1]}${y !== Number(today.slice(0, 4)) ? ` ${y}` : ''}`;
 }
 
+/** Галерея по дням: подряд идущие элементы одного московского дня — одной группой с подписью. */
+export function groupByDay<T extends { created_at: string }>(items: T[], now: string): { day: string; label: string; items: T[] }[] {
+  const out: { day: string; label: string; items: T[] }[] = [];
+  for (const it of items) {
+    const day = moscowDay(it.created_at);
+    const last = out[out.length - 1];
+    if (last?.day === day) last.items.push(it);
+    else out.push({ day, label: dayLabel(day, now), items: [it] });
+  }
+  return out;
+}
+
 export type FeedItem<M> = { type: 'day'; key: string; label: string } | { type: 'new'; key: string } | { type: 'message'; key: string; message: M; first: boolean; last: boolean };
 
 /**

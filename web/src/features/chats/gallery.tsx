@@ -1,6 +1,6 @@
 import { ExternalLink, Film, Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { GALLERY_TABS, GALLERY_TAB_LABELS, formatBytes, formatClock, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
+import { GALLERY_TABS, GALLERY_TAB_LABELS, formatBytes, groupByDay, formatClock, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
 import { fileSrc } from '../../lib/files';
 import { Skeleton } from '../../ui/Misc';
 import { useChatStats, useGallery } from './data';
@@ -103,18 +103,12 @@ const EMPTY: Record<GalleryTab, string> = {
 };
 
 function Grouped({ items, children }: { items: ChatGalleryItem[]; children: (it: ChatGalleryItem) => React.ReactNode }) {
-  const groups: { day: string; items: ChatGalleryItem[] }[] = [];
-  for (const it of items) {
-    const day = dayOf(it.created_at);
-    const last = groups[groups.length - 1];
-    if (last?.day === day) last.items.push(it);
-    else groups.push({ day, items: [it] });
-  }
+  const groups = groupByDay(items, new Date().toISOString());
   return (
     <>
       {groups.map((g) => (
         <div key={g.day} className="gallery-group">
-          <div className="gallery-day">{g.day}</div>
+          <div className="gallery-day">{g.label}</div>
           {g.items.map(children)}
         </div>
       ))}

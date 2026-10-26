@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ALBUM_MAX,
   albumLayout,
+  avatarFor,
+  buildAvatarDirectory,
+  groupByDay,
   canEditMessage,
   dbToLevel,
   decodeWaveform,
@@ -331,5 +334,48 @@ describe('ссылки в тексте', () => {
     expect(linkHost('https://www.offix.ru/plan?x=1')).toBe('offix.ru');
     expect(linkHost('http://user:pw@Docs.Example.com:8080/a')).toBe('docs.example.com');
     expect(linkHost('не ссылка')).toBe('не ссылка');
+  });
+});
+
+describe('справочник фото', () => {
+  const list = [
+    { id: 'u1', display_name: 'Анна Смирнова', avatar_url: '/api/v1/files/avatars/1.jpg' },
+    { id: 'u2', display_name: 'анна смирнова ', avatar_url: '/api/v1/files/avatars/2.jpg' },
+    { id: 'u3', display_name: 'Олег Ким', avatar_url: '/api/v1/files/avatars/3.jpg' },
+    { id: 'u4', display_name: 'Без фото', avatar_url: '' },
+  ];
+
+  it('по id — всегда, по имени — только у единственного носителя', () => {
+    const dir = buildAvatarDirectory(list);
+    expect(avatarFor(dir, 'u2')).toBe('/api/v1/files/avatars/2.jpg');
+    expect(avatarFor(dir, null, 'Анна Смирнова')).toBeUndefined();
+    expect(avatarFor(dir, null, ' олег КИМ ')).toBe('/api/v1/files/avatars/3.jpg');
+    expect(avatarFor(dir, 'u4', 'Без фото')).toBeUndefined();
+    // Если id известен, имя не подменяет его чужим фото.
+    expect(avatarFor(dir, 'u9', 'Олег Ким')).toBeUndefined();
+  });
+
+  it('адрес можно дополнить сервером', () => {
+    const dir = buildAvatarDirectory(list, (u) => `https://offix.example${u}`);
+    expect(dir.byId.get('u3')).toBe('https://offix.example/api/v1/files/avatars/3.jpg');
+  });
+});
+
+describe('галерея по дням', () => {
+  it('группирует подряд идущие элементы одного московского дня', () => {
+    const now = '2026-10-19T12:00:00.000Z';
+    const items = [
+      { id: 'a', created_at: '2026-10-19T09:00:00.000Z' },
+      { id: 'b', created_at: '2026-10-18T22:30:00.000Z' }, // 01:30 по Москве — уже 19-е
+      { id: 'c', created_at: '2026-10-18T10:00:00.000Z' },
+      { id: 'd', created_at: '2025-03-02T10:00:00.000Z' },
+    ];
+    const g = groupByDay(items, now);
+    expect(g.map((x) => [x.label, x.items.map((i) => i.id).join('')])).toEqual([
+      ['Сегодня', 'ab'],
+      ['Вчера', 'c'],
+      ['2 марта 2025', 'd'],
+    ]);
+    expect(groupByDay([], now)).toEqual([]);
   });
 });

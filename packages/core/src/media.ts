@@ -352,6 +352,33 @@ export interface AvatarEntry {
   avatar_url: string;
 }
 
+/** Справочник фото: по id и по имени — только однозначные имена, у тёзок фото по имени не угадываем. */
+export interface AvatarDirectory {
+  byId: ReadonlyMap<string, string>;
+  byName: ReadonlyMap<string, string>;
+}
+
+export function buildAvatarDirectory(list: AvatarEntry[], toSrc: (url: string) => string | null | undefined = (u) => u): AvatarDirectory {
+  const byId = new Map<string, string>();
+  const names = new Map<string, string | null>();
+  for (const a of list) {
+    const src = a.avatar_url ? toSrc(a.avatar_url) : null;
+    if (!src) continue;
+    byId.set(a.id, src);
+    const key = a.display_name.trim().toLowerCase();
+    names.set(key, names.has(key) ? null : src);
+  }
+  const byName = new Map<string, string>();
+  for (const [k, v] of names) if (v) byName.set(k, v);
+  return { byId, byName };
+}
+
+/** Фото человека: по id, а где id нет — по имени. */
+export function avatarFor(dir: AvatarDirectory, id?: string | null, name?: string | null): string | undefined {
+  if (id) return dir.byId.get(id);
+  return name ? dir.byName.get(name.trim().toLowerCase()) : undefined;
+}
+
 // ---------------------------------------------------------------- подписи
 
 const pluralRu = (n: number, one: string, few: string, many: string) => {
