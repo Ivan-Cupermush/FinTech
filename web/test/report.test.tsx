@@ -186,6 +186,6 @@ describe('отчёт для руководства', () => {
     renderApp('/app/report');
     const sidebar = await screen.findByRole('complementary', { name: 'Навигация' });
     expect(within(sidebar).getByRole('link', { name: /Отчёт/ })).toHaveAttribute('href', '/app/report');
-    expect(within(screen.getByRole('navigation', { name: 'Навигация' })).getAllByRole('link')).toHaveLength(5);
+    expect(within(screen.getByRole('navigation', { name: 'Навигация' })).getAllByRole('link')).toHaveLength(6);
   });
 });

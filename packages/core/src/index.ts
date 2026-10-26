@@ -23,3 +23,4 @@ export * from './notes';
 export * from './integrations';
 export * from './credits';
 export * from './chat';
+export * from './emoji';

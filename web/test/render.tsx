@@ -33,7 +33,7 @@ export function mockApi(routes: Record<string, unknown | Handler>) {
     });
     if (!key) return new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: `нет мока для ${method} ${path}` } }), { status: 404 });
     const r = routes[key];
-    const data = typeof r === 'function' ? (r as Handler)(call) : r;
+    const data = typeof r === 'function' ? await (r as Handler)(call) : r;
     if (data instanceof Response) return data;
     return new Response(JSON.stringify({ data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   });

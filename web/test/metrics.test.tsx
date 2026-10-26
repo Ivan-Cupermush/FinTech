@@ -147,7 +147,8 @@ describe('«Эффект» в навигации и на Пульсе', () => {
     const sidebar = await screen.findByRole('complementary', { name: 'Навигация' });
     const tabbar = screen.getByRole('navigation', { name: 'Навигация' });
     expect(within(sidebar).getByRole('link', { name: /Эффект/ })).toHaveAttribute('href', '/app/metrics');
-    expect(within(tabbar).getAllByRole('link')).toHaveLength(5);
+    expect(within(tabbar).getAllByRole('link')).toHaveLength(6);
+    expect(within(tabbar).getByRole('link', { name: /Чаты/ })).toHaveAttribute('href', '/app/chats');
     expect(within(tabbar).queryByRole('link', { name: /Эффект/ })).toBeNull();
   });
 

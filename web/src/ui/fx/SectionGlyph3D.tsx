@@ -228,6 +228,31 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
       </group>
     );
   },
+  // Чаты: стеклянное облачко с хвостиком и белое поменьше с тремя точками «печатает».
+  chats: () => (
+    <group rotation={[0.22, -0.4, 0.04]}>
+      <group position={[-0.22, 0.2, 0]}>
+        <RoundedBox args={[1.5, 0.95, 0.3]} radius={0.3} smoothness={6}>
+          <Glass />
+        </RoundedBox>
+        <mesh position={[-0.5, -0.5, 0]} rotation={[0, 0, Math.PI / 5]}>
+          <coneGeometry args={[0.17, 0.36, 24]} />
+          <Glass />
+        </mesh>
+      </group>
+      <group position={[0.42, -0.42, 0.34]}>
+        <RoundedBox args={[0.92, 0.56, 0.22]} radius={0.22} smoothness={6}>
+          <Solid />
+        </RoundedBox>
+        {[-0.22, 0, 0.22].map((x) => (
+          <mesh key={x} position={[x, 0, 0.13]}>
+            <sphereGeometry args={[0.065, 24, 24]} />
+            <meshPhysicalMaterial color="#3050ff" roughness={0.2} clearcoat={1} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  ),
   // Новая цель: стеклянный кристалл и белая искра рядом.
   create: () => (
     <group rotation={[0.3, -0.4, 0.2]}>

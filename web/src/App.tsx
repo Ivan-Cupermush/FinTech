@@ -9,6 +9,7 @@ import { GoalsPage } from './features/goals/GoalsPage';
 import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { LicensesPage } from './features/credits/LicensesPage';
+import { ChatsPage } from './features/chats/ChatsPage';
 import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
@@ -55,6 +56,8 @@ export function AppRoutes() {
         <Route path="goals/new" element={<GoalNewPage />} />
         <Route path="goals/:id" element={<GoalPage />} />
         <Route path="tasks" element={<TasksPage />} />
+        <Route path="chats" element={<ChatsPage />} />
+        <Route path="chats/:id" element={<ChatsPage />} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="report" element={<ReportPage />} />
         <Route path="org" element={<OrgPage />} />

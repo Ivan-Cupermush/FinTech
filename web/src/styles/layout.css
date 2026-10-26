@@ -185,7 +185,7 @@
   }
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     height: var(--tabbar-h);
     padding: 0 6px;
   }
@@ -195,8 +195,9 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 560;
+    letter-spacing: -0.01em;
     color: var(--ink-2);
     position: relative;
   }
@@ -220,9 +221,36 @@
     border-radius: 50%;
     background: var(--bad);
   }
+  .tabbar .tab-count {
+    position: absolute;
+    top: 7px;
+    left: calc(50% + 5px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg) 80%, transparent);
+  }
+  /* Открытый чат на телефоне — во весь экран, без нижней панели. */
+  .shell.is-in-chat .glass-slot.tabbar-glass {
+    display: none;
+  }
+  .shell.is-in-chat .main {
+    padding: 0;
+  }
   .page-head {
     margin-bottom: 18px;
   }
+}
+.nav-link .badge.is-chat {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* Дублирующее действие: на десктопе есть кнопка в сайдбаре */
