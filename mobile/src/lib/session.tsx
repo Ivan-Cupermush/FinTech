@@ -25,6 +25,9 @@ const store = {
 let current = { token: null as string | null, server: DEFAULT_SERVER };
 let onLogout: () => void = () => undefined;
 
+/** Токен и сервер прямо сейчас — для загрузки файлов, которая идёт мимо fetch-клиента. */
+export const currentSession = () => ({ token: current.token, server: current.server });
+
 export const api = createClient({ baseUrl: () => current.server, token: () => current.token, onUnauthorized: () => onLogout() });
 
 interface Session {

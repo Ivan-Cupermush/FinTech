@@ -12,6 +12,7 @@ import { HeroStats } from '../../ui/fx/PageHero';
 import { GoalTile, RiskItem, TaskRow } from '../../ui/domain';
 import { EffectSummary } from '../../ui/effect';
 import { Button, Card, Empty, Screen, SectionTitle, Text } from '../../ui/primitives';
+import { ProfilePhoto } from '../../ui/profile';
 
 /** Пульс: что под угрозой, кому помочь и мои задачи — за 10 секунд. */
 export default function Pulse() {
@@ -30,11 +31,14 @@ export default function Pulse() {
             <Text variant="eyebrow" style={{ color: 'rgba(255,255,255,0.72)' }}>
               {d ? formatDate(d.today, { today: '0000' }) : ' '}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Выйти" onPress={() => void logout().then(() => router.replace('/login'))} hitSlop={12}>
-              <Glass radius={18} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
-                <LogOut size={16} color="#fff" />
-              </Glass>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {me.data && <ProfilePhoto me={me.data} />}
+              <Pressable accessibilityRole="button" accessibilityLabel="Выйти" onPress={() => void logout().then(() => router.replace('/login'))} hitSlop={12}>
+                <Glass radius={18} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+                  <LogOut size={16} color="#fff" />
+                </Glass>
+              </Pressable>
+            </View>
           </View>
           <View style={{ gap: 6 }}>
             <Text variant="h1" style={{ color: '#fff', fontSize: 30, lineHeight: 33, letterSpacing: -1 }}>

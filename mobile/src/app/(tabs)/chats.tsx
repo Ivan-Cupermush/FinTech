@@ -107,7 +107,7 @@ export default function ChatsTab() {
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 18, backgroundColor: pressed ? p.surface2 : 'transparent' })}
               >
                 {i > 0 && <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 72, right: 8, height: StyleSheet.hairlineWidth, backgroundColor: p.line }} />}
-                <ChatAvatar title={c.title} group={c.type === 'group'} online={online} size={52} />
+                <ChatAvatar title={c.title} group={c.type === 'group'} online={online} size={52} userId={c.peer?.id} />
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.semibold, fontSize: 16 }}>

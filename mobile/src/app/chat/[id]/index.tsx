@@ -1,15 +1,20 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowUp, ChevronLeft, CornerUpLeft, Info, Pencil, PinOff, X } from 'lucide-react-native';
+import { ArrowUp, ChevronLeft, CornerUpLeft, Info, Mic, Paperclip, Pencil, PinOff, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { buildFeed, canEditMessage, MESSAGE_MAX, REACTIONS, typingText, type ChatHistory, type ChatMessage, type FeedItem } from '@offix/core';
+import { buildFeed, canEditMessage, MESSAGE_MAX, messageBody, REACTIONS, typingText, type Attachment, type ChatHistory, type ChatMessage, type ContactCard, type FeedItem } from '@offix/core';
 import { chatStatus, isOnline, nextReaction } from '../../../lib/chat-logic';
 import { chatApi, ck, loadOlder, patchHistory, sendMessage, typistNames, useChat, useChatLive, useHistory, usePinned } from '../../../lib/chats';
+import { uploadPicked } from '../../../lib/files';
+import { uploadFields, viewerItems, type PickedFile, type ViewerItem } from '../../../lib/media';
 import { useMe } from '../../../lib/queries';
 import { font } from '../../../lib/theme';
+import { AttachMenu, ContactSheet, SendSheet } from '../../../ui/attach';
 import { Bubble, ChatAvatar, TypingDots, useWall, Wallpaper, WallPill } from '../../../ui/chats';
+import { VideoNoteRecorder, VoiceRecorderBar, type Recording } from '../../../ui/recorder';
+import { MediaViewer } from '../../../ui/viewer';
 import { Glass } from '../../../ui/fx/Glass';
 import { NO_WEB_OUTLINE, Text } from '../../../ui/primitives';
 
@@ -41,6 +46,9 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [mode, setMode] = useState<Mode>(null);
   const [reactFor, setReactFor] = useState<ChatMessage | null>(null);
+  const [sheet, setSheet] = useState<{ kind: 'menu' } | { kind: 'send'; files: PickedFile[]; asFile: boolean } | { kind: 'contact' } | { kind: 'note' } | { kind: 'viewer'; items: ViewerItem[]; index: number } | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const meId = me.data?.id ?? '';
   const now = new Date().toISOString();
 
@@ -165,13 +173,75 @@ export default function ChatScreen() {
   const retry = useCallback(
     (m: ChatMessage) => {
       patchHistory(qc, chatId, (h) => ({ ...h, messages: h.messages.filter((x) => x.id !== m.id) }));
-      void sendMessage(qc, { chatId, topicId, me: { id: meId, name: me.data?.display_name ?? '' }, text: m.text ?? '', clientId: m.client_id ?? undefined }).catch(() => undefined);
+      void sendMessage(qc, { chatId, topicId, me: { id: meId, name: me.data?.display_name ?? '' }, text: m.text ?? '', clientId: m.client_id ?? undefined, attachments: m.attachments, contact: m.contact }).catch(() => undefined);
     },
     [qc, chatId, topicId, meId, me.data?.display_name],
   );
 
+  const openMedia = useCallback((m: ChatMessage, index: number) => setSheet({ kind: 'viewer', ...viewerItems(qc.getQueryData<ChatHistory>(ck.history(chatId, topicId))?.messages ?? [], m.id, index) }), [qc, chatId, topicId]);
+
+  const listen = useCallback(
+    (m: ChatMessage) => {
+      patch(m.id, (x) => ({ ...x, listened: true }));
+      void chatApi.listen(m.id).catch(() => undefined);
+    },
+    [patch],
+  );
+
+  const writeTo = useCallback(
+    (c: ContactCard) =>
+      void chatApi
+        .direct(c.id)
+        .then((x) => router.push({ pathname: '/chat/[id]', params: { id: x.id } }))
+        .catch((e) => Alert.alert('Чат не открылся', errText(e))),
+    [],
+  );
+
+  const who = { id: meId, name: me.data?.display_name ?? '' };
+  const takeReply = () => {
+    const r = mode?.kind === 'reply' ? mode.message : null;
+    if (r) setMode(null);
+    return r;
+  };
+
+  /** Альбомы по 10: ответ — у первого, подпись — у последнего. */
+  const sendBatches = async (batches: { attachments: Attachment[]; caption: string }[]) => {
+    setSheet(null);
+    let replyTo = takeReply();
+    list.current?.scrollToOffset({ offset: 0, animated: true });
+    for (const b of batches) {
+      await sendMessage(qc, { chatId, topicId, me: who, text: b.caption, attachments: b.attachments, replyTo }).catch(() => undefined);
+      replyTo = null;
+    }
+  };
+
+  /** Голосовое и кружочек: сначала файл, потом сообщение. */
+  const sendRecording = async (kind: 'voice' | 'video_note', r: Recording) => {
+    setRecording(false);
+    setSheet(null);
+    const what = kind === 'voice' ? 'голосовое' : 'кружочек';
+    setBusy(`Отправляем ${what}…`);
+    try {
+      const att = await uploadPicked(r.file, { fields: uploadFields({ kind, duration: r.duration, waveform: r.waveform }), onProgress: (p) => setBusy(`Отправляем ${what}… ${Math.round(p * 100)}%`) });
+      await sendMessage(qc, { chatId, topicId, me: who, text: '', attachments: [att], replyTo: takeReply() });
+      list.current?.scrollToOffset({ offset: 0, animated: true });
+    } catch (e) {
+      Alert.alert(kind === 'voice' ? 'Голосовое не отправилось' : 'Кружочек не отправился', errText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendContact = (u: { id: string; display_name: string; position: string | null }) => {
+    setSheet(null);
+    void sendMessage(qc, { chatId, topicId, me: who, text: '', contact: { id: u.id, display_name: u.display_name, position: u.position, avatar_url: null }, replyTo: takeReply() }).catch(() => undefined);
+    list.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   const tooLong = text.trim().length > MESSAGE_MAX;
-  const canSend = !!text.trim() && !tooLong;
+  const captionOnly = mode?.kind === 'edit' && mode.message.attachments.length > 0;
+  const canSend = (!!text.trim() || captionOnly) && !tooLong;
+  const canRecord = !text.trim() && mode?.kind !== 'edit';
   const submit = () => {
     const t = text.trim();
     if (!canSend) return;
@@ -209,7 +279,7 @@ export default function ChatScreen() {
                 <ChevronLeft size={24} color={w.ink} />
               </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel={`${topic?.name ?? c?.title ?? 'Чат'}: информация о чате`} onPress={() => router.push({ pathname: '/chat/[id]/info', params: { id: chatId } })} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                {c && <ChatAvatar title={c.title} group={!!group} online={!!c.peer && isOnline(live, c.peer)} size={40} icon={topic?.icon} />}
+                {c && <ChatAvatar title={c.title} group={!!group} online={!!c.peer && isOnline(live, c.peer)} size={40} icon={topic?.icon} userId={c.peer?.id} />}
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={{ color: w.ink, fontFamily: font.semibold, fontSize: 16 }}>
                     {topic?.name ?? c?.title ?? ' '}
@@ -228,14 +298,14 @@ export default function ChatScreen() {
             </View>
           </Glass>
           {pin && (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Закреплённое сообщение: ${pin.text ?? ''}`} onPress={() => jump(pin.id)}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Закреплённое сообщение: ${messageBody(pin)}`} onPress={() => jump(pin.id)}>
               <Glass tone="surface" radius={18}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12 }}>
                   <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: '#3b5bff' }} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#3b5bff', fontFamily: font.semibold, fontSize: 12.5 }}>Закреплённое сообщение</Text>
                     <Text numberOfLines={1} style={{ color: w.ink, fontSize: 14 }}>
-                      {pin.poll ? `📊 ${pin.poll.question}` : pin.text}
+                      {messageBody(pin)}
                     </Text>
                   </View>
                   {can('pin_messages') && (
@@ -294,7 +364,7 @@ export default function ChatScreen() {
               ) : item.type === 'new' ? (
                 <WallPill text="Новые сообщения" accent />
               ) : (
-                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onRetry={retry} />
+                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onRetry={retry} onOpenMedia={openMedia} onListen={listen} onWrite={writeTo} />
               )
             }
           />
@@ -311,9 +381,9 @@ export default function ChatScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12 }}>
                   {mode.kind === 'edit' ? <Pencil size={16} color="#3b5bff" /> : <CornerUpLeft size={16} color="#3b5bff" />}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#3b5bff', fontFamily: font.semibold, fontSize: 13 }}>{mode.kind === 'edit' ? 'Изменение сообщения' : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}</Text>
+                    <Text style={{ color: '#3b5bff', fontFamily: font.semibold, fontSize: 13 }}>{mode.kind === 'edit' ? (captionOnly ? 'Изменение подписи' : 'Изменение сообщения') : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}</Text>
                     <Text numberOfLines={1} style={{ color: w.inkSoft, fontSize: 13 }}>
-                      {mode.message.poll ? `📊 ${mode.message.poll.question}` : mode.message.text}
+                      {messageBody(mode.message)}
                     </Text>
                   </View>
                   <Pressable
@@ -330,38 +400,70 @@ export default function ChatScreen() {
                 </View>
               </Glass>
             )}
+            {busy && <WallPill text={busy} />}
             <Glass tone="surface" radius={26}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 6, paddingLeft: 16 }}>
-                <TextInput
-                  value={text}
-                  onChangeText={(v) => {
-                    setText(v);
-                    if (mode?.kind !== 'edit') live.sendTyping(chatId, topicId, !v.trim());
-                  }}
-                  placeholder={topic ? `Сообщение в «${topic.name}»` : 'Сообщение'}
-                  placeholderTextColor={w.inkSoft}
-                  multiline
-                  // В веб-сборке многострочное поле по умолчанию в несколько строк — начинаем с одной.
-                  numberOfLines={Platform.OS === 'web' ? 1 : undefined}
-                  accessibilityLabel="Сообщение"
-                  style={[{ flex: 1, minHeight: 40, maxHeight: 140, paddingTop: 10, paddingBottom: 10, color: w.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: 'top' }, NO_WEB_OUTLINE]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={mode?.kind === 'edit' ? 'Сохранить' : 'Отправить'}
-                  accessibilityState={{ disabled: !canSend }}
-                  disabled={!canSend}
-                  onPress={submit}
-                  style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: canSend ? '#3b5bff' : 'rgba(127,127,160,0.3)', transform: [{ scale: pressed ? 0.92 : 1 }] })}
-                >
-                  <ArrowUp size={20} color="#fff" strokeWidth={2.4} />
-                </Pressable>
-              </View>
+              {recording ? (
+                <VoiceRecorderBar onCancel={() => setRecording(false)} onDone={(r) => void sendRecording('voice', r)} />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 6 }}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Вложения"
+                    accessibilityState={{ disabled: mode?.kind === 'edit' }}
+                    disabled={mode?.kind === 'edit'}
+                    onPress={() => setSheet({ kind: 'menu' })}
+                    style={({ pressed }) => ({ width: 40, height: 42, alignItems: 'center', justifyContent: 'center', opacity: mode?.kind === 'edit' ? 0.35 : pressed ? 0.6 : 1 })}
+                  >
+                    <Paperclip size={21} color={w.inkSoft} />
+                  </Pressable>
+                  <TextInput
+                    value={text}
+                    onChangeText={(v) => {
+                      setText(v);
+                      if (mode?.kind !== 'edit') live.sendTyping(chatId, topicId, !v.trim());
+                    }}
+                    placeholder={captionOnly ? 'Подпись' : topic ? `Сообщение в «${topic.name}»` : 'Сообщение'}
+                    placeholderTextColor={w.inkSoft}
+                    multiline
+                    // В веб-сборке многострочное поле по умолчанию в несколько строк — начинаем с одной.
+                    numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+                    accessibilityLabel="Сообщение"
+                    style={[{ flex: 1, minHeight: 40, maxHeight: 140, paddingTop: 10, paddingBottom: 10, color: w.ink, fontFamily: font.regular, fontSize: 16, textAlignVertical: 'top' }, NO_WEB_OUTLINE]}
+                  />
+                  {canRecord ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Записать голосовое"
+                      onPress={() => setRecording(true)}
+                      style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(59,91,255,0.14)', transform: [{ scale: pressed ? 0.92 : 1 }] })}
+                    >
+                      <Mic size={20} color="#3b5bff" />
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={mode?.kind === 'edit' ? 'Сохранить' : 'Отправить'}
+                      accessibilityState={{ disabled: !canSend }}
+                      disabled={!canSend}
+                      onPress={submit}
+                      style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: canSend ? '#3b5bff' : 'rgba(127,127,160,0.3)', transform: [{ scale: pressed ? 0.92 : 1 }] })}
+                    >
+                      <ArrowUp size={20} color="#fff" strokeWidth={2.4} />
+                    </Pressable>
+                  )}
+                </View>
+              )}
             </Glass>
             {tooLong && <Text style={{ color: '#e0464c', fontSize: 12, textAlign: 'right' }}>{`${text.trim().length}/${MESSAGE_MAX}`}</Text>}
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {sheet?.kind === 'menu' && <AttachMenu onClose={() => setSheet(null)} onFiles={(files, asFile) => setSheet({ kind: 'send', files, asFile })} onContact={() => setSheet({ kind: 'contact' })} onVideoNote={Platform.OS !== 'web' ? () => setSheet({ kind: 'note' }) : undefined} />}
+      {sheet?.kind === 'send' && <SendSheet files={sheet.files} asFile={sheet.asFile} onClose={() => setSheet(null)} onSend={(b) => void sendBatches(b)} />}
+      {sheet?.kind === 'contact' && <ContactSheet meId={meId} onClose={() => setSheet(null)} onPick={sendContact} />}
+      {sheet?.kind === 'note' && <VideoNoteRecorder onClose={() => setSheet(null)} onDone={(r) => void sendRecording('video_note', r)} />}
+      {sheet?.kind === 'viewer' && <MediaViewer items={sheet.items} index={sheet.index} onClose={() => setSheet(null)} />}
 
       <Modal visible={!!reactFor} transparent animationType="fade" onRequestClose={() => setReactFor(null)}>
         <Pressable accessibilityLabel="Закрыть" style={{ flex: 1, backgroundColor: 'rgba(5,8,30,0.35)', justifyContent: 'center', padding: 20 }} onPress={() => setReactFor(null)}>

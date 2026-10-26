@@ -1,13 +1,16 @@
 import { Check, CheckCheck, Clock, Forward, Pin, RotateCcw } from 'lucide-react-native';
 import { memo, useId } from 'react';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { moscowTime, type ChatMessage, type ChatPoll } from '@offix/core';
+import { albumLayout, messageBody, moscowTime, type ChatMessage, type ChatPoll, type ContactCard } from '@offix/core';
 import { wallpaperColors } from '../lib/chat-logic';
+import { isVisual } from '../lib/media';
 import { font, usePalette } from '../lib/theme';
+import { Album, ContactBubble, FileRow, VideoNoteBubble, VoiceBubble } from './media';
 import { Avatar, Text } from './primitives';
 
 const HUES = [228, 262, 160, 28, 340, 196, 48, 290];
+const ALBUM_MAX_H = 380;
 const hueOf = (s: string) => HUES[[...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 0) % HUES.length]!;
 const initials = (s: string) =>
   s
@@ -18,13 +21,13 @@ const initials = (s: string) =>
     .join('');
 
 /** Аватар чата: у группы — плитка с переливом своего цвета, у человека — кружок и точка «в сети». */
-export function ChatAvatar({ title, group, online, size = 52, icon }: { title: string; group: boolean; online?: boolean; size?: number; icon?: string }) {
+export function ChatAvatar({ title, group, online, size = 52, icon, userId }: { title: string; group: boolean; online?: boolean; size?: number; icon?: string; userId?: string | null }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const p = usePalette();
   if (!group) {
     return (
       <View style={{ width: size, height: size }}>
-        <Avatar name={title} size={size} />
+        <Avatar name={title} id={userId} size={size} />
         {online && <View accessibilityLabel="в сети" style={{ position: 'absolute', right: 0, bottom: 0, width: size * 0.28, height: size * 0.28, borderRadius: size, backgroundColor: p.good, borderWidth: 2.5, borderColor: p.bg }} />}
       </View>
     );
@@ -106,23 +109,53 @@ function Ticks({ m }: { m: ChatMessage & { failed?: boolean } }) {
   return m.read ? <CheckCheck size={14} color="#9ef0ff" accessibilityLabel="Прочитано" /> : <Check size={14} color={color} accessibilityLabel="Отправлено" />;
 }
 
-/**
- * Пузырь сообщения. Касание — меню действий (ответ, реакция, закреп, правка,
- * удаление), долгое касание — сразу палитра реакций, как в привычных мессенджерах.
- */
-export const Bubble = memo(function Bubble({
-  m,
-  mine,
-  group,
-  first,
-  last,
-  onPress,
-  onLongPress,
-  onReact,
-  onJump,
-  onVote,
-  onRetry,
-}: {
+/** Время, «изменено», закреп и галочки — строкой в пузыре или плашкой поверх фото. */
+function Meta({ m, mine, color, over }: { m: ChatMessage & { failed?: boolean }; mine: boolean; color: string; over?: boolean }) {
+  const row = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+      {m.pinned && <Pin size={11} color={color} />}
+      {m.edited_at && <Text style={{ color, fontSize: 11 }}>изменено</Text>}
+      <Text style={{ color, fontSize: 11, fontVariant: ['tabular-nums'] }}>{moscowTime(m.created_at)}</Text>
+      {mine && <Ticks m={m} />}
+    </View>
+  );
+  if (!over) return row;
+  return <View style={{ position: 'absolute', right: 9, bottom: 9, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(8,10,30,0.5)' }}>{row}</View>;
+}
+
+function Reactions({ m, onReact }: { m: ChatMessage; onReact: (m: ChatMessage, emoji: string) => void }) {
+  const w = useWall();
+  if (!m.reactions.length) return null;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+      {m.reactions.map((x) => (
+        <Pressable
+          key={x.emoji}
+          onPress={() => onReact(m, x.emoji)}
+          accessibilityRole="button"
+          accessibilityLabel={`${x.emoji} ${x.count}${x.mine ? ', ваша реакция' : ''}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 28, borderRadius: 14, backgroundColor: x.mine ? w.out : w.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: x.mine ? w.outLine : w.pillLine }}
+        >
+          <Text style={{ fontSize: 14 }}>{x.emoji}</Text>
+          <Text style={{ color: x.mine ? '#fff' : w.ink, fontFamily: font.semibold, fontSize: 12.5 }}>{x.count}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function Retry({ m, onRetry }: { m: ChatMessage & { failed?: boolean }; onRetry: (m: ChatMessage) => void }) {
+  const w = useWall();
+  if (!m.failed) return null;
+  return (
+    <Pressable onPress={() => onRetry(m)} accessibilityRole="button" accessibilityLabel="Не отправлено. Повторить" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: w.pill }}>
+      <RotateCcw size={13} color="#e0464c" />
+      <Text style={{ color: '#e0464c', fontSize: 12.5, fontFamily: font.semibold }}>Не отправлено · Повторить</Text>
+    </Pressable>
+  );
+}
+
+export interface BubbleProps {
   m: ChatMessage & { failed?: boolean };
   mine: boolean;
   group: boolean;
@@ -134,29 +167,76 @@ export const Bubble = memo(function Bubble({
   onJump: (id: string) => void;
   onVote: (m: ChatMessage, optionId: string) => void;
   onRetry: (m: ChatMessage) => void;
-}) {
+  onOpenMedia: (m: ChatMessage, index: number) => void;
+  onListen: (m: ChatMessage) => void;
+  onWrite: (c: ContactCard) => void;
+}
+
+/**
+ * Пузырь сообщения. Касание — меню действий (ответ, реакция, закреп, правка,
+ * удаление), долгое касание — сразу палитра реакций, как в привычных мессенджерах.
+ * Альбом занимает пузырь от края до края, кружочек живёт без пузыря.
+ */
+export const Bubble = memo(function Bubble(props: BubbleProps) {
+  const { m, mine, group, first, last, onPress, onLongPress, onReact, onJump, onVote, onRetry, onOpenMedia, onListen, onWrite } = props;
   const w = useWall();
+  const { width } = useWindowDimensions();
   if (m.kind === 'service') return <WallPill text={m.text ?? ''} />;
   const name = m.sender_name ?? 'Удалённый аккаунт';
   const ink = mine ? '#fff' : w.ink;
   const soft = mine ? 'rgba(255,255,255,0.75)' : w.inkSoft;
   const r = 20;
+  const avatar = group && !mine && <View style={{ width: 32 }}>{last && <Avatar name={name} id={m.sender_id} size={32} />}</View>;
+  const visuals = m.attachments.filter(isVisual);
+  const files = m.attachments.filter((a) => a.kind === 'file');
+  const voice = m.attachments.find((a) => a.kind === 'voice');
+  const note = m.kind === 'video_note' ? m.attachments.find((a) => a.kind === 'video_note') : undefined;
+  const text = m.text?.trim() ? m.text : '';
+  const hasAlbum = visuals.length > 0;
+  const showName = group && !mine && first;
+  const head = showName || !!m.forwarded_from || !!m.reply_to;
+  const mediaOnly = hasAlbum && !text && !files.length;
+  const inset = hasAlbum ? { paddingHorizontal: 9 } : undefined;
+  const bubbleMax = Math.floor((width - 20) * 0.8);
+  // Пузырь с альбомом — ровно по альбому: подпись переносится по его ширине.
+  const albumW = Math.min(330, bubbleMax - 6);
+  const albumBox = hasAlbum ? albumLayout(visuals.map((a) => (a.width && a.height ? a.width / a.height : 1)), albumW, ALBUM_MAX_H, 2) : null;
+  const label = `${mine ? 'Вы' : name}: ${messageBody(m)}, ${moscowTime(m.created_at)}`;
+
+  if (note) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 8, marginTop: first ? 8 : 2 }}>
+        {avatar}
+        <View style={{ gap: 4, alignItems: mine ? 'flex-end' : 'flex-start' }}>
+          <VideoNoteBubble a={note} mine={mine} listened={m.listened} onListen={() => onListen(m)} onLongPress={() => onPress(m)} />
+          <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: w.pill }}>
+            <Meta m={m} mine={mine} color={w.inkSoft} />
+          </View>
+          <Reactions m={m} onReact={onReact} />
+          <Retry m={m} onRetry={onRetry} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 8, marginTop: first ? 8 : 2 }}>
-      {group && !mine && <View style={{ width: 32 }}>{last && <Avatar name={name} size={32} />}</View>}
-      <View style={{ maxWidth: '80%', gap: 4, alignItems: mine ? 'flex-end' : 'flex-start' }}>
+      {avatar}
+      <View style={{ maxWidth: bubbleMax, gap: 4, alignItems: mine ? 'flex-end' : 'flex-start' }}>
         <Pressable
           onPress={() => onPress(m)}
           onLongPress={() => onLongPress(m)}
           delayLongPress={320}
           accessibilityRole="button"
-          accessibilityLabel={`${mine ? 'Вы' : name}: ${m.poll ? `опрос «${m.poll.question}»` : (m.text ?? '')}, ${moscowTime(m.created_at)}`}
+          accessibilityLabel={label}
           accessibilityHint="Касание — действия, долгое касание — реакция"
           style={({ pressed }) => ({
             minWidth: 72,
-            paddingHorizontal: 12,
-            paddingTop: 7,
-            paddingBottom: 6,
+            maxWidth: '100%',
+            width: albumBox ? albumBox.width + 6 : undefined,
+            paddingHorizontal: hasAlbum ? 3 : 12,
+            paddingTop: hasAlbum && !head ? 3 : 7,
+            paddingBottom: mediaOnly ? 3 : 6,
             borderRadius: r,
             borderBottomRightRadius: mine && last ? 6 : r,
             borderBottomLeftRadius: !mine && last ? 6 : r,
@@ -172,55 +252,53 @@ export const Bubble = memo(function Bubble({
             opacity: m.failed ? 0.7 : 1,
           })}
         >
-          {group && !mine && first && <Text style={{ color: w.name(hueOf(name)), fontFamily: font.semibold, fontSize: 13, marginBottom: 2 }}>{name}</Text>}
-          {m.forwarded_from && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-              <Forward size={12} color={soft} />
-              <Text style={{ color: soft, fontSize: 12.5 }} numberOfLines={1}>
-                Переслано от {m.forwarded_from.sender_name ?? 'удалённого аккаунта'}
-              </Text>
+          {head && (
+            <View style={[inset, hasAlbum && { paddingBottom: 6 }]}>
+              {showName && <Text style={{ color: w.name(hueOf(name)), fontFamily: font.semibold, fontSize: 13, marginBottom: 2 }}>{name}</Text>}
+              {m.forwarded_from && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                  <Forward size={12} color={soft} />
+                  <Text style={{ color: soft, fontSize: 12.5 }} numberOfLines={1}>
+                    Переслано от {m.forwarded_from.sender_name ?? 'удалённого аккаунта'}
+                  </Text>
+                </View>
+              )}
+              {m.reply_to && (
+                <Pressable onPress={() => onJump(m.reply_to!.id)} accessibilityRole="button" accessibilityLabel={`Ответ на сообщение ${m.reply_to.sender_name ?? ''}`} style={{ marginBottom: 4, paddingVertical: 4, paddingHorizontal: 8, borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.85)' : w.name(hueOf(m.reply_to.sender_name ?? '')), borderRadius: 8, backgroundColor: mine ? 'rgba(255,255,255,0.16)' : 'rgba(59,91,255,0.08)' }}>
+                  <Text style={{ color: mine ? '#fff' : w.name(hueOf(m.reply_to.sender_name ?? '')), fontFamily: font.semibold, fontSize: 12.5 }} numberOfLines={1}>
+                    {m.reply_to.sender_name ?? 'Удалённый аккаунт'}
+                  </Text>
+                  <Text style={{ color: soft, fontSize: 13 }} numberOfLines={1}>
+                    {messageBody(m.reply_to)}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           )}
-          {m.reply_to && (
-            <Pressable onPress={() => onJump(m.reply_to!.id)} accessibilityRole="button" accessibilityLabel={`Ответ на сообщение ${m.reply_to.sender_name ?? ''}`} style={{ marginBottom: 4, paddingVertical: 4, paddingHorizontal: 8, borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.85)' : w.name(hueOf(m.reply_to.sender_name ?? '')), borderRadius: 8, backgroundColor: mine ? 'rgba(255,255,255,0.16)' : 'rgba(59,91,255,0.08)' }}>
-              <Text style={{ color: mine ? '#fff' : w.name(hueOf(m.reply_to.sender_name ?? '')), fontFamily: font.semibold, fontSize: 12.5 }} numberOfLines={1}>
-                {m.reply_to.sender_name ?? 'Удалённый аккаунт'}
-              </Text>
-              <Text style={{ color: soft, fontSize: 13 }} numberOfLines={1}>
-                {m.reply_to.deleted ? 'Сообщение удалено' : m.reply_to.text}
-              </Text>
-            </Pressable>
+          {hasAlbum && (
+            <View>
+              <Album items={visuals} maxWidth={albumW} maxHeight={ALBUM_MAX_H} radius={17} flatTop={head} flatBottom={!mediaOnly} onOpen={(i) => onOpenMedia(m, i)} />
+              {mediaOnly && <Meta m={m} mine={mine} color="#fff" over />}
+            </View>
           )}
-          {m.poll ? <PollCard poll={m.poll} ink={ink} soft={soft} onVote={(o) => onVote(m, o)} /> : <Text style={{ color: ink, fontSize: 16, lineHeight: 22 }}>{m.text}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 2 }}>
-            {m.pinned && <Pin size={11} color={soft} />}
-            {m.edited_at && <Text style={{ color: soft, fontSize: 11 }}>изменено</Text>}
-            <Text style={{ color: soft, fontSize: 11, fontVariant: ['tabular-nums'] }}>{moscowTime(m.created_at)}</Text>
-            {mine && <Ticks m={m} />}
-          </View>
+          {files.length > 0 && (
+            <View style={[inset, { gap: 4, marginTop: hasAlbum ? 6 : 0 }]}>
+              {files.map((a) => (
+                <FileRow key={a.id} a={a} ink={ink} soft={soft} />
+              ))}
+            </View>
+          )}
+          {voice && <VoiceBubble a={voice} mine={mine} listened={m.listened} ink={ink} soft={soft} onListen={() => onListen(m)} />}
+          {m.contact && <ContactBubble c={m.contact} mine={mine} ink={ink} soft={soft} onWrite={onWrite} />}
+          {m.poll ? <PollCard poll={m.poll} ink={ink} soft={soft} onVote={(o) => onVote(m, o)} /> : text ? <Text style={[{ color: ink, fontSize: 16, lineHeight: 22 }, inset, hasAlbum && { marginTop: 6 }]}>{text}</Text> : null}
+          {!mediaOnly && (
+            <View style={[inset, { marginTop: 2 }]}>
+              <Meta m={m} mine={mine} color={soft} />
+            </View>
+          )}
         </Pressable>
-        {m.reactions.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-            {m.reactions.map((x) => (
-              <Pressable
-                key={x.emoji}
-                onPress={() => onReact(m, x.emoji)}
-                accessibilityRole="button"
-                accessibilityLabel={`${x.emoji} ${x.count}${x.mine ? ', ваша реакция' : ''}`}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 28, borderRadius: 14, backgroundColor: x.mine ? w.out : w.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: x.mine ? w.outLine : w.pillLine }}
-              >
-                <Text style={{ fontSize: 14 }}>{x.emoji}</Text>
-                <Text style={{ color: x.mine ? '#fff' : w.ink, fontFamily: font.semibold, fontSize: 12.5 }}>{x.count}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-        {m.failed && (
-          <Pressable onPress={() => onRetry(m)} accessibilityRole="button" accessibilityLabel="Не отправлено. Повторить" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: w.pill }}>
-            <RotateCcw size={13} color="#e0464c" />
-            <Text style={{ color: '#e0464c', fontSize: 12.5, fontFamily: font.semibold }}>Не отправлено · Повторить</Text>
-          </Pressable>
-        )}
+        <Reactions m={m} onReact={onReact} />
+        <Retry m={m} onRetry={onRetry} />
       </View>
     </View>
   );
@@ -298,7 +376,7 @@ export function PeoplePicker({ people, selected, exclude = [], meId, single, onT
             onPress={() => onToggle(u.id)}
             style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: p.line, opacity: off ? 0.5 : pressed ? 0.6 : 1 })}
           >
-            <Avatar name={u.display_name} size={40} />
+            <Avatar name={u.display_name} id={u.id} size={40} />
             <View style={{ flex: 1 }}>
               <Text numberOfLines={1} style={{ fontFamily: font.medium }}>
                 {u.display_name}

@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Bell, BellOff, Hash, LogOut, Pin, PinOff, Trash2, UserPlus } from 'lucide-react-native';
+import { Bell, BellOff, ChevronRight, Hash, Images, LogOut, Pin, PinOff, Trash2, UserPlus } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { isMuted, lastSeenText, muteUntil, MUTE_PRESETS, type ChatMember } from '@offix/core';
 import { chatStatus, isOnline } from '../../../lib/chat-logic';
-import { chatApi, ck, useChat, useChatLive } from '../../../lib/chats';
+import { mediaLine } from '../../../lib/media';
+import { chatApi, ck, useChat, useChatLive, useChatStats } from '../../../lib/chats';
 import { useMe } from '../../../lib/queries';
 import { font, usePalette } from '../../../lib/theme';
 import { ChatAvatar } from '../../../ui/chats';
@@ -22,6 +23,7 @@ export default function ChatInfoScreen() {
   const me = useMe();
   const live = useChatLive();
   const chat = useChat(id);
+  const stats = useChatStats(id);
   const c = chat.data;
   const now = new Date().toISOString();
 
@@ -74,7 +76,7 @@ export default function ChatInfoScreen() {
     <Screen refreshing={chat.isRefetching} onRefresh={() => void chat.refetch()}>
       <Stack.Screen options={{ title: group ? (c.is_supergroup ? 'Группа с темами' : 'Группа') : 'Личный чат' }} />
       <View style={{ alignItems: 'center', gap: 8, paddingTop: 8 }}>
-        <ChatAvatar title={c.title} group={group} online={!!c.peer && isOnline(live, c.peer)} size={96} />
+        <ChatAvatar title={c.title} group={group} online={!!c.peer && isOnline(live, c.peer)} size={96} userId={c.peer?.id} />
         <Text variant="h2" style={{ textAlign: 'center' }}>
           {c.title}
         </Text>
@@ -93,6 +95,17 @@ export default function ChatInfoScreen() {
         {action(c.pinned ? 'Открепить' : 'Закрепить', c.pinned ? <PinOff size={20} color={p.ink} /> : <Pin size={20} color={p.ink} />, () => act(() => chatApi.membership(id, { pinned: !c.pinned })))}
         {group && can('add_users') && action('Добавить', <UserPlus size={20} color={p.ink} />, () => router.push({ pathname: '/chat/[id]/members', params: { id } }))}
       </View>
+
+      <Card onPress={() => router.push({ pathname: '/chat/[id]/media', params: { id } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Images size={20} color={p.ink2} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontFamily: font.semibold }}>Медиа и файлы</Text>
+          <Text variant="small" tone="faint">
+            {stats.data ? mediaLine(stats.data) : 'Фото, видео, документы, голосовые и ссылки'}
+          </Text>
+        </View>
+        <ChevronRight size={18} color={p.ink3} />
+      </Card>
 
       {group && c.can_manage_topics && !c.is_supergroup && (
         <Card>
@@ -124,7 +137,7 @@ export default function ChatInfoScreen() {
             return (
               <Pressable key={m.id} accessibilityRole="button" accessibilityLabel={`${m.display_name}${ROLE[m.role] ? `, ${ROLE[m.role]}` : ''}`} onPress={() => memberActions(m)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: p.line, opacity: pressed ? 0.6 : 1 })}>
                 <View>
-                  <Avatar name={m.display_name} size={40} />
+                  <Avatar name={m.display_name} id={m.id} size={40} />
                   {on && <View style={{ position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: p.good, borderWidth: 2, borderColor: p.surface }} />}
                 </View>
                 <View style={{ flex: 1 }}>

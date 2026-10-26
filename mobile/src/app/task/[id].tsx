@@ -8,6 +8,7 @@ import { font, usePalette } from '../../lib/theme';
 import { TaskStatusPill } from '../../ui/domain';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
 import { DiscussionLink } from '../../ui/discussion';
+import { TaskFiles } from '../../ui/files';
 
 /** Задача: главный вопрос — что мешает и что делать дальше. Блокер без причины поставить нельзя. */
 export default function TaskScreen() {
@@ -52,7 +53,7 @@ export default function TaskScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {t.assignee && (
             <>
-              <Avatar name={t.assignee.display_name} size={22} />
+              <Avatar name={t.assignee.display_name} id={t.assignee.id} size={22} />
               <Text variant="small">{t.assignee.display_name}</Text>
             </>
           )}
@@ -142,6 +143,8 @@ export default function TaskScreen() {
           ))}
         </Card>
       )}
+
+      <TaskFiles task={t} />
 
       <DiscussionLink type="task" id={t.id} title={t.title} />
 

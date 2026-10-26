@@ -171,7 +171,7 @@ export function TaskRow({ task, today, onPress, showAssignee = true }: { task: T
         )}
       </View>
       <TaskStatusPill task={task} today={today} />
-      {showAssignee && task.assignee && <Avatar name={task.assignee.display_name} size={26} />}
+      {showAssignee && task.assignee && <Avatar name={task.assignee.display_name} id={task.assignee.id} size={26} />}
     </Pressable>
   );
 }

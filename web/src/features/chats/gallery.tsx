@@ -1,6 +1,6 @@
 import { ExternalLink, Film, Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { GALLERY_TABS, GALLERY_TAB_LABELS, formatBytes, groupByDay, formatClock, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
+import { GALLERY_TABS, GALLERY_TAB_LABELS, formatBytes, groupByDay, plural, formatClock, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
 import { fileSrc } from '../../lib/files';
 import { Skeleton } from '../../ui/Misc';
 import { useChatStats, useGallery } from './data';
@@ -120,10 +120,10 @@ function ChatStatsCard({ chatId }: { chatId: string }) {
   const s = useChatStats(chatId).data;
   if (!s) return <Skeleton h={112} r={20} />;
   const tiles = [
-    { n: s.messages, label: 'сообщений' },
+    { n: s.messages, label: plural(s.messages, ['сообщение', 'сообщения', 'сообщений']) },
     { n: s.photos + s.videos, label: 'фото и видео' },
-    { n: s.files, label: 'файлов' },
-    { n: s.voice + s.video_notes, label: 'голосовых' },
+    { n: s.files, label: plural(s.files, ['файл', 'файла', 'файлов']) },
+    { n: s.voice + s.video_notes, label: plural(s.voice + s.video_notes, ['голосовое', 'голосовых', 'голосовых']) },
   ];
   const top = s.top_senders.slice(0, 3);
   const max = Math.max(1, ...top.map((t) => t.messages));

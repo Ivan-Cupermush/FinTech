@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Platform, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AvatarProvider } from '../lib/avatars';
 import { ChatLive } from '../lib/chats';
 import { ApiError } from '../lib/client';
 import { PushBridge } from '../lib/push-bridge';
@@ -29,6 +30,7 @@ export default function RootLayout() {
           {Platform.OS !== 'web' && <PushBridge />}
           <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
           <ChatLive>
+            <AvatarProvider>
             <Stack
               screenOptions={{
                 headerShadowVisible: false,
@@ -56,8 +58,10 @@ export default function RootLayout() {
               <Stack.Screen name="chat/[id]/info" options={{ title: 'Информация' }} />
               <Stack.Screen name="chat/[id]/members" options={{ title: 'Добавить участников', presentation: 'modal' }} />
               <Stack.Screen name="chat/[id]/topics" options={{ title: 'Темы' }} />
+              <Stack.Screen name="chat/[id]/media" options={{ title: 'Медиа и файлы' }} />
               <Stack.Screen name="chat/new" options={{ title: 'Новый чат', presentation: 'modal' }} />
             </Stack>
+            </AvatarProvider>
           </ChatLive>
         </SessionProvider>
       </QueryClientProvider>

@@ -1,4 +1,4 @@
-import { isMuted, lastSeenText, matchesQuery, mergeMessages, messagePreview, sortChats, typingText, type ChatDetail, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary } from '@offix/core';
+import { isMuted, lastSeenText, matchesQuery, mediaOf, mergeMessages, messagePreview, sortChats, typingText, type Attachment, type ChatDetail, type ContactCard, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary } from '@offix/core';
 import type { HeroStat } from './fx';
 
 /**
@@ -85,14 +85,16 @@ export function socketOrigin(apiBase: string): string {
 }
 
 /** Своё сообщение видно сразу, до ответа сервера; сервер вернёт его с тем же client_id. */
-export function optimisticMessage(o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; clientId: string; now: string; replyTo?: ChatMessage | null }): ChatMessage & { failed?: boolean } {
+export function optimisticMessage(o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; clientId: string; now: string; replyTo?: ChatMessage | null; attachments?: Attachment[]; contact?: ContactCard | null }): ChatMessage & { failed?: boolean } {
   const r = o.replyTo;
+  const atts = o.attachments ?? [];
+  const kind: ChatMessage['kind'] = o.contact ? 'contact' : atts[0]?.kind === 'voice' ? 'voice' : atts[0]?.kind === 'video_note' ? 'video_note' : atts.length ? 'media' : 'text';
   return {
     id: `local-${o.clientId}`,
     chat_id: o.chatId,
     seq: Number.MAX_SAFE_INTEGER - 1000,
     topic_id: o.topicId,
-    kind: 'text',
+    kind,
     sender_id: o.me.id,
     sender_name: o.me.name,
     text: o.text,
@@ -101,14 +103,15 @@ export function optimisticMessage(o: { chatId: string; topicId: string | null; m
     deleted: false,
     pinned: false,
     client_id: o.clientId,
-    reply_to: r ? { id: r.id, sender_name: r.sender_name, text: r.text, kind: r.kind, deleted: r.deleted } : null,
+    reply_to: r ? { id: r.id, sender_name: r.sender_name, text: r.text, kind: r.kind, deleted: r.deleted, media: mediaOf(r) } : null,
     external_reply: null,
     forwarded_from: null,
     reactions: [],
     poll: null,
     read: false,
-    attachments: [],
-    contact: null,
+    attachments: atts,
+    contact: o.contact ?? null,
+    // У своего — «прослушано кем-то», пока никем.
     listened: false,
   };
 }
@@ -119,7 +122,7 @@ const patch = (h: ChatHistory, id: string, fn: (m: ChatMessage) => ChatMessage):
  * Событие сокета → новая лента (или та же, если событие не про неё).
  * `topicId` — тема открытой ленты: в группе с темами чужие темы не трогаем.
  */
-export function applyChatEvent(h: ChatHistory, topicId: string | null, event: string, p: Record<string, unknown>): ChatHistory {
+export function applyChatEvent(h: ChatHistory, topicId: string | null, event: string, p: Record<string, unknown>, meId?: string): ChatHistory {
   switch (event) {
     case 'new_message': {
       const m = p.message as ChatMessage;
@@ -140,6 +143,10 @@ export function applyChatEvent(h: ChatHistory, topicId: string | null, event: st
       return patch(h, p.message_id as string, (m) => ({ ...m, poll: p.poll as ChatPoll }));
     case 'message_pinned':
       return patch(h, p.id as string, (m) => ({ ...m, pinned: p.pinned as boolean }));
+    case 'message_listened':
+      // Прослушал я (с другого устройства) или моё сообщение послушали — иначе не про меня.
+      if (!meId || (p.user_id !== meId && p.sender_id !== meId)) return h;
+      return patch(h, p.message_id as string, (m) => ({ ...m, listened: true }));
     case 'messages_read': {
       const seq = p.seq as number;
       if (seq <= h.others_read_seq) return h;

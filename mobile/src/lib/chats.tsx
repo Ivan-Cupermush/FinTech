@@ -1,8 +1,9 @@
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
-import { mergeMessages, type ChatDetail, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary, type Me, type Member } from '@offix/core';
+import { mergeMessages, type Attachment, type ChatDetail, type ChatGallery, type ChatStats, type ContactCard, type GalleryTab, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary, type Me, type Member } from '@offix/core';
+import { avatarsKey } from './avatars';
 import { applyChatEvent, markFailed, optimisticMessage, socketOrigin } from './chat-logic';
 import { newIdempotencyKey } from './client';
 import { api, useSession } from './session';
@@ -14,6 +15,8 @@ export const ck = {
   detail: (id: string) => ['chat', id] as const,
   history: (id: string, topic: string | null) => ['chat-history', id, topic ?? 'main'] as const,
   pinned: (id: string, topic: string | null) => ['chat-pinned', id, topic ?? 'main'] as const,
+  gallery: (id: string, tab: GalleryTab) => ['chat-gallery', id, tab] as const,
+  stats: (id: string) => ['chat-stats', id] as const,
 };
 
 const topicQuery = (topic: string | null) => (topic ? `&topic_id=${topic}` : '');
@@ -24,6 +27,14 @@ export const useChat = (id: string) => useQuery({ queryKey: ck.detail(id), query
 export const usePinned = (id: string, topic: string | null) => useQuery({ queryKey: ck.pinned(id, topic), queryFn: () => api<ChatMessage[]>(`/chats/${id}/pinned${topic ? `?topic_id=${topic}` : ''}`) });
 export const useHistory = (id: string, topic: string | null) =>
   useQuery({ queryKey: ck.history(id, topic), queryFn: () => api<ChatHistory>(`/chats/${id}/messages?limit=50${topicQuery(topic)}`), staleTime: Infinity });
+export const useGallery = (id: string, tab: GalleryTab) =>
+  useInfiniteQuery({
+    queryKey: ck.gallery(id, tab),
+    queryFn: ({ pageParam }) => api<ChatGallery>(`/chats/${id}/media?tab=${tab}&limit=60${pageParam ? `&before=${pageParam}` : ''}`),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.next_before,
+  });
+export const useChatStats = (id: string) => useQuery({ queryKey: ck.stats(id), queryFn: () => api<ChatStats>(`/chats/${id}/stats`), staleTime: 30_000 });
 export const usePeople = (search: string) => useQuery({ queryKey: ['users', search], queryFn: () => api<Member[]>(`/users?search=${encodeURIComponent(search)}`), staleTime: 30_000 });
 
 /** Подгрузка ранних сообщений при прокрутке вверх. */
@@ -42,13 +53,15 @@ export function patchHistory(qc: QueryClient, chatId: string, fn: (h: ChatHistor
 }
 
 /** Отправка: сообщение сразу в ленте, ответ сервера заменяет его по client_id. */
-export async function sendMessage(qc: QueryClient, o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; replyTo?: ChatMessage | null; clientId?: string }) {
+export async function sendMessage(qc: QueryClient, o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; replyTo?: ChatMessage | null; clientId?: string; attachments?: Attachment[]; contact?: ContactCard | null }) {
   const clientId = o.clientId ?? newIdempotencyKey();
   const key = ck.history(o.chatId, o.topicId);
   const local = optimisticMessage({ ...o, clientId, now: new Date().toISOString() });
   qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [local]) } : h));
   try {
-    const m = await api<ChatMessage>(`/chats/${o.chatId}/messages`, { body: { text: o.text, client_id: clientId, topic_id: o.topicId, reply_to_id: o.replyTo?.id } });
+    const m = await api<ChatMessage>(`/chats/${o.chatId}/messages`, {
+      body: { text: o.text, client_id: clientId, topic_id: o.topicId, reply_to_id: o.replyTo?.id, attachment_ids: o.attachments?.length ? o.attachments.map((a) => a.id) : undefined, contact_user_id: o.contact?.id },
+    });
     qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [m]) } : h));
     void qc.invalidateQueries({ queryKey: ck.list });
   } catch (e) {
@@ -73,6 +86,7 @@ export const chatApi = {
   pin: (messageId: string, pinned: boolean) => api<ChatMessage>(`/messages/${messageId}/pin`, { method: pinned ? 'POST' : 'DELETE' }),
   react: (messageId: string, emoji: string | null) =>
     emoji ? api<ChatReaction[]>(`/messages/${messageId}/reaction`, { method: 'PUT', body: { emoji } }) : api<ChatReaction[]>(`/messages/${messageId}/reaction`, { method: 'DELETE' }),
+  listen: (messageId: string) => api(`/messages/${messageId}/listen`, { method: 'POST' }),
   vote: (messageId: string, option_ids: string[]) => api<ChatPoll>(`/messages/${messageId}/vote`, { body: { option_ids } }),
   unvote: (messageId: string) => api<ChatPoll>(`/messages/${messageId}/vote`, { method: 'DELETE' }),
   enableTopics: (chatId: string) => api<ChatDetail>(`/chats/${chatId}/topics/enable`, { method: 'POST' }),
@@ -154,13 +168,13 @@ function ChatLiveProvider({ meId, children }: { meId: string | undefined; childr
       });
     // События про ленту: разбирает чистая функция applyChatEvent.
     const feed = (event: string) => (p: Record<string, unknown>) => {
-      patchHistory(qc, p.chat_id as string, (h, topic) => applyChatEvent(h, topic, event, p));
+      patchHistory(qc, p.chat_id as string, (h, topic) => applyChatEvent(h, topic, event, p, meId));
       if (event === 'new_message') {
         const m = p.message as ChatMessage;
         if (m.sender_id) drop(m.chat_id, m.topic_id, m.sender_id);
       }
       if (event === 'message_deleted' || event === 'message_pinned') void qc.invalidateQueries({ queryKey: ['chat-pinned', p.chat_id] });
-      if (event !== 'message_reactions' && event !== 'poll_updated') refreshList();
+      if (event !== 'message_reactions' && event !== 'poll_updated' && event !== 'message_listened') refreshList();
     };
     // У каждого события свой формат — типы описаны в самих обработчиках.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,12 +208,16 @@ function ChatLiveProvider({ meId, children }: { meId: string | undefined; childr
         refreshList();
       },
       members_changed: (p: { chat_id: string }) => void qc.invalidateQueries({ queryKey: ck.detail(p.chat_id) }),
+      avatar_changed: (p: { user_id: string }) => {
+        void qc.invalidateQueries({ queryKey: avatarsKey });
+        if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
+      },
       chat_deleted: (p: { chat_id: string }) => {
         qc.removeQueries({ queryKey: ck.detail(p.chat_id) });
         refreshList();
       },
     };
-    for (const e of ['new_message', 'message_edited', 'message_deleted', 'message_reactions', 'poll_updated', 'message_pinned', 'messages_read']) handlers[e] = feed(e);
+    for (const e of ['new_message', 'message_edited', 'message_deleted', 'message_reactions', 'poll_updated', 'message_pinned', 'messages_read', 'message_listened']) handlers[e] = feed(e);
     for (const [e, fn] of Object.entries(handlers)) s.on(e, fn);
     return () => {
       if (pending) clearTimeout(pending);

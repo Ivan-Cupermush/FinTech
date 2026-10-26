@@ -87,7 +87,7 @@ export default function GoalScreen() {
             <Text variant="h2">{g.title}</Text>
             {g.owner && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Avatar name={g.owner.display_name} size={22} />
+                <Avatar name={g.owner.display_name} id={g.owner.id} size={22} />
                 <Text variant="small" style={{ flex: 1 }}>
                   {g.owner.display_name}
                   <Text variant="small" tone={due.overdue ? 'bad' : 'faint'}>

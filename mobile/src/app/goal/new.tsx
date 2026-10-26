@@ -217,7 +217,7 @@ export default function NewGoal() {
             .slice(0, 8)
             .map((u) => (
               <Pressable key={u.id} onPress={() => setF((x) => ({ ...x, ownerId: u.id, ownerName: u.display_name }))} style={[chip(f.ownerId === u.id), { flexDirection: 'row', gap: 6, alignItems: 'center', paddingVertical: 5 }]}>
-                <Avatar name={u.display_name} size={20} />
+                <Avatar name={u.display_name} id={u.id} size={20} />
                 <Text variant="caption" style={{ color: f.ownerId === u.id ? p.bg : p.ink }}>
                   {u.display_name}
                 </Text>
