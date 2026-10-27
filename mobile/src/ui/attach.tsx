@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, CircleDot, FileText, Film, Images, Search, SendHorizontal, UserRound, X } from 'lucide-react-native';
+import { Camera, CircleDot, FileText, Film, Images, NotebookPen, Search, SendHorizontal, UserRound, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,7 +65,7 @@ function Tile({ label, hue, icon, onPress }: { label: string; hue: number; icon:
 }
 
 /** Меню «Вложения»: галерея, камера, файл, контакт и кружочек — стеклянная шторка снизу. */
-export function AttachMenu({ onClose, onFiles, onContact, onVideoNote }: { onClose: () => void; onFiles: (files: PickedFile[], asFile: boolean) => void; onContact: () => void; onVideoNote?: () => void }) {
+export function AttachMenu({ onClose, onFiles, onContact, onMyNote, onVideoNote }: { onClose: () => void; onFiles: (files: PickedFile[], asFile: boolean) => void; onContact: () => void; onMyNote?: () => void; onVideoNote?: () => void }) {
   const insets = useSafeAreaInsets();
   const w = useWall();
   const run = (fn: () => Promise<PickedFile[]>, asFile: boolean) => () => {
@@ -92,6 +92,17 @@ export function AttachMenu({ onClose, onFiles, onContact, onVideoNote }: { onClo
                 onContact();
               }}
             />
+            {onMyNote && (
+              <Tile
+                label="Заметка"
+                hue={96}
+                icon={<NotebookPen size={24} color="#fff" />}
+                onPress={() => {
+                  onClose();
+                  onMyNote();
+                }}
+              />
+            )}
             {onVideoNote && (
               <Tile
                 label="Кружочек"

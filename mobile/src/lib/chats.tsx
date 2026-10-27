@@ -212,6 +212,23 @@ function ChatLiveProvider({ meId, children }: { meId: string | undefined; childr
         void qc.invalidateQueries({ queryKey: avatarsKey });
         if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
       },
+      // Личное пространство: запросы заметок, свои имена коллег, профиль и выход отовсюду.
+      notification: () => {
+        void qc.invalidateQueries({ queryKey: ['notifications'] });
+        void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      },
+      contact_names_changed: () => {
+        void qc.invalidateQueries({ queryKey: ['contact-names'] });
+        void qc.invalidateQueries({ queryKey: ['chat'] });
+        refreshList();
+      },
+      profile_changed: (p: { user_id: string }) => {
+        void qc.invalidateQueries({ queryKey: ['person', p.user_id] });
+        if (p.user_id === meId) void Promise.all([qc.invalidateQueries({ queryKey: ['me'] }), qc.invalidateQueries({ queryKey: ['account'] })]);
+        refreshList();
+      },
+      // Сервер закрыл сеанс (сменили пароль, «выйти везде»): проверяем токен — старый получит 401 и выход.
+      session_revoked: () => void setTimeout(() => void qc.invalidateQueries({ queryKey: ['me'] }), 1500),
       chat_deleted: (p: { chat_id: string }) => {
         qc.removeQueries({ queryKey: ck.detail(p.chat_id) });
         refreshList();

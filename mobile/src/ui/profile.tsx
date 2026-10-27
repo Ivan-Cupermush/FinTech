@@ -14,10 +14,11 @@ import { Avatar } from './primitives';
 const SIZE = 44;
 
 /**
- * Фото профиля в шапке Пульса: живое градиентное кольцо вокруг аватара,
- * касание — выбрать, снять или убрать фото. Пока грузится, кольцо — прогресс.
+ * Фото профиля: живое градиентное кольцо вокруг аватара. В профиле касание —
+ * выбрать, снять или убрать фото; на Пульсе (onPress) — открыть профиль.
+ * Пока грузится, кольцо — прогресс.
  */
-export function ProfilePhoto({ me }: { me: Me }) {
+export function ProfilePhoto({ me, onPress }: { me: Me; onPress?: () => void }) {
   const qc = useQueryClient();
   const [progress, setProgress] = useState<number | null>(null);
   const has = !!me.avatar_url;
@@ -71,7 +72,7 @@ export function ProfilePhoto({ me }: { me: Me }) {
   const len = 2 * Math.PI * R;
   const box = SIZE + 8;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Фото профиля" accessibilityState={{ busy: progress !== null }} onPress={open} hitSlop={6} style={({ pressed }) => ({ width: box, height: box, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+    <Pressable accessibilityRole="button" accessibilityLabel={onPress ? 'Профиль' : 'Фото профиля'} accessibilityState={{ busy: progress !== null }} onPress={onPress ?? open} hitSlop={6} style={({ pressed }) => ({ width: box, height: box, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.94 : 1 }] })}>
       <Svg width={box} height={box} style={{ position: 'absolute' }}>
         <Defs>
           <LinearGradient id="profile-ring" x1="0" y1="0" x2="1" y2="1">

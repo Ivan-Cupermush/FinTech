@@ -42,7 +42,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "offix снимает видеосообщения-кружочки.",
+          "cameraPermission": "offix снимает видеосообщения-кружочки и сканирует QR-коды: вход на сайте и профили коллег.",
           "microphonePermission": "offix записывает звук в видеосообщениях.",
           "recordAudioAndroid": true
         }

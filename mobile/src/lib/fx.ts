@@ -76,7 +76,7 @@ export function tabBarSpace(bottomInset: number): number {
  * Остальные — разделы: у каждого свой третий цвет, те же, что в шапках сайта,
  * чтобы раздел узнавался на любом устройстве.
  */
-export const SECTION_VARIANTS = ['inbox', 'knowledge', 'discussion', 'create', 'settings', 'chats'] as const;
+export const SECTION_VARIANTS = ['inbox', 'knowledge', 'discussion', 'create', 'settings', 'chats', 'notes', 'profile'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 export type HeroVariant = 'hero' | 'good' | 'bad' | SectionVariant;
 
@@ -90,6 +90,8 @@ const PALETTES: Record<HeroVariant, readonly [string, string, string]> = {
   create: ['#4a62ff', '#121a5e', '#9d86ff'],
   settings: ['#2f52ff', '#061c22', '#3fd6a0'],
   chats: ['#3050ff', '#0d0b2c', '#ffb547'],
+  notes: ['#3352ff', '#08162a', '#a8e05f'],
+  profile: ['#2e4cff', '#0a0c2e', '#b9c6ff'],
 };
 
 export function heroColors(variant: HeroVariant): readonly [string, string, string] {

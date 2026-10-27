@@ -60,6 +60,16 @@ export default function RootLayout() {
               <Stack.Screen name="chat/[id]/topics" options={{ title: 'Темы' }} />
               <Stack.Screen name="chat/[id]/media" options={{ title: 'Медиа и файлы' }} />
               <Stack.Screen name="chat/new" options={{ title: 'Новый чат', presentation: 'modal' }} />
+              <Stack.Screen name="my-notes/index" options={{ title: 'Мои заметки' }} />
+              <Stack.Screen name="my-notes/[id]" options={{ title: 'Заметка' }} />
+              <Stack.Screen name="my-notes/send" options={{ title: 'Отправить в чат', presentation: 'modal' }} />
+              <Stack.Screen name="my-notes/pick" options={{ title: 'Отправить заметку', presentation: 'modal' }} />
+              <Stack.Screen name="note-share/[id]" options={{ title: 'Заметка из чата' }} />
+              <Stack.Screen name="note-request/[id]" options={{ title: 'Запрос заметки' }} />
+              <Stack.Screen name="profile" options={{ title: 'Профиль' }} />
+              <Stack.Screen name="person/[id]" options={{ title: 'Коллега' }} />
+              <Stack.Screen name="scan" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="qr/[token]" options={{ headerShown: false }} />
             </Stack>
             </AvatarProvider>
           </ChatLive>

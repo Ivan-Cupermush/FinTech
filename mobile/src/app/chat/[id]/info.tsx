@@ -1,12 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Bell, BellOff, ChevronRight, Hash, Images, LogOut, Pin, PinOff, Trash2, UserPlus } from 'lucide-react-native';
+import { Bell, BellOff, ChevronRight, Hash, IdCard, Images, LogOut, Pin, PinOff, Trash2, UserPlus } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { isMuted, lastSeenText, muteUntil, MUTE_PRESETS, type ChatMember } from '@offix/core';
+import { isMuted, lastSeenText, muteUntil, nameFor, MUTE_PRESETS, type ChatMember } from '@offix/core';
 import { chatStatus, isOnline } from '../../../lib/chat-logic';
 import { mediaLine } from '../../../lib/media';
 import { chatApi, ck, useChat, useChatLive, useChatStats } from '../../../lib/chats';
+import { useContactBook } from '../../../lib/personal-api';
 import { useMe } from '../../../lib/queries';
 import { font, usePalette } from '../../../lib/theme';
 import { ChatAvatar } from '../../../ui/chats';
@@ -22,6 +23,7 @@ export default function ChatInfoScreen() {
   const qc = useQueryClient();
   const me = useMe();
   const live = useChatLive();
+  const book = useContactBook();
   const chat = useChat(id);
   const stats = useChatStats(id);
   const c = chat.data;
@@ -83,6 +85,11 @@ export default function ChatInfoScreen() {
         <Text variant="small" tone="muted">
           {chatStatus(c, live, [], now)}
         </Text>
+        {!group && c.peer?.contact_name && (
+          <Text variant="small" tone="faint">
+            {`Настоящее имя: ${c.peer.display_name}`}
+          </Text>
+        )}
         {!group && c.peer?.position && (
           <Text variant="small" tone="faint">
             {c.peer.position}
@@ -93,6 +100,7 @@ export default function ChatInfoScreen() {
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {action(muted ? 'Включить звук' : 'Без звука', muted ? <Bell size={20} color={p.ink} /> : <BellOff size={20} color={p.ink} />, mute)}
         {action(c.pinned ? 'Открепить' : 'Закрепить', c.pinned ? <PinOff size={20} color={p.ink} /> : <Pin size={20} color={p.ink} />, () => act(() => chatApi.membership(id, { pinned: !c.pinned })))}
+        {!group && c.peer && action('Профиль', <IdCard size={20} color={p.ink} />, () => router.push(`/person/${c.peer!.id}`))}
         {group && can('add_users') && action('Добавить', <UserPlus size={20} color={p.ink} />, () => router.push({ pathname: '/chat/[id]/members', params: { id } }))}
       </View>
 
@@ -142,7 +150,7 @@ export default function ChatInfoScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={{ fontFamily: font.medium }}>
-                    {m.display_name}
+                    {nameFor(book, m.id, m.display_name)}
                     {m.id === me.data?.id ? ' (вы)' : ''}
                   </Text>
                   <Text variant="caption" tone={on ? 'accent' : 'faint'}>

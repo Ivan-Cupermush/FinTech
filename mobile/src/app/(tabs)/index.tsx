@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { HandHelping, LogOut, Plus } from 'lucide-react-native';
+import { HandHelping, Plus, ScanLine } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { formatDate } from '@offix/core';
 import { greeting, pulseStats } from '../../lib/logic';
 import { useDashboard, useMe, useMetrics } from '../../lib/queries';
-import { useSession } from '../../lib/session';
 import { font, usePalette } from '../../lib/theme';
 import { Glass } from '../../ui/fx/Glass';
 import { Hero } from '../../ui/fx/Hero';
@@ -20,7 +19,6 @@ export default function Pulse() {
   const me = useMe();
   const dash = useDashboard();
   const metrics = useMetrics();
-  const { logout } = useSession();
   const d = dash.data;
   const critical = d?.risks.filter((r) => r.severity === 'critical').length ?? 0;
   return (
@@ -32,12 +30,12 @@ export default function Pulse() {
               {d ? formatDate(d.today, { today: '0000' }) : ' '}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {me.data && <ProfilePhoto me={me.data} />}
-              <Pressable accessibilityRole="button" accessibilityLabel="Выйти" onPress={() => void logout().then(() => router.replace('/login'))} hitSlop={12}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Сканировать QR" onPress={() => router.push('/scan')} hitSlop={12}>
                 <Glass radius={18} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
-                  <LogOut size={16} color="#fff" />
+                  <ScanLine size={16} color="#fff" />
                 </Glass>
               </Pressable>
+              {me.data && <ProfilePhoto me={me.data} onPress={() => router.push('/profile')} />}
             </View>
           </View>
           <View style={{ gap: 6 }}>

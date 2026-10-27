@@ -7,6 +7,7 @@ import { wallpaperColors } from '../lib/chat-logic';
 import { isVisual } from '../lib/media';
 import { font, usePalette } from '../lib/theme';
 import { Album, ContactBubble, FileRow, VideoNoteBubble, VoiceBubble } from './media';
+import { NoteShareBubble } from './my-notes';
 import { Avatar, Text } from './primitives';
 
 const HUES = [228, 262, 160, 28, 340, 196, 48, 290];
@@ -170,6 +171,8 @@ export interface BubbleProps {
   onOpenMedia: (m: ChatMessage, index: number) => void;
   onListen: (m: ChatMessage) => void;
   onWrite: (c: ContactCard) => void;
+  /** Заметка из «Моих заметок», присланная в чат. */
+  onOpenNote?: (m: ChatMessage) => void;
 }
 
 /**
@@ -178,7 +181,7 @@ export interface BubbleProps {
  * Альбом занимает пузырь от края до края, кружочек живёт без пузыря.
  */
 export const Bubble = memo(function Bubble(props: BubbleProps) {
-  const { m, mine, group, first, last, onPress, onLongPress, onReact, onJump, onVote, onRetry, onOpenMedia, onListen, onWrite } = props;
+  const { m, mine, group, first, last, onPress, onLongPress, onReact, onJump, onVote, onRetry, onOpenMedia, onListen, onWrite, onOpenNote } = props;
   const w = useWall();
   const { width } = useWindowDimensions();
   if (m.kind === 'service') return <WallPill text={m.text ?? ''} />;
@@ -290,6 +293,11 @@ export const Bubble = memo(function Bubble(props: BubbleProps) {
           )}
           {voice && <VoiceBubble a={voice} mine={mine} listened={m.listened} ink={ink} soft={soft} onListen={() => onListen(m)} />}
           {m.contact && <ContactBubble c={m.contact} mine={mine} ink={ink} soft={soft} onWrite={onWrite} />}
+          {m.note && (
+            <View style={[inset, text ? { marginBottom: 6 } : undefined]}>
+              <NoteShareBubble note={m.note} mine={mine} ink={ink} soft={soft} onOpen={() => onOpenNote?.(m)} />
+            </View>
+          )}
           {m.poll ? <PollCard poll={m.poll} ink={ink} soft={soft} onVote={(o) => onVote(m, o)} /> : text ? <Text style={[{ color: ink, fontSize: 16, lineHeight: 22 }, inset, hasAlbum && { marginTop: 6 }]}>{text}</Text> : null}
           {!mediaOnly && (
             <View style={[inset, { marginTop: 2 }]}>

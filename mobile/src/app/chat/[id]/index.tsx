@@ -4,11 +4,12 @@ import { ArrowUp, ChevronLeft, CornerUpLeft, Info, Mic, Paperclip, Pencil, PinOf
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { buildFeed, canEditMessage, MESSAGE_MAX, messageBody, REACTIONS, typingText, type Attachment, type ChatHistory, type ChatMessage, type ContactCard, type FeedItem } from '@offix/core';
+import { buildFeed, canEditMessage, MESSAGE_MAX, messageBody, REACTIONS, renameSenders, typingText, type Attachment, type ChatHistory, type ChatMessage, type ContactCard, type FeedItem } from '@offix/core';
 import { chatStatus, isOnline, nextReaction } from '../../../lib/chat-logic';
 import { chatApi, ck, loadOlder, patchHistory, sendMessage, typistNames, useChat, useChatLive, useHistory, usePinned } from '../../../lib/chats';
 import { uploadPicked } from '../../../lib/files';
 import { uploadFields, viewerItems, type PickedFile, type ViewerItem } from '../../../lib/media';
+import { useContactBook } from '../../../lib/personal-api';
 import { useMe } from '../../../lib/queries';
 import { font } from '../../../lib/theme';
 import { AttachMenu, ContactSheet, SendSheet } from '../../../ui/attach';
@@ -56,7 +57,9 @@ export default function ChatScreen() {
   const topic = c?.topics.find((t) => t.id === topicId) ?? null;
   const data = history.data;
   if (readMark.current === null && data) readMark.current = data.my_last_read_seq;
-  const messages = useMemo(() => data?.messages ?? [], [data]);
+  // Подписи отправителей и цитат — моими именами для коллег.
+  const book = useContactBook();
+  const messages = useMemo(() => renameSenders(data?.messages ?? [], book), [data, book]);
   // Перевёрнутый список: новое внизу и прокрутка к концу — бесплатно.
   const items = useMemo(() => buildFeed(messages, { now, lastReadSeq: readMark.current, meId }).reverse(), [messages, meId]); // eslint-disable-line react-hooks/exhaustive-deps
   const typists = typistNames(live, chatId, topicId);
@@ -188,6 +191,7 @@ export default function ChatScreen() {
     [patch],
   );
 
+  const openNote = useCallback((m: ChatMessage) => m.note && router.push(`/note-share/${m.note.id}`), []);
   const writeTo = useCallback(
     (c: ContactCard) =>
       void chatApi
@@ -364,7 +368,7 @@ export default function ChatScreen() {
               ) : item.type === 'new' ? (
                 <WallPill text="Новые сообщения" accent />
               ) : (
-                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onRetry={retry} onOpenMedia={openMedia} onListen={listen} onWrite={writeTo} />
+                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onRetry={retry} onOpenMedia={openMedia} onListen={listen} onWrite={writeTo} onOpenNote={openNote} />
               )
             }
           />
@@ -459,7 +463,15 @@ export default function ChatScreen() {
         )}
       </KeyboardAvoidingView>
 
-      {sheet?.kind === 'menu' && <AttachMenu onClose={() => setSheet(null)} onFiles={(files, asFile) => setSheet({ kind: 'send', files, asFile })} onContact={() => setSheet({ kind: 'contact' })} onVideoNote={Platform.OS !== 'web' ? () => setSheet({ kind: 'note' }) : undefined} />}
+      {sheet?.kind === 'menu' && (
+        <AttachMenu
+          onClose={() => setSheet(null)}
+          onFiles={(files, asFile) => setSheet({ kind: 'send', files, asFile })}
+          onContact={() => setSheet({ kind: 'contact' })}
+          onMyNote={() => router.push({ pathname: '/my-notes/pick', params: topicId ? { chat: chatId, topic: topicId } : { chat: chatId } })}
+          onVideoNote={Platform.OS !== 'web' ? () => setSheet({ kind: 'note' }) : undefined}
+        />
+      )}
       {sheet?.kind === 'send' && <SendSheet files={sheet.files} asFile={sheet.asFile} onClose={() => setSheet(null)} onSend={(b) => void sendBatches(b)} />}
       {sheet?.kind === 'contact' && <ContactSheet meId={meId} onClose={() => setSheet(null)} onPick={sendContact} />}
       {sheet?.kind === 'note' && <VideoNoteRecorder onClose={() => setSheet(null)} onDone={(r) => void sendRecording('video_note', r)} />}
