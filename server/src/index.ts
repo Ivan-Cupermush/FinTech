@@ -10,6 +10,8 @@ import { smtpSender, startReportMailLoop } from './services/report-mail';
 import { migrate } from './db/migrate';
 import { createPgDb } from './db/pg';
 import { createMediaStore } from './services/media';
+import { aiProviderFromEnv } from './services/ai';
+import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
 
 const config = loadConfig();
 const db = createPgDb(config.databaseUrl);
@@ -17,7 +19,10 @@ await migrate(db);
 const realtime = createRealtimeHub();
 const pushSender = config.push.enabled ? expoSender({ accessToken: config.push.accessToken }) : undefined;
 const media = createMediaStore(config.uploads, config.jwtSecret);
-const app = createApp({ db, config, realtime, messagePush: pushSender, media });
+const knowledge = createKnowledgeService(db, media, { provider: aiProviderFromEnv(), onError: (e) => console.error('knowledge:', e) });
+const app = createApp({ db, config, realtime, messagePush: pushSender, media, knowledge });
+// Документы, что не успели прочитать до перезапуска, и пересчёт векторов после смены модели.
+startKnowledgeLoop(knowledge, { onError: (e) => console.error('knowledge:', e) });
 if (pushSender) startPushLoop(db, pushSender, { onError: (e) => console.error('push:', e) });
 if (config.mail.enabled && config.mail.smtpUrl && config.mail.from) {
   startReportMailLoop(db, smtpSender({ url: config.mail.smtpUrl, from: config.mail.from }), { appUrl: config.mail.appUrl, onError: (e) => console.error('report mail:', e) });

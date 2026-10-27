@@ -466,6 +466,8 @@ export function stripBadCitations(answer: string, max: number): string {
         .filter((n) => Number.isInteger(n) && n >= 1 && n <= max);
       return ok.length ? `[${ok.join(', ')}]` : '';
     })
+    // Убранная ссылка оставляет двойной пробел; отступы в начале строки (списки) не трогаем.
+    .replace(/(\S)[ \t]{2,}/g, '$1 ')
     .replace(/[ \t]+([.,;:!?])/g, '$1')
     .trim();
 }

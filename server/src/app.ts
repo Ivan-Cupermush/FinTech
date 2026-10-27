@@ -33,6 +33,9 @@ import { accountRouter } from './routes/account';
 import { contactsRouter } from './routes/contacts';
 import { myNotesRouter } from './routes/my-notes';
 import { qrPublicRouter } from './routes/qr';
+import { knowledgeRouter } from './routes/knowledge';
+import { createKnowledgeService, type KnowledgeService } from './services/knowledge';
+import { aiProviderFromEnv } from './services/ai';
 
 export interface AppOptions {
   db: Db;
@@ -47,10 +50,13 @@ export interface AppOptions {
   messagePush?: PushSender<ChatPushMessage>;
   /** Хранилище файлов; не задано — создаётся по config.uploads (или UPLOADS_DIR). */
   media?: MediaStore;
+  /** База знаний с ИИ; не задана — нейросеть по окружению (KNOWLEDGE_AI), иначе встроенный поиск. */
+  knowledge?: KnowledgeService;
 }
 
-export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush, media }: AppOptions): Express {
+export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush, media, knowledge }: AppOptions): Express {
   const store = media ?? createMediaStore(config.uploads ?? loadUploadsConfig(), config.jwtSecret);
+  const kb = knowledge ?? createKnowledgeService(db, store, { provider: aiProviderFromEnv(), now });
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -108,6 +114,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/templates', templatesRouter(db, now));
   v1.use('/discussions', discussionsRouter(db, mediaCtx));
   v1.use('/notes', notesRouter(db));
+  v1.use('/knowledge', knowledgeRouter(db, mediaCtx, kb, { rateLimit }));
   v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
   const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
   v1.use('/chats', chatsRouter(chatDeps));
