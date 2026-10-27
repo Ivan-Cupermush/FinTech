@@ -243,3 +243,33 @@ describe('архив', () => {
     expect(((await olga.get(`${API}/tasks?archived=1`)).body.data as Task[]).map((x) => x.id)).toContain(t.id);
   });
 });
+
+describe('демо: просьбы, точки, архив и функции', () => {
+  it('у директора во «Входящих» — просьба Ольги и «спасибо» Игорю; в списках — свои вкладки', async () => {
+    const own = await setup({ now: () => NOW });
+    const { seedDemoTaskFlow } = await import('../src/seed/demo-task-flow');
+    await seedDemoTaskFlow(own.db, own.demo, NOW);
+    const dir = await own.as('director');
+    const inbox = (await dir.get(`${API}/notifications`)).body.data as { kind: string; task_state: unknown }[];
+    expect(inbox.find((n) => n.kind === 'task_request')?.task_state).toEqual({ kind: 'request', status: 'todo', thanked: false, mine: false, assignee: true });
+    expect(inbox.find((n) => n.kind === 'task_done')?.task_state).toEqual({ kind: 'request', status: 'done', thanked: false, mine: true, assignee: false });
+
+    const requests: Task[] = (await dir.get(`${API}/tasks?created=1&kind=request`)).body.data;
+    expect(requests.map((t) => t.title).sort()).toEqual(['Выборочно проверить 20 заявок', 'Выгрузить заявки за сентябрь']);
+    expect(requests.find((t) => t.title === 'Выборочно проверить 20 заявок')!.checkpoints.map((c) => c.status)).toEqual(['done', 'pending']);
+    const watching: Task[] = (await dir.get(`${API}/tasks?watching=1`)).body.data;
+    expect(watching.map((t) => t.id).sort()).toEqual([own.demo.tasks.regulation, own.demo.tasks.autofill].sort());
+
+    // Первый же список убирает в архив задачу, закрытую пять дней назад.
+    const archive: Task[] = (await dir.get(`${API}/tasks?archived=1`)).body.data;
+    expect(archive.map((t) => [t.title, t.archived?.by_name ?? null]).sort()).toEqual([
+      ['Обновить шаблон письма абитуриенту', 'Ольга Смирнова'],
+      ['Собрать отзывы первокурсников о приёме', null],
+    ]);
+    const pilot: TaskDetail = (await dir.get(`${API}/tasks/${own.demo.tasks.pilot}`)).body.data;
+    expect(pilot.checkpoints.map((c) => c.title)).toEqual(['Выбрать факультет для пилота', 'Пилот на 50 заявках']);
+
+    const anna = (await (await own.as('anna')).get(`${API}/functions/me`)).body.data as { functions: { key: string; enabled: boolean; override: boolean | null }[] };
+    expect(anna.functions.find((f) => f.key === 'kpi_record')).toMatchObject({ enabled: true, override: true });
+  });
+});
