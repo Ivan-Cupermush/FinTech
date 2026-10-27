@@ -5,6 +5,7 @@ import {
   formatNumber,
   formatRub,
   monthTitle,
+  plural,
   salesPeriodText,
   salesValueText,
   type KpiFilePreview,
@@ -277,7 +278,7 @@ export function KpiFlow({ user, month, onDone }: { user?: SalesPerson; month?: s
                 <div>
                   <b>{s.employee || s.sheet}</b>
                   <div className="faint" style={{ fontSize: 12.5 }}>
-                    Лист «{s.sheet}» · {s.month ? monthTitle(s.month) : 'месяц не указан'} · {s.metrics.length} показателей
+                    Лист «{s.sheet}» · {s.month ? monthTitle(s.month) : 'месяц не указан'} · {s.metrics.length} {plural(s.metrics.length, ['показатель', 'показателя', 'показателей'])}
                   </div>
                 </div>
                 <Pill tone={s.has_results ? 'good' : 'info'}>{s.has_results ? 'С итогами' : 'План'}</Pill>
