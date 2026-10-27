@@ -26,7 +26,7 @@ export type SalesUnit = (typeof SALES_UNITS)[number];
 export const SALES_UNIT_LABELS: Record<SalesUnit, { label: string; short: string }> = {
   rub: { label: 'Рубли', short: '₽' },
   count: { label: 'Штуки', short: 'шт' },
-  clients: { label: 'Клиенты, точки', short: 'ТТ' },
+  clients: { label: 'Клиенты, точки', short: 'кл.' },
   items: { label: 'Позиции', short: 'поз.' },
   percent: { label: 'Проценты выполнения', short: '%' },
 };
@@ -697,7 +697,7 @@ export interface PlanCalc {
 function hintFor(p: Pick<SalesPlanRow, 'unit'>, rule: PayoutRule, plan: number, fact: number, items: ItemProgress[] | null, daysLeft: number | null): string | null {
   if (items) {
     const left = items.filter((i) => !i.done);
-    return left.length ? `Осталось: ${left.map((i) => `${i.name} (${i.count} из ${i.need} ТТ)`).join(', ')}` : 'Все позиции выполнены';
+    return left.length ? `Осталось: ${left.map((i) => `${i.name} (${i.count} из ${i.need} кл.)`).join(', ')}` : 'Все позиции выполнены';
   }
   if (!(plan > 0)) return null;
   const amount = (n: number) => (p.unit === 'rub' ? formatRub(n) : salesValueText(Math.ceil(n), p.unit));

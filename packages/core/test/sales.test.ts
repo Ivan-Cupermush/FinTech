@@ -287,9 +287,9 @@ describe('продажи: расчёт месяца', () => {
 
   it('позиции: прогресс по каждой и подсказка, что осталось', () => {
     const p: SalesPlanRow = { ...base, unit: 'items', plan: 2, fact: 0, bonus: 5000, fact_rule: { type: 'items', items: [{ name: 'A', need: 1 }, { name: 'B', need: 3 }] }, payout_rule: { type: 'items' } };
-    expect(planCalc(p, cov, '2026-05-16')).toMatchObject({ now: 0, items: [{ name: 'A', count: 0 }, { name: 'B', count: 0 }], hint: 'Осталось: A (0 из 1 ТТ), B (0 из 3 ТТ)' });
+    expect(planCalc(p, cov, '2026-05-16')).toMatchObject({ now: 0, items: [{ name: 'A', count: 0 }, { name: 'B', count: 0 }], hint: 'Осталось: A (0 из 1 кл.), B (0 из 3 кл.)' });
     const done = planCalc({ ...p, fact: 1, fact_details: { from: 'report', items: [{ name: 'A', need: 1, count: 1, done: true }, { name: 'B', need: 3, count: 1, done: false }] } }, cov, '2026-05-16');
-    expect(done).toMatchObject({ now: 2500, hint: 'Осталось: B (1 из 3 ТТ)' });
+    expect(done).toMatchObject({ now: 2500, hint: 'Осталось: B (1 из 3 кл.)' });
   });
 
   it('вручную: темп по сегодняшнему дню текущего месяца', () => {
@@ -353,7 +353,7 @@ describe('продажи: расчёт месяца', () => {
 
   it('значения и деньги по-русски', () => {
     expect(sp(formatRub(1234567.8))).toBe('1 234 568 ₽');
-    expect(sp(salesValueText(44, 'clients'))).toBe('44 ТТ');
+    expect(sp(salesValueText(44, 'clients'))).toBe('44 кл.');
     expect(sp(salesValueText(3, 'items'))).toBe('3 поз.');
     expect(sp(salesValueText(95.56, 'percent'))).toBe('95,6 %');
     expect(sp(salesValueText(2.5, 'count'))).toBe('2,5 шт');

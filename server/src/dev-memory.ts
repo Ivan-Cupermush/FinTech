@@ -18,6 +18,7 @@ import { seedDemoMedia } from './seed/demo-media';
 import { seedDemoPersonal } from './seed/demo-personal';
 import { seedDemoTaskFlow } from './seed/demo-task-flow';
 import { seedDemoKnowledge } from './seed/demo-knowledge';
+import { seedDemoSales } from './seed/demo-sales';
 import { aiProviderFromEnv } from './services/ai';
 import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
 import { mkdtempSync } from 'node:fs';
@@ -33,6 +34,7 @@ const media = createMediaStore({ ...config.uploads, dir: process.env.UPLOADS_DIR
 await seedDemoMedia(db, media, demo);
 await seedDemoPersonal(db, demo);
 await seedDemoTaskFlow(db, demo);
+await seedDemoSales(db, demo);
 const knowledge = createKnowledgeService(db, media, { provider: aiProviderFromEnv() });
 await seedDemoKnowledge(db, media, knowledge, demo);
 startKnowledgeLoop(knowledge, { onError: (e) => console.error('knowledge:', e) });
