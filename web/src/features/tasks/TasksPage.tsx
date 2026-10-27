@@ -106,7 +106,7 @@ export function TasksPage() {
         variant="tasks"
         icon={ListTodo}
         title="Задачи"
-        subtitle={q.data ? `${counts('blocked') ? `${counts('blocked')} заблокировано · ` : ''}${counts('in_progress')} в работе. Сначала — то, где нужна помощь.` : ' '}
+        subtitle={archive ? 'Закрытые задачи уходят сюда сами через 3 дня. Автор или руководитель может вернуть задачу.' : q.data ? `${counts('blocked') ? `${counts('blocked')} заблокировано · ` : ''}${counts('in_progress')} в работе. Сначала — то, где нужна помощь.` : ' '}
         stats={q.data && !archive ? tasksHeroStats(q.data, today) : undefined}
         actions={
           <Button variant="primary" icon={<HandHelping size={16} />} onClick={() => setAsking(true)}>

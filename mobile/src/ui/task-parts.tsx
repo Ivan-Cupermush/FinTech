@@ -93,7 +93,8 @@ export function CheckpointsCard({ task, today }: { task: TaskDetail; today: stri
   const add = useTaskAction((v: { title: string; due_at: string }) => tasksApi.addCheckpoint(task.id, v));
   const mark = useTaskAction((v: { cid: string; status: Checkpoint['status'] }) => tasksApi.markCheckpoint(task.id, v.cid, v.status));
   const remove = useTaskAction((cid: string) => tasksApi.removeCheckpoint(task.id, cid));
-  const edit = !!task.permissions?.edit && !task.archived;
+  // В закрытой задаче точки уже не ставят и не убирают.
+  const edit = !!task.permissions?.edit && !task.archived && task.status !== 'done' && task.status !== 'cancelled';
   const canMark = !!task.permissions?.mark && !task.archived;
   const list = [...task.checkpoints].sort((a, b) => a.due_at.localeCompare(b.due_at));
   const progress = checkpointProgress(list);

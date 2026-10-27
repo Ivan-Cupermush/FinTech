@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { BLOCKER_LABELS, BLOCKER_REASONS, diffDays, formatDate, lightOf, plural, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole } from '@offix/core';
+import { BLOCKER_LABELS, BLOCKER_REASONS, diffDays, formatDate, lightOf, plural, requestBadge, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole } from '@offix/core';
 import { dueText, taskActions } from '../../lib/logic';
 import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { font, usePalette } from '../../lib/theme';
@@ -54,7 +54,7 @@ export default function TaskScreen() {
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <View style={{ gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {request && <RequestBadge text={t.created_by === meId ? 'Ваша просьба' : `Просьба от ${t.created_by_name ?? 'коллеги'}`} />}
+          {request && <RequestBadge text={requestBadge(t, meId)} />}
           <TaskStatusPill task={t} today={today} />
         </View>
         <Text variant="h2">{t.title}</Text>

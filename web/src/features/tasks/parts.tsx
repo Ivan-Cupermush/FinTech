@@ -1,5 +1,6 @@
 import { Ban, Check, Circle, CircleDot, Eye, Flag, HandHelping } from 'lucide-react';
-import { BLOCKER_LABELS, TASK_LIGHT_LABELS, checkpointProgress, diffDays, formatDate, isOverdue, lightOf, plural, type TaskLightView } from '@offix/core';
+import { BLOCKER_LABELS, TASK_LIGHT_LABELS, checkpointProgress, diffDays, formatDate, isOverdue, lightOf, plural, requestFrom, type TaskLightView } from '@offix/core';
+import { useMe } from '../../lib/queries';
 import type { Task } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
 import { TaskStatusPill } from '../../ui/Pill';
@@ -37,11 +38,12 @@ export function TaskRow({
   const blockedFor = task.blocker ? diffDays(task.blocker.since.slice(0, 10), today) : 0;
   const cps = checkpointProgress(task.checkpoints ?? []);
   const request = task.kind === 'request';
+  const me = useMe();
   const line =
     meta ??
     (task.blocker
       ? `${BLOCKER_LABELS[task.blocker.reason]}${task.blocker.note ? `: ${task.blocker.note}` : ''} · ${blockedFor > 0 ? `${blockedFor} ${plural(blockedFor, ['день', 'дня', 'дней'])}` : 'сегодня'}`
-      : [request && task.created_by_name && `от ${task.created_by_name}`, task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
+      : [request && requestFrom(task, me.data?.id ?? ''), task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
   return (
     <button type="button" className="list-row task-row" onClick={() => onOpen(task.id)}>
       <Icon size={18} aria-hidden style={{ flex: 'none', color: task.status === 'done' ? 'var(--good)' : task.status === 'blocked' ? 'var(--bad)' : 'var(--ink-3)' }} />

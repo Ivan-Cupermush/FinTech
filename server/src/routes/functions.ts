@@ -85,7 +85,7 @@ export function functionsRouter(db: Db, rt: Realtime): Router {
             user_id: id,
             kind: 'function_granted',
             title: on.length ? `Вам включили: ${on.map((c) => `«${functionInfo(c.key).label}»`).join(', ')}` : `Вам отключили: ${off.map((c) => `«${functionInfo(c.key).label}»`).join(', ')}`,
-            body: on.length && off.length ? `Отключили: ${off.map((c) => `«${functionInfo(c.key).label}»`).join(', ')}` : null,
+            body: on.length && off.length ? `Отключили: ${off.map((c) => `«${functionInfo(c.key).label}»`).join(', ')}` : 'Что и где можно — в профиле, в разделе «Мои функции»',
           },
           actor.id,
         );

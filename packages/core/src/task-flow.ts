@@ -36,6 +36,20 @@ export function canThank(t: { kind: TaskKind; status: TaskStatus; created_by: st
 
 // ------------------------------------------------------------ контрольные точки
 
+/**
+ * Подпись просьбы. Имена не склоняем, поэтому без «от Игоря»: своя
+ * просьба — «Ваша просьба», просьба ко мне — «Вас просят», чужая — «Просьба».
+ */
+export function requestBadge(t: { created_by?: string | null; assignee?: { id: string } | null }, meId: string): string {
+  if (t.created_by === meId) return 'Ваша просьба';
+  return t.assignee?.id === meId ? 'Вас просят' : 'Просьба';
+}
+
+/** Кто просит — для второй строки в списке; у своих просьб исполнитель и так на аватаре. */
+export function requestFrom(t: { created_by?: string | null; created_by_name?: string | null }, meId: string): string | null {
+  return t.created_by_name && t.created_by !== meId ? `просит ${t.created_by_name}` : null;
+}
+
 export const CHECKPOINT_STATUSES = ['pending', 'done', 'missed'] as const;
 export type CheckpointStatus = (typeof CHECKPOINT_STATUSES)[number];
 export const CHECKPOINTS_MAX = 20;

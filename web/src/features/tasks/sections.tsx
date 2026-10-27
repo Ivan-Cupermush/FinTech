@@ -25,7 +25,8 @@ export function CheckpointsSection({ task, today }: { task: TaskDetail; today: s
   const add = useTaskAction((v: { title: string; due_at: string }) => tasksApi.addCheckpoint(task.id, v));
   const mark = useTaskAction((v: { cid: string; status: Checkpoint['status'] }) => tasksApi.markCheckpoint(task.id, v.cid, v.status));
   const remove = useTaskAction((cid: string) => tasksApi.removeCheckpoint(task.id, cid));
-  const edit = !!task.permissions?.edit && !task.archived;
+  // В закрытой задаче точки уже не ставят и не убирают.
+  const edit = !!task.permissions?.edit && !task.archived && task.status !== 'done' && task.status !== 'cancelled';
   const canMark = !!task.permissions?.mark && !task.archived;
   const list = [...task.checkpoints].sort((a, b) => a.due_at.localeCompare(b.due_at));
   const progress = checkpointProgress(list);
@@ -100,7 +101,7 @@ export function CheckpointsSection({ task, today }: { task: TaskDetail; today: s
       {edit && list.length < CHECKPOINTS_MAX && (
         <>
           <div className="cp-add">
-            <input className="input" aria-label="Новая контрольная точка" placeholder="Что должно быть готово" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
+            <input className="input" aria-label="Новая контрольная точка" placeholder="Что будет готово" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
             <input className="input" type="date" aria-label="Срок точки" value={due} max={task.due_at ?? undefined} onChange={(e) => setDue(e.target.value)} />
             <Button icon={<Plus size={15} />} loading={add.isPending} onClick={submit}>
               Добавить

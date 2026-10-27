@@ -13,6 +13,7 @@ import {
   lightOf,
   TASK_LIGHT_LABELS,
   plural,
+  requestFrom,
   TASK_STATUS_LABELS,
   UNITS,
   type GoalType,
@@ -25,6 +26,7 @@ import {
   type UnitId,
 } from '@offix/core';
 import { dueText } from '../lib/logic';
+import { useMe } from '../lib/queries';
 import { font, usePalette, type Tone } from '../lib/theme';
 import { Avatar, Bar, Card, Pill, Text } from './primitives';
 
@@ -180,12 +182,13 @@ export function TaskRow({ task, today, onPress, showAssignee = true, meta }: { t
   const Icon = ICON[task.status];
   const blockedFor = task.blocker ? diffDays(task.blocker.since.slice(0, 10), today) : 0;
   const request = task.kind === 'request';
+  const me = useMe();
   const cps = checkpointProgress(task.checkpoints ?? []);
   const sub =
     meta ??
     (task.blocker
       ? `${BLOCKER_LABELS[task.blocker.reason]}${task.blocker.note ? `: ${task.blocker.note}` : ''} · ${blockedFor > 0 ? `${blockedFor} ${plural(blockedFor, ['день', 'дня', 'дней'])}` : 'сегодня'}`
-      : [request && task.created_by_name && `от ${task.created_by_name}`, task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
+      : [request && requestFrom(task, me.data?.id ?? ''), task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
       <Icon size={20} color={task.status === 'done' ? p.good : task.status === 'blocked' ? p.bad : p.ink3} />

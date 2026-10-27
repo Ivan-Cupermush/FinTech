@@ -52,7 +52,7 @@ describe('список задач', () => {
     renderApp('/app/tasks');
     expect(await screen.findByRole('img', { name: 'Критичный риск: Заблокирована 4 дня: техническая проблема' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Есть риск: Просрочена на 2 дня' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /^Идёт по плану: Идёт по плану, срок/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Идёт по плану: Срок / })).toBeInTheDocument();
   });
 
   it('вкладки: мои просьбы, наблюдаю и архив — свои запросы и пустые состояния', async () => {
@@ -124,6 +124,8 @@ describe('просьба коллеге', () => {
     await userEvent.type(within(dialog).getByLabelText(/О чём просите/), 'Выдать доступ к справочнику');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Добавить' }));
     await userEvent.type(within(dialog).getByLabelText('Контрольная точка 1'), 'Заявка в IT');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Завтра' }));
+    expect(within(dialog).getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Отправить просьбу' }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'POST' && c.path === '/tasks')?.body).toEqual({
@@ -131,7 +133,7 @@ describe('просьба коллеге', () => {
         title: 'Выдать доступ к справочнику',
         description: null,
         assignee_id: 'u-igor',
-        due_at: null,
+        due_at: addDays(today, 1),
         checkpoints: [{ title: 'Заявка в IT', due_at: today }],
       }),
     );
@@ -183,6 +185,10 @@ describe('карточка задачи', () => {
     const panel = await screen.findByRole('dialog', { name: 'Подписать приказ' });
     expect(await within(panel).findByText('Игорь Лебедев выполнил(а) вашу просьбу')).toBeInTheDocument();
     expect(within(panel).getByText('Ваша просьба')).toBeInTheDocument();
+    // Закрытую можно вернуть в работу, а новые точки в ней уже не ставят.
+    expect(within(panel).getByRole('button', { name: 'Вернуть в работу' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Взять в работу' })).not.toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Новая контрольная точка')).not.toBeInTheDocument();
     await userEvent.click(within(panel).getByRole('button', { name: 'Спасибо' }));
     expect(await within(panel).findByText(/^Вы поблагодарили/)).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: 'Спасибо' })).not.toBeInTheDocument();
@@ -190,14 +196,15 @@ describe('карточка задачи', () => {
   });
 
   it('просьба в работе: «Выполнено» сразу, без «На приёмку»; светофор с причиной', async () => {
-    const t = task('q', { title: 'Выдать доступ', kind: 'request', status: 'in_progress', due_at: addDays(today, -1), created_by: 'u-igor', created_by_name: 'Игорь Лебедев' });
+    const t = task('q', { title: 'Выдать доступ', kind: 'request', status: 'in_progress', due_at: addDays(today, -1), created_by: 'u-igor', created_by_name: 'Игорь Лебедев', assignee: { id: 'u-olga', display_name: 'Ольга Смирнова' } });
     mockApi({ ...base, ...panelRoutes('q'), 'GET /tasks?mine=1': [t], 'GET /tasks/q': detail(t) });
     renderApp('/app/tasks');
+    expect(await screen.findByText(/просит Игорь Лебедев/)).toBeInTheDocument();
     await userEvent.click(await screen.findByText('Выдать доступ'));
     const panel = await screen.findByRole('dialog', { name: 'Выдать доступ' });
     expect(await within(panel).findByRole('button', { name: 'Выполнено' })).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: 'На приёмку' })).not.toBeInTheDocument();
-    expect(within(panel).getByText('Просьба от Игорь Лебедев')).toBeInTheDocument();
+    expect(within(panel).getByText('Вас просят')).toBeInTheDocument();
     expect(within(panel).getByText('Есть риск')).toBeInTheDocument();
     expect(within(panel).getByText(/Просрочена на 1 день/)).toBeInTheDocument();
     expect(within(panel).queryByText('Наблюдатели')).not.toBeInTheDocument();

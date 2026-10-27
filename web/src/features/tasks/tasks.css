@@ -277,3 +277,25 @@
   cursor: pointer;
   align-self: flex-start;
 }
+
+/* Быстрый срок просьбы: «Сегодня», «Завтра», «К пятнице», «Через неделю». */
+.req-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.req-preset {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 520;
+}
+.req-preset[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}

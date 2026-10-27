@@ -236,7 +236,7 @@ describe('Карточка цели', () => {
     renderApp('/app/goals/g1');
     expect(await screen.findByRole('img', { name: 'Критичный риск: Заблокирована 1 день: техническая проблема' })).toBeInTheDocument();
     // Без блокировки и просрочки критический путь цвет не меняет.
-    expect(screen.getByRole('img', { name: /^Идёт по плану: Идёт по плану, срок/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Идёт по плану: Срок / })).toBeInTheDocument();
   });
   it('нет доступа — «Цель не найдена», без подробностей', async () => {
     mockApi({ ...base, 'GET /goals/zzz/roadmap': apiError(404, 'Цель не найдена') });

@@ -93,6 +93,6 @@ export async function seedDemoTaskFlow(db: Db, demo: DemoIds, now = new Date()):
 
     // Ольга включила Анне «Вносить измерения KPI» — в её подразделениях.
     await q.query(`INSERT INTO user_functions (company_id, user_id, fn, allowed, granted_by) VALUES ($1, $2, 'kpi_record', TRUE, $3)`, [demo.companyId, u.anna, u.olga]);
-    await inbox(u.anna, u.olga, { kind: 'function_granted', title: 'Вам включили: «Вносить измерения KPI»' }, 60 * 3);
+    await inbox(u.anna, u.olga, { kind: 'function_granted', title: 'Вам включили: «Вносить измерения KPI»', body: 'Что и где можно — в профиле, в разделе «Мои функции»' }, 60 * 3);
   });
 }

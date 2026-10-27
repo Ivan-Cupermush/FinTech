@@ -20,6 +20,8 @@ import {
   validateCheckpoint,
   validateRequest,
   requestDuePresets,
+  requestBadge,
+  requestFrom,
   type Risk,
 } from '../src';
 
@@ -40,6 +42,16 @@ describe('просьба и задача', () => {
     expect(canThank({ ...r, thanked_at: '2026-11-10T10:00:00Z' }, 'a')).toBe(false);
     expect(canThank({ ...r, status: 'in_progress' }, 'a')).toBe(false);
     expect(canThank({ ...r, kind: 'task' }, 'a')).toBe(false);
+  });
+
+  it('подписи просьбы без склонения имён', () => {
+    const r = { created_by: 'a', created_by_name: 'Игорь Лебедев', assignee: { id: 'b' } };
+    expect(requestBadge(r, 'a')).toBe('Ваша просьба');
+    expect(requestBadge(r, 'b')).toBe('Вас просят');
+    expect(requestBadge(r, 'c')).toBe('Просьба');
+    expect(requestFrom(r, 'b')).toBe('просит Игорь Лебедев');
+    expect(requestFrom(r, 'a')).toBeNull();
+    expect(requestFrom({ created_by: 'a', created_by_name: null }, 'b')).toBeNull();
   });
 
   it('наблюдатель стоит рядом с согласующим', () => {
@@ -160,7 +172,7 @@ describe('светофор задачи — это риск', () => {
     expect(taskLight({ ...base, checkpoints: [{ status: 'pending', due_at: '2026-11-09' }] }, today)?.reason).toBe('Контрольная точка не пройдена в срок');
     expect(taskLight({ ...base, checkpoints: [{ status: 'missed', due_at: '2026-11-20' }, { status: 'pending', due_at: '2026-11-01' }] }, today)?.reason).toBe('2 контрольные точки не пройдены в срок');
     expect(taskLight({ ...base, status: 'todo', due_at: '2026-11-11' }, today)?.reason).toBe('Срок завтра, а работа не начата');
-    expect(taskLight(base, today)).toEqual({ light: 'green', reason: 'Идёт по плану, срок 30 ноября' });
+    expect(taskLight(base, today)).toEqual({ light: 'green', reason: 'Срок 30 ноября' });
   });
 
   it('задача из API: блокировка объектом blocker даёт тот же цвет', () => {

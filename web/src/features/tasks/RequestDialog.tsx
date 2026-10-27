@@ -1,6 +1,6 @@
 import { Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
-import { CHECKPOINTS_MAX, todayIso, validateRequest } from '@offix/core';
+import { CHECKPOINTS_MAX, requestDuePresets, todayIso, validateRequest } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe, useUsers } from '../../lib/queries';
 import type { Task } from '../../lib/types';
@@ -106,7 +106,18 @@ export function RequestDialog({ onClose, onCreated, to }: { onClose: () => void;
         {(p) => <textarea className="input" {...p} rows={3} value={details} onChange={(e) => setDetails(e.target.value)} maxLength={5000} />}
       </Field>
       <Field label="К какому дню" hint="Можно без срока" error={shown('due_at')}>
-        {(p) => <input className="input" type="date" {...p} min={today} value={due} onChange={(e) => setDue(e.target.value)} />}
+        {(p) => (
+          <div className="stack" style={{ '--gap': '8px' } as React.CSSProperties}>
+            <div className="req-presets" role="group" aria-label="Быстрый выбор срока">
+              {requestDuePresets(today).map((o) => (
+                <button key={o.label} type="button" className="req-preset" aria-pressed={due === o.value} onClick={() => setDue(due === o.value ? '' : o.value)}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <input className="input" type="date" {...p} min={today} value={due} onChange={(e) => setDue(e.target.value)} />
+          </div>
+        )}
       </Field>
       <div className="field">
         <div className="spread">

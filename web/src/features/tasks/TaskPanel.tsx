@@ -1,6 +1,6 @@
 import { Archive, ArchiveRestore, Ban, Check, CircleDot, Eye, Flag, HandHeart, HandHelping, Link2, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { BLOCKER_LABELS, BLOCKER_REASONS, TASK_LIGHT_LABELS, archiveNote, canArchive, canThank, canTransitionKind, formatDate, isOverdue, lightOf, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole, type TaskStatus } from '@offix/core';
+import { BLOCKER_LABELS, BLOCKER_REASONS, TASK_LIGHT_LABELS, archiveNote, canArchive, canThank, canTransitionKind, formatDate, requestBadge, isOverdue, lightOf, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole, type TaskStatus } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { Avatar } from '../../ui/Avatar';
@@ -119,7 +119,7 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
           <div className="row wrap" style={{ gap: 8 }}>
             {request && (
               <span className="task-kind">
-                <HandHelping size={12} aria-hidden /> {t.created_by === myId ? 'Ваша просьба' : `Просьба от ${t.created_by_name ?? 'коллеги'}`}
+                <HandHelping size={12} aria-hidden /> {requestBadge(t, myId)}
               </span>
             )}
             <TaskStatusPill status={t.status} overdue={isOverdue(t, today)} />
@@ -187,7 +187,7 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   Блокировка снята
                 </Button>
               ) : (
-                ACTIONS.filter((a) => canTransitionKind(t.kind, t.status, a.to)).map((a) => (
+                ACTIONS.filter((a) => canTransitionKind(t.kind, t.status, a.to)).map((a) => (t.status === 'done' && a.to === 'in_progress' ? { ...a, label: 'Вернуть в работу', icon: <RotateCcw size={16} />, variant: 'secondary' as const } : a)).map((a) => (
                   <Button key={a.to} variant={a.variant} icon={a.icon} loading={status.isPending && status.variables?.status === a.to} onClick={() => (a.to === 'blocked' ? setBlocking(true) : change(a.to))}>
                     {a.label}
                   </Button>

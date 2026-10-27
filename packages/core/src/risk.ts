@@ -222,7 +222,7 @@ export function taskLight(t: LightTask, today: string, opts: { critical?: boolea
   if (t.status === 'todo' && t.due_at && diffDays(today, t.due_at) <= 1) {
     return { light: 'yellow', reason: t.due_at === today ? 'Срок сегодня, а работа не начата' : 'Срок завтра, а работа не начата' };
   }
-  return { light: 'green', reason: t.due_at ? `Идёт по плану, срок ${formatDate(t.due_at, { today })}` : 'Идёт по плану' };
+  return { light: 'green', reason: t.due_at ? `Срок ${formatDate(t.due_at, { today })}` : 'Срок не задан' };
 }
 
 /** Светофор задачи в том виде, как её отдаёт API: блокировка — объектом `blocker`. */
