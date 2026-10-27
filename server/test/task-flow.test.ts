@@ -83,6 +83,18 @@ describe('просьба коллеге', () => {
     expect((await anna.post(`${API}/tasks/${t.id}/thanks`)).body.data.thanked_at).not.toBeNull();
   });
 
+  it('во «Входящих» у просьбы есть её состояние: исполнитель берёт в работу, автор благодарит', async () => {
+    const t = await request({ title: 'Найти шаблон справки' });
+    const igor = await ctx.as('igor');
+    const anna = await ctx.as('anna');
+    const feed = async (who: typeof igor) => ((await who.get(`${API}/notifications`)).body.data as { kind: string; task_id: string; task_state: unknown }[]).find((n) => n.task_id === t.id);
+    expect((await feed(igor))?.task_state).toEqual({ kind: 'request', status: 'todo', thanked: false, mine: false, assignee: true });
+    await igor.post(`${API}/tasks/${t.id}/status`, { status: 'done' });
+    expect((await feed(anna))).toMatchObject({ kind: 'task_done', task_state: { status: 'done', thanked: false, mine: true } });
+    await anna.post(`${API}/tasks/${t.id}/thanks`);
+    expect((await feed(anna))?.task_state).toMatchObject({ thanked: true });
+  });
+
   it('за задачу «спасибо» не говорят — только за просьбу', async () => {
     const olga = await ctx.as('olga');
     expect((await olga.post(`${API}/tasks/${ctx.demo.tasks.regulation}/thanks`)).status).toBe(409);

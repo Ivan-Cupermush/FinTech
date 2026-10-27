@@ -4,6 +4,7 @@ import {
   byLight,
   canArchive,
   canThank,
+  inboxTaskAction,
   canTransitionKind,
   checkpointProgress,
   checkpointState,
@@ -178,5 +179,26 @@ describe('светофор задачи — это риск', () => {
     expect(m.get('t1')).toBe('yellow');
     expect(m.get('t2')).toBe('red');
     expect(m.has('t3')).toBe(false);
+  });
+});
+
+describe('кнопки во «Входящих»', () => {
+  const state = { kind: 'request' as const, status: 'todo' as const, thanked: false, mine: false, assignee: true };
+  it('исполнитель берёт новую просьбу в работу прямо из уведомления', () => {
+    expect(inboxTaskAction({ kind: 'task_request', task_state: state })).toEqual({ action: 'start', note: null });
+    expect(inboxTaskAction({ kind: 'task_request', task_state: { ...state, status: 'in_progress' } })).toEqual({ action: null, note: 'В работе' });
+    expect(inboxTaskAction({ kind: 'task_request', task_state: { ...state, status: 'done', thanked: true } }).note).toBe('Выполнено · вас поблагодарили');
+  });
+
+  it('автор благодарит за выполненную просьбу один раз', () => {
+    const done = { ...state, status: 'done' as const, mine: true, assignee: false };
+    expect(inboxTaskAction({ kind: 'task_done', task_state: done })).toEqual({ action: 'thank', note: null });
+    expect(inboxTaskAction({ kind: 'task_done', task_state: { ...done, thanked: true } })).toEqual({ action: null, note: 'Вы поблагодарили' });
+    expect(inboxTaskAction({ kind: 'task_done', task_state: { ...done, status: 'in_progress' } }).note).toBe('Просьбу вернули в работу');
+  });
+
+  it('за задачу и без состояния — кнопок нет', () => {
+    expect(inboxTaskAction({ kind: 'task_done', task_state: { ...state, kind: 'task', status: 'done', mine: true } }).action).toBeNull();
+    expect(inboxTaskAction({ kind: 'comment' })).toEqual({ action: null, note: null });
   });
 });

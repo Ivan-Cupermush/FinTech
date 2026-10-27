@@ -4,7 +4,7 @@ import type { Direction, KpiProgress } from './kpi';
 import type { GoalStatus, GoalType } from './goal';
 import type { Risk } from './risk';
 import type { BlockerReason, TaskStatus } from './task';
-import type { Checkpoint, CheckpointStatus, TaskKind } from './task-flow';
+import type { Checkpoint, CheckpointStatus, InboxTaskState, TaskKind } from './task-flow';
 import type { UnitId } from './units';
 import type { UnitType } from './org';
 import type { ProductMetrics } from './metrics';
@@ -208,6 +208,8 @@ export interface Notification {
   actor_avatar_url?: string | null;
   /** Запрос заметки уже отвечен — кнопки ответа не показываем. */
   request_status?: 'pending' | 'approved' | 'declined' | null;
+  /** Просьба или задача из уведомления: что с ней сейчас — для кнопок во «Входящих». */
+  task_state?: InboxTaskState | null;
 }
 
 /** GET /metrics: продуктовые метрики в зоне видимости человека. */

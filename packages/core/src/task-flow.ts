@@ -165,3 +165,37 @@ export function tasksForDay<T extends TaskLike>(tasks: readonly T[], date: strin
     .filter((t) => t.status !== 'cancelled' && !!t.due_at && (date ? t.due_at === date : t.due_at >= today && t.due_at <= until))
     .sort((a, b) => (a.due_at ?? '').localeCompare(b.due_at ?? ''));
 }
+
+// ------------------------------------------------------------ «Входящие»
+
+export interface InboxTaskState {
+  kind: TaskKind;
+  status: TaskStatus;
+  thanked: boolean;
+  /** Я автор. */
+  mine: boolean;
+  /** Я исполнитель. */
+  assignee: boolean;
+}
+
+/**
+ * Кнопка прямо в уведомлении, чтобы не открывать задачу: исполнитель берёт
+ * новую просьбу в работу, автор благодарит за выполненную. Подпись — когда
+ * кнопка уже не нужна.
+ */
+export function inboxTaskAction(n: { kind: string; task_state?: InboxTaskState | null }): { action: 'start' | 'thank' | null; note: string | null } {
+  const t = n.task_state;
+  if (!t) return { action: null, note: null };
+  if (n.kind === 'task_request' && t.assignee) {
+    if (t.status === 'todo') return { action: 'start', note: null };
+    if (t.status === 'done') return { action: null, note: t.thanked ? 'Выполнено · вас поблагодарили' : 'Выполнено' };
+    if (t.status === 'cancelled') return { action: null, note: 'Просьбу отменили' };
+    return { action: null, note: 'В работе' };
+  }
+  if (n.kind === 'task_done' && t.kind === 'request' && t.mine) {
+    if (t.thanked) return { action: null, note: 'Вы поблагодарили' };
+    if (t.status === 'done') return { action: 'thank', note: null };
+    return { action: null, note: 'Просьбу вернули в работу' };
+  }
+  return { action: null, note: null };
+}

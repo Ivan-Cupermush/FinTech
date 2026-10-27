@@ -8,11 +8,15 @@ import { idParam, parseBody } from '../http/validate';
 /**
  * Кто прислал и что за запрос: имя автора — для строки «Ольга просит…»,
  * статус запроса заметки — чтобы кнопки «Поделиться / Отказать» не висели
- * у уже отвеченного.
+ * у уже отвеченного; состояние просьбы — для «Взять в работу» и «Спасибо»
+ * прямо во «Входящих».
  */
 const SELECT = `n.id, n.kind, n.title, n.body, n.goal_id, n.task_id, n.read_at, n.created_at, n.data,
   n.actor_id, a.display_name AS actor_name, a.avatar_url AS actor_avatar_url,
-  CASE WHEN n.kind = 'note_request' THEN (SELECT r.status FROM note_share_requests r WHERE r.id::text = n.data->>'request_id') END AS request_status`;
+  CASE WHEN n.kind = 'note_request' THEN (SELECT r.status FROM note_share_requests r WHERE r.id::text = n.data->>'request_id') END AS request_status,
+  CASE WHEN n.kind IN ('task_request', 'task_done') THEN (
+    SELECT json_build_object('kind', t.kind, 'status', t.status, 'thanked', t.thanked_at IS NOT NULL, 'mine', t.created_by = n.user_id, 'assignee', t.assignee_id = n.user_id)
+      FROM tasks t WHERE t.id = n.task_id) END AS task_state`;
 
 const listQuery = z.object({
   before: z.string().datetime({ offset: true }).optional(),
