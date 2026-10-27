@@ -2,7 +2,7 @@ import type { Queryable } from '../db/db';
 
 export interface AuditEntry {
   company_id: string;
-  entity_type: 'goal' | 'task' | 'org_unit' | 'member' | 'metric';
+  entity_type: 'goal' | 'task' | 'org_unit' | 'member' | 'metric' | 'sales_report' | 'sales_plan';
   entity_id: string;
   goal_id?: string | null;
   actor_id: string | null;

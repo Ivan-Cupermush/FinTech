@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildKpiSheet,
+  buildSalesReportSheet,
+  excelSerial,
   checkEntryMapping,
   csvTable,
   entriesFromRows,
@@ -246,5 +249,48 @@ describe('продажи: таблица продаж из Excel', () => {
     // Без номеров строк — считаем от второй (первая — шапка).
     expect(entriesFromRows([['', '']], { product: 0, quantity: null, amount: 1, sold_on: null, client: null, note: null }, '2026-10-27')).toEqual({ entries: [], errors: [] });
     expect(entriesFromRows([['Курс', 'x']], { product: 0, quantity: null, amount: 1, sold_on: null, client: null, note: null }, '2026-10-27').errors).toEqual([{ row: 2, message: 'Укажите сумму числом' }]);
+  });
+});
+
+describe('образцы файлов', () => {
+  const metrics = [
+    { name: 'План продаж курсов, руб (порог 90%, При выполнении 80-90% кэф 0,5)', plan: 600000, fact: 540000, percent: 0.9, bonus: 30000, payment: 30000 },
+    { name: 'Корпоративные клиенты, шт', plan: 10, fact: 12, percent: 1.2, bonus: 10000, payment: 10000 },
+  ];
+
+  it('файл KPI читается обратно: сотрудник, месяц, план, факт и выплаты', () => {
+    const f = parseKpiSheet(buildKpiSheet({ employee: 'Павел Соколов', month: '2026-10', fixed: [{ name: 'Оклад', amount: 40000 }], metrics, results: true }));
+    expect(f).toMatchObject({ employee: 'Павел Соколов', month: '2026-10', has_results: true, warnings: [] });
+    expect(f.metrics.map((m) => [m.name, m.fixed, m.plan, m.fact, m.bonus, m.payment, m.file_percent])).toEqual([
+      ['Оклад', true, 40000, 40000, 40000, 40000, null],
+      [metrics[0]!.name, false, 600000, 540000, 30000, 30000, 90],
+      ['Корпоративные клиенты, шт', false, 10, 12, 10000, 10000, 120],
+    ]);
+    expect(kpiMetricUnit(f.metrics[1]!)).toBe('rub');
+    expect(kpiMetricUnit(f.metrics[2]!)).toBe('count');
+  });
+
+  it('файл на начало месяца — только план', () => {
+    const f = parseKpiSheet(buildKpiSheet({ employee: 'Павел Соколов', month: '2026-11', fixed: [], metrics, results: false }));
+    expect(f).toMatchObject({ month: '2026-11', has_results: false });
+    expect(f.metrics.map((m) => [m.plan, m.fact, m.payment])).toEqual([
+      [600000, null, null],
+      [10, null, null],
+    ]);
+  });
+
+  it('отчёт 1С из образца разбирается с теми же суммами', () => {
+    const r = parseSalesReport(
+      buildSalesReportSheet('01.10.2026 - 26.10.2026', [
+        { client: 'ООО «Альфа»', managers: [{ name: 'Соколов Павел', sales: [{ path: ['КУРСЫ', 'Программирование'], name: 'Курс «Python для аналитиков»', qty: 3, rev: 90000 }] }] },
+      ]),
+    );
+    expect(r).toMatchObject({ period_start: '2026-10-01', period_end: '2026-10-26', month: '2026-10', total: 90000, file_total: 90000 });
+    expect(r.blocks[0]!.nodes.map((n) => [n.kind, n.depth, n.path.join('/'), n.name])).toEqual([
+      ['group', 1, '', 'КУРСЫ'],
+      ['group', 2, 'КУРСЫ', 'Программирование'],
+      ['item', 3, 'КУРСЫ/Программирование', 'Курс «Python для аналитиков»'],
+    ]);
+    expect(excelSerial('2026-05-01')).toBe(46143);
   });
 });

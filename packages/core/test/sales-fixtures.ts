@@ -1,4 +1,4 @@
-import type { SheetData } from '../src/sales-files';
+import { buildSalesReportSheet, type SampleClient, type SampleSale, type SheetData } from '../src/sales-files';
 
 /**
  * Синтетические файлы в формате заказчиков прошлого проекта (настоящие
@@ -8,67 +8,11 @@ import type { SheetData } from '../src/sales-files';
  * проекте проверялись выплаты: offix обязан считать так же.
  */
 
-export interface Sale {
-  /** Группы сверху вниз: ['ПИВО', 'Пиво разливное', 'Драфт Балтика']. */
-  path: string[];
-  name: string;
-  qty: number;
-  rev: number;
-  article?: string;
-}
-
-export interface ClientSales {
-  client: string;
-  managers: { name: string; sales: Sale[] }[];
-}
-
-const sum = (sales: Sale[], k: 'qty' | 'rev') => Math.round(sales.reduce((s, x) => s + x[k], 0) * 100) / 100;
+export type Sale = SampleSale;
+export type ClientSales = SampleClient;
 
 /** Лист отчёта о продажах. levels=false — как старый .xls без уровней группировки. */
-export function reportSheet(period: string, clients: ClientSales[], levels = true): SheetData {
-  const rows: unknown[][] = [];
-  const lv: number[] = [];
-  const push = (row: unknown[], level = 0) => {
-    rows.push(row);
-    lv.push(levels ? level : 0);
-  };
-  push(['В отчет выведены результаты предварительного закрытия месяца.']);
-  push([]);
-  push(['Валовая прибыль предприятия ']);
-  push([]);
-  push(['Параметры:', '', `Период: ${period}`]);
-  push([]);
-  push(['Клиент', '', '', '', '', '', 'Количество', 'Выручка']);
-  push(['Менеджер']);
-  push(['Артикул', '', '', 'Номенклатура, Характеристика']);
-  let qty = 0;
-  let rev = 0;
-  for (const c of clients) {
-    const all = c.managers.flatMap((m) => m.sales);
-    push([c.client, '', '', '', '', '', sum(all, 'qty'), sum(all, 'rev')]);
-    push(['По менеджерам'], 1);
-    for (const m of c.managers) {
-      push([`${m.name} `, '', '', '', '', '', sum(m.sales, 'qty'), sum(m.sales, 'rev')], 1);
-      // Группы в порядке первого появления, с суммами вложенных товаров.
-      const emit = (prefix: string[], sales: Sale[]) => {
-        const depth = prefix.length;
-        const here = sales.filter((s) => s.path.length === depth);
-        const groups = [...new Set(sales.filter((s) => s.path.length > depth).map((s) => s.path[depth]!))];
-        for (const g of groups) {
-          const inner = sales.filter((s) => s.path.length > depth && s.path[depth] === g);
-          push(['', '', '', g, '', '', sum(inner, 'qty'), sum(inner, 'rev')], depth + 1);
-          emit([...prefix, g], inner);
-        }
-        for (const s of here) push([s.article ?? '                         ', '', '', `${s.name}, `, '', '', s.qty, s.rev], depth + 1);
-      };
-      emit([], m.sales);
-    }
-    qty += sum(all, 'qty');
-    rev += sum(all, 'rev');
-  }
-  push(['Итого', '', '', '', '', '', qty, Math.round(rev * 100) / 100]);
-  return { name: 'Лист_1', rows, levels: lv };
-}
+export const reportSheet = (period: string, clients: ClientSales[], levels = true): SheetData => buildSalesReportSheet(period, clients, levels);
 
 /** Строки файла KPI сотрудника (с опечаткой «Есть Подод», как в реальных файлах). */
 export function kpiRows(opts: { name: string; month?: number | string; facts?: boolean; yesNo?: boolean } = { name: 'Анна' }): unknown[][] {

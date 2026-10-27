@@ -21,6 +21,7 @@ import {
 import type { AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { invalid, notFound } from '../http/errors';
+import { allowedByFunction } from './functions';
 import { loadOrg } from './org';
 
 export interface GoalRow {
@@ -101,6 +102,13 @@ export async function getVisibleGoal(q: Queryable, actor: AuthedActor, goalId: s
   if (!goal) throw notFound('Цель не найдена');
   if (!(await isVisible(q, actor, goal, ctx))) throw notFound('Цель не найдена');
   return { goal, org: ctx };
+}
+
+/** Вносить факт KPI: владелец цели — всегда, остальные — по роли или с функцией «Вносить измерения KPI». */
+export async function canRecordKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
+  const access = await effectiveAccess(q, actor.company_id, goal);
+  if (actor.role !== 'observer' && access.owner_id === actor.id) return true;
+  return allowedByFunction(q, actor, 'kpi_record', { byRole: canRecordObservation(actor, access, org), unitIds: access.unit_ids, org });
 }
 
 async function isVisible(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {

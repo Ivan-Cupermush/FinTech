@@ -1044,6 +1044,8 @@ export interface SalesPerson {
 }
 
 export interface SalesPlan extends SalesPlanRow {
+  /** Правило поправил руководитель: повторная загрузка файла KPI его сохранит. */
+  rules_custom: boolean;
   calc: PlanCalc;
 }
 
@@ -1093,8 +1095,16 @@ export interface SalesMonth {
   can: {
     /** Ставить план, менять правила и факт. */
     edit: boolean;
+    /** Отмечать факт своих показателей «вручную» (сотрудник сам себе). */
+    fact: boolean;
+    /** Загрузить сотруднику файл KPI. */
+    kpi_file: boolean;
     /** Записывать продажи. */
     add_entry: boolean;
+    /** Видеть команду: руководитель или есть функции продаж. */
+    team: boolean;
+    /** Загружать отчёты 1С и вести списки клиентов. */
+    reports: boolean;
   };
   lists: { key: number; merge: number };
 }
@@ -1113,7 +1123,14 @@ export interface SalesTeam {
   members: SalesTeamMember[];
   /** Сумма по команде. */
   totals: { revenue: number; now: number; forecast: number; max: number };
-  can: { upload: boolean; settings: boolean };
+  can: {
+    /** Загружать отчёты 1С, вести списки клиентов и сопоставлять менеджеров. */
+    upload: boolean;
+    /** Загружать файлы KPI. */
+    kpi_files: boolean;
+    /** Ставить план. */
+    assign: boolean;
+  };
 }
 
 export type ReportPersonStatus = 'ok' | 'unmatched' | 'ambiguous' | 'forbidden' | 'no_manager';
@@ -1149,6 +1166,34 @@ export interface KpiFileResult {
   created: number;
   replaced: number;
   error: string | null;
+}
+
+export interface KpiPreviewMetric {
+  name: string;
+  kind: SalesKind;
+  unit: SalesUnit;
+  plan: number;
+  fact: number | null;
+  bonus: number;
+  payment: number | null;
+  percent: number;
+  /** Правило выплаты словами: «3,5% от продаж, если продано от 20 000 ₽». */
+  rule: string;
+}
+
+/** Предпросмотр файла KPI: кто на листах, за какой месяц и что будет загружено. */
+export interface KpiFilePreview {
+  sheets: {
+    sheet: string;
+    employee: string;
+    month: string | null;
+    suggested_user: SalesPerson | null;
+    has_results: boolean;
+    warnings: string[];
+    metrics: KpiPreviewMetric[];
+  }[];
+  /** Кому этот человек может загрузить файл KPI. */
+  people: SalesPerson[];
 }
 
 export interface SalesUnmatched {

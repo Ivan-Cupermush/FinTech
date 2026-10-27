@@ -34,6 +34,7 @@ import { contactsRouter } from './routes/contacts';
 import { myNotesRouter } from './routes/my-notes';
 import { qrPublicRouter } from './routes/qr';
 import { knowledgeRouter } from './routes/knowledge';
+import { salesRouter } from './routes/sales';
 import { createKnowledgeService, type KnowledgeService } from './services/knowledge';
 import { aiProviderFromEnv } from './services/ai';
 
@@ -116,6 +117,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/notes', notesRouter(db));
   v1.use('/knowledge', knowledgeRouter(db, mediaCtx, kb, { rateLimit }));
   v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
+  v1.use('/sales', salesRouter(db, mediaCtx));
   const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
   v1.use('/chats', chatsRouter(chatDeps));
   v1.use('/messages', messagesRouter(chatDeps));

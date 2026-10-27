@@ -5,7 +5,6 @@ import {
   canCreateGoal,
   canEditGoal,
   canReadAudit,
-  canRecordObservation,
   canTransition,
   canViewGoal,
   checkUnitRange,
@@ -26,6 +25,7 @@ import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit, diff } from '../services/audit';
 import {
+  canRecordKpi,
   checkOwner,
   checkParent,
   checkUnits,
@@ -86,13 +86,6 @@ const VALIDATION_MESSAGE = 'Не удалось сохранить цель';
 async function canAssignKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
   const access = await effectiveAccess(q, actor.company_id, goal);
   return allowedByFunction(q, actor, 'kpi_assign', { byRole: canEditGoal(actor, access, 'metrics', org), unitIds: access.unit_ids, org });
-}
-
-/** Вносить факт KPI: владелец цели — всегда, остальные — по роли или с функцией «Вносить измерения KPI». */
-async function canRecordKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
-  const access = await effectiveAccess(q, actor.company_id, goal);
-  if (actor.role !== 'observer' && access.owner_id === actor.id) return true;
-  return allowedByFunction(q, actor, 'kpi_record', { byRole: canRecordObservation(actor, access, org), unitIds: access.unit_ids, org });
 }
 
 export function goalsRouter(db: Db, now: () => Date): Router {

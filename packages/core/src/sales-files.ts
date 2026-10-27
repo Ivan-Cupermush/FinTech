@@ -652,3 +652,114 @@ export function entriesFromRows(rows: readonly unknown[][], mapping: EntryMappin
   if (rows.length > SALES_LIMITS.importRows) errors.push({ row: lines[SALES_LIMITS.importRows] ?? SALES_LIMITS.importRows + 2, message: `Загружаем не больше ${SALES_LIMITS.importRows} строк за раз` });
   return { entries, errors };
 }
+
+// ---------------------------------------------------------------- образцы файлов
+
+export interface SampleSale {
+  /** Группы сверху вниз: ['КУРСЫ', 'Программирование']. */
+  path: string[];
+  name: string;
+  qty: number;
+  rev: number;
+  article?: string;
+}
+
+export interface SampleClient {
+  client: string;
+  managers: { name: string; sales: SampleSale[] }[];
+}
+
+const sampleSum = (sales: readonly SampleSale[], k: 'qty' | 'rev') => Math.round(sales.reduce((s, x) => s + x[k], 0) * 100) / 100;
+
+/**
+ * Лист в формате отчёта 1С «Валовая прибыль предприятия»: клиент → «По
+ * менеджерам» → менеджер → группы → товары, с уровнями группировки строк.
+ * Для образца, демо и тестов; levels=false — как старый .xls без уровней.
+ */
+export function buildSalesReportSheet(period: string, clients: readonly SampleClient[], levels = true): SheetData {
+  const rows: unknown[][] = [];
+  const lv: number[] = [];
+  const push = (row: unknown[], level = 0) => {
+    rows.push(row);
+    lv.push(levels ? level : 0);
+  };
+  push(['В отчет выведены результаты предварительного закрытия месяца.']);
+  push([]);
+  push(['Валовая прибыль предприятия ']);
+  push([]);
+  push(['Параметры:', '', `Период: ${period}`]);
+  push([]);
+  push(['Клиент', '', '', '', '', '', 'Количество', 'Выручка']);
+  push(['Менеджер']);
+  push(['Артикул', '', '', 'Номенклатура, Характеристика']);
+  let qty = 0;
+  let rev = 0;
+  for (const c of clients) {
+    const all = c.managers.flatMap((m) => m.sales);
+    push([c.client, '', '', '', '', '', sampleSum(all, 'qty'), sampleSum(all, 'rev')]);
+    push(['По менеджерам'], 1);
+    for (const m of c.managers) {
+      push([`${m.name} `, '', '', '', '', '', sampleSum(m.sales, 'qty'), sampleSum(m.sales, 'rev')], 1);
+      // Группы в порядке первого появления, с суммами вложенных товаров.
+      const emit = (prefix: string[], sales: readonly SampleSale[]) => {
+        const depth = prefix.length;
+        const here = sales.filter((s) => s.path.length === depth);
+        const groups = [...new Set(sales.filter((s) => s.path.length > depth).map((s) => s.path[depth]!))];
+        for (const g of groups) {
+          const inner = sales.filter((s) => s.path.length > depth && s.path[depth] === g);
+          push(['', '', '', g, '', '', sampleSum(inner, 'qty'), sampleSum(inner, 'rev')], depth + 1);
+          emit([...prefix, g], inner);
+        }
+        for (const s of here) push([s.article ?? '                         ', '', '', `${s.name}, `, '', '', s.qty, s.rev], depth + 1);
+      };
+      emit([], m.sales);
+    }
+    qty += sampleSum(all, 'qty');
+    rev += sampleSum(all, 'rev');
+  }
+  push(['Итого', '', '', '', '', '', qty, Math.round(rev * 100) / 100]);
+  return { name: 'Лист_1', rows, levels: lv };
+}
+
+export interface SampleKpiMetric {
+  /** Название с условиями: «План продаж, руб (порог 90%, при выполнении 80-90% кэф 0,5)». */
+  name: string;
+  plan: number;
+  fact: number | null;
+  /** Выполнение долей: 0,95 — 95 %. */
+  percent: number | null;
+  bonus: number;
+  payment: number | null;
+  /** Позиции дистрибуции: «Курс Python - 3 ТТ V». */
+  items?: string[];
+}
+
+/** Число Excel для даты YYYY-MM-DD (дни с 30.12.1899). */
+export const excelSerial = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.UTC(1899, 11, 30)) / 86_400_000);
+
+/**
+ * Лист файла KPI сотрудника: имя, месяц, фиксированные выплаты и показатели
+ * циклом «план / факт / % выполнения / бонус / к выплате». Колонка C — если
+ * план выполнен, D — фактически (пустая в файле на начало месяца).
+ */
+export function buildKpiSheet(o: { employee: string; month: string; fixed: { name: string; amount: number }[]; metrics: SampleKpiMetric[]; results: boolean }): unknown[][] {
+  const v = (n: number | null) => (o.results && n != null ? n : '');
+  const rows: unknown[][] = [
+    [o.employee, '', '', ''],
+    [excelSerial(`${o.month}-01`), '', '', `Факт ${o.employee}`],
+  ];
+  for (const f of o.fixed) rows.push([f.name, '', f.amount, v(f.amount)]);
+  for (const m of o.metrics) {
+    const items = m.items ?? [];
+    rows.push([m.name, 'план', m.plan, m.plan]);
+    rows.push([items[0] ?? '', 'факт', m.plan, v(m.fact)]);
+    rows.push([items[1] ?? '', '% выполнения', 1, v(m.percent)]);
+    rows.push([items[2] ?? '', 'бонус', m.bonus, m.bonus]);
+    rows.push([items[3] ?? '', 'к выплате', m.bonus, v(m.payment)]);
+  }
+  const total = o.fixed.reduce((s, f) => s + f.amount, 0) + o.metrics.reduce((s, m) => s + m.bonus, 0);
+  const paid = o.fixed.reduce((s, f) => s + f.amount, 0) + o.metrics.reduce((s, m) => s + (m.payment ?? 0), 0);
+  rows.push([]);
+  rows.push(['', 'Итого', total, v(paid)]);
+  return rows;
+}
