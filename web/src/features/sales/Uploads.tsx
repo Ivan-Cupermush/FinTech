@@ -108,7 +108,8 @@ function ReportResult({ r, onSettings }: { r: SalesReportImport; onSettings: () 
                 <td>{p.manager}</td>
                 <td>
                   {p.user ? p.user.name : <Pill tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Pill>}
-                  {p.error && (
+                  {/* Для несопоставленных хватает метки: что делать — сказано под таблицей. */}
+                  {p.error && p.status !== 'unmatched' && p.status !== 'ambiguous' && (
                     <div className="faint" style={{ fontSize: 12 }}>
                       {p.error}
                     </div>

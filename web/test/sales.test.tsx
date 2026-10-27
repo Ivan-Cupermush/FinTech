@@ -401,6 +401,8 @@ describe('продажи: руководитель', () => {
     expect(screen.getByText('KPI целей обновлено: 1')).toBeInTheDocument();
     expect(screen.getByText('Сумма по строкам расходится с «Итого» на 10 ₽')).toBeInTheDocument();
     expect(screen.getByText('Не нашли сотрудника')).toBeInTheDocument();
+    // Метка уже говорит «не нашли», подсказку с сервера не повторяем.
+    expect(screen.queryByText('Сотрудник не найден — выберите вручную')).toBeNull();
     expect(screen.getByText(/Список ключевых клиентов пуст/)).toBeInTheDocument();
     // Из результата — в настройки, к сопоставлению.
     await userEvent.click(screen.getByRole('button', { name: 'Сопоставить' }));
