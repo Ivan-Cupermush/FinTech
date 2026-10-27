@@ -164,6 +164,7 @@ export function ChatRealtimeProvider({ meId, children }: { meId: string | undefi
       },
       contact_names_changed: () => {
         void qc.invalidateQueries({ queryKey: ['contact-names'] });
+        void qc.invalidateQueries({ queryKey: ['chat'] });
         refreshList();
       },
       profile_changed: (p: { user_id: string }) => {

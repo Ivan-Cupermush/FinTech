@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, Hash, LogOut, MoreHorizontal, Pencil, Pin, PinOff, ShieldCheck, ShieldOff, Trash2, UserMinus, UserPlus } from 'lucide-react';
+import { Bell, BellOff, Hash, IdCard, LogOut, MoreHorizontal, Pencil, Pin, PinOff, ShieldCheck, ShieldOff, Trash2, UserMinus, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MUTE_PRESETS, isMuted, lastSeenText, muteUntil, validateChatName, type ChatDetail, type ChatMember } from '@offix/core';
+import { MUTE_PRESETS, isMuted, lastSeenText, muteUntil, nameFor, validateChatName, type ChatDetail, type ChatMember } from '@offix/core';
+import { useContactBook } from '../account/data';
 import { ApiError } from '../../lib/api';
 import { useMe } from '../../lib/queries';
 import { Avatar } from '../../ui/Avatar';
@@ -24,6 +25,7 @@ export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose:
   const qc = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const book = useContactBook();
   const now = new Date().toISOString();
   const [dialog, setDialog] = useState<null | 'add' | 'leave' | 'delete' | 'topics' | { admin: ChatMember } | { remove: ChatMember }>(null);
   const [muteMenu, setMuteMenu] = useState<DOMRect | null>(null);
@@ -84,6 +86,7 @@ export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose:
             </h3>
           )}
           <div className="faint">{subtitle}</div>
+          {!group && chat.peer?.contact_name && <div className="faint">Настоящее имя: {chat.peer.display_name}</div>}
           {!group && chat.peer?.position && <div className="faint">{chat.peer.position}</div>}
         </div>
 
@@ -96,6 +99,12 @@ export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose:
             {chat.pinned ? <PinOff size={18} /> : <Pin size={18} />}
             {chat.pinned ? 'Открепить' : 'Закрепить'}
           </button>
+          {!group && chat.peer && (
+            <button type="button" onClick={() => navigate(`/app/people/${chat.peer!.id}`)}>
+              <IdCard size={18} />
+              Профиль
+            </button>
+          )}
           {group && can('add_users') && (
             <button type="button" onClick={() => setDialog('add')}>
               <UserPlus size={18} />
@@ -132,7 +141,7 @@ export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose:
                   </span>
                   <span className="grow">
                     <span className="clip people-name">
-                      {m.display_name}
+                      {nameFor(book, m.id, m.display_name)}
                       {m.id === myId ? ' (вы)' : ''}
                     </span>
                     <span className="clip faint">{online(m) ? 'в сети' : lastSeenText(false, rt.lastSeen.get(m.id) ?? m.last_seen_at, now)}</span>

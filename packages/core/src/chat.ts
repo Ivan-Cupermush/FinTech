@@ -235,6 +235,8 @@ export interface ChatPerson {
 
 export interface ChatMessageRef {
   id: string;
+  /** Есть у цитат — чтобы показать моё имя для коллеги. */
+  sender_id?: string | null;
   sender_name: string | null;
   text: string | null;
   kind: MessageKind;
@@ -330,8 +332,8 @@ export interface ChatSummary {
   type: ChatType;
   is_supergroup: boolean;
   title: string;
-  /** Собеседник в личном чате. */
-  peer: (ChatPerson & { online: boolean; last_seen_at: string | null }) | null;
+  /** Собеседник в личном чате; contact_name — моё имя для него (оно же в title). */
+  peer: (ChatPerson & { online: boolean; last_seen_at: string | null; contact_name?: string | null }) | null;
   members_count: number;
   last_message: (ChatMessageRef & { created_at: string; sender_id: string | null }) | null;
   unread: number;

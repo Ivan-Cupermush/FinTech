@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { buildFeed, canEditMessage, chatListTime, lastSeenText, messageBody, messagePreview, typingText, type Attachment, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
+import { buildFeed, canEditMessage, chatListTime, lastSeenText, messageBody, messagePreview, renameSenders, typingText, type Attachment, type ChatDetail, type ChatMessage, type ChatTopic } from '@offix/core';
+import { useContactBook } from '../account/data';
 import { ApiError } from '../../lib/api';
 import { uploadFile } from '../../lib/files';
 import { useMe } from '../../lib/queries';
@@ -312,7 +313,8 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
 
   const data = history.data;
   if (readMark.current === null && data) readMark.current = data.my_last_read_seq;
-  const messages = data?.messages ?? [];
+  const book = useContactBook();
+  const messages = useMemo(() => renameSenders(data?.messages ?? [], book), [data?.messages, book]);
   const now = new Date().toISOString();
   const items = useMemo(() => buildFeed(messages, { now, lastReadSeq: readMark.current, meId }), [messages, meId]); // eslint-disable-line react-hooks/exhaustive-deps
   const typists = rt.typing.get(typingKey(chat.id, topicId)) ?? [];

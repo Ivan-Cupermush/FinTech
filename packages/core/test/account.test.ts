@@ -14,6 +14,7 @@ import {
   qrHole,
   qrLoginUrl,
   qrPaths,
+  renameSenders,
   tempPassword,
 } from '../src';
 
@@ -67,6 +68,25 @@ describe('имя и свои имена для коллег', () => {
     expect(nameFor(book, null, 'Служба')).toBe('Служба');
     expect(contactNameError('x'.repeat(121))).toMatch(/не длиннее/);
     expect(contactNameError(5)).toBe('Введите имя');
+  });
+
+  it('лента: автор и цитаты — моими именами, без книги — те же объекты', () => {
+    const book = contactBook([{ user_id: 'u1', name: 'Аня из продаж' }]);
+    const plain = { id: 'm0', sender_id: 'u2', sender_name: 'Игорь Лебедев', reply_to: null, external_reply: null };
+    const msgs = [
+      { id: 'm1', sender_id: 'u1', sender_name: 'Анна Королёва', reply_to: { sender_id: 'u2', sender_name: 'Игорь Лебедев' }, external_reply: null },
+      { id: 'm2', sender_id: 'u2', sender_name: 'Игорь Лебедев', reply_to: { sender_id: 'u1', sender_name: 'Анна Королёва' }, external_reply: { sender_id: 'u1', sender_name: 'Анна Королёва' } },
+      plain,
+    ];
+    const out = renameSenders(msgs, book);
+    expect(out[0]!.sender_name).toBe('Аня из продаж');
+    expect(out[0]!.reply_to!.sender_name).toBe('Игорь Лебедев');
+    expect(out[1]!.sender_name).toBe('Игорь Лебедев');
+    expect(out[1]!.reply_to!.sender_name).toBe('Аня из продаж');
+    expect(out[1]!.external_reply!.sender_name).toBe('Аня из продаж');
+    expect(out[2]).toBe(plain);
+    expect(msgs[0]!.sender_name).toBe('Анна Королёва');
+    expect(renameSenders(msgs, contactBook([]))).toBe(msgs);
   });
 });
 

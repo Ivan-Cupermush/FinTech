@@ -119,6 +119,23 @@ export function nameFor(book: ContactBook, id: string | null | undefined, real: 
   return (id ? book.get(id) : undefined) ?? real ?? '';
 }
 
+type Signed = { sender_id?: string | null; sender_name: string | null };
+
+/** Лента глазами читателя: подписи отправителей и цитат — моими именами для коллег. */
+export function renameSenders<T extends Signed & { reply_to?: Signed | null; external_reply?: Signed | null }>(list: readonly T[], book: ContactBook): T[] {
+  if (!book.size) return list as T[];
+  const fix = <S extends Signed>(x: S): S => {
+    const alias = x.sender_id ? book.get(x.sender_id) : undefined;
+    return alias && alias !== x.sender_name ? { ...x, sender_name: alias } : x;
+  };
+  return list.map((m) => {
+    const next = fix(m);
+    const reply = m.reply_to ? fix(m.reply_to) : m.reply_to;
+    const ext = m.external_reply ? fix(m.external_reply) : m.external_reply;
+    return next === m && reply === m.reply_to && ext === m.external_reply ? m : { ...next, reply_to: reply, external_reply: ext };
+  });
+}
+
 // ---------------------------------------------------------------- QR
 
 /** Код входа живёт полторы минуты: сайт сам показывает новый. */

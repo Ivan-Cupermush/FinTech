@@ -266,6 +266,7 @@ export async function loadNoteCards(q: Queryable, ids: (string | null)[]): Promi
 
 const refOf = (r: MessageRow, media: Map<string, MediaSummary>): ChatMessageRef => ({
   id: r.id,
+  sender_id: r.sender_id,
   sender_name: r.sender_name,
   text: r.deleted_for_all ? null : r.text,
   kind: r.kind,
@@ -477,6 +478,7 @@ interface ListRow extends ChatRow {
   lm_deleted: boolean | null;
   peer_id: string | null;
   peer_name: string | null;
+  peer_contact_name: string | null;
   peer_position: string | null;
   peer_last_seen_at: string | null;
 }
@@ -491,14 +493,16 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
             (SELECT COUNT(*)::int FROM messages m LEFT JOIN topic_reads tr ON tr.topic_id = m.topic_id AND tr.user_id = cm.user_id
               WHERE m.chat_id = c.id AND ${UNREAD_FILTER}) AS unread,
             lm.id AS lm_id, lm.kind AS lm_kind, lm.text AS lm_text, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name, lm.created_at AS lm_created_at, lm.contact_user_id AS lm_contact_id, FALSE AS lm_deleted,
-            peer.id AS peer_id, peer.display_name AS peer_name, peer.position AS peer_position, peer.last_seen_at AS peer_last_seen_at
+            peer.id AS peer_id, peer.display_name AS peer_name, peer.contact_name AS peer_contact_name, peer.position AS peer_position, peer.last_seen_at AS peer_last_seen_at
        FROM chat_members cm JOIN chats c ON c.id = cm.chat_id
        LEFT JOIN LATERAL (
-         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+         SELECT m.id, m.kind, m.text, m.sender_id, COALESCE(cn.name, u.display_name) AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+           LEFT JOIN contact_names cn ON cn.owner_id = cm.user_id AND cn.company_id = cm.company_id AND cn.user_id = m.sender_id
           WHERE m.chat_id = c.id AND NOT m.deleted_for_all AND NOT (cm.user_id = ANY(m.deleted_for)) ORDER BY m.seq DESC LIMIT 1
        ) lm ON TRUE
        LEFT JOIN LATERAL (
-         SELECT u.id, u.display_name, u.position, u.last_seen_at FROM chat_members o JOIN users u ON u.id = o.user_id
+         SELECT u.id, u.display_name, cn.name AS contact_name, u.position, u.last_seen_at FROM chat_members o JOIN users u ON u.id = o.user_id
+           LEFT JOIN contact_names cn ON cn.owner_id = cm.user_id AND cn.company_id = cm.company_id AND cn.user_id = u.id
           WHERE c.type = 'private' AND o.chat_id = c.id AND o.user_id <> cm.user_id LIMIT 1
        ) peer ON TRUE
       WHERE cm.user_id = $1 AND cm.company_id = $2 AND ($3::uuid IS NULL OR c.id = $3::uuid)`,
@@ -513,7 +517,8 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
     // Скрытый чат возвращается сам, как только в нём появляется новое сообщение (insertMessage).
     if (!chatId && r.hidden_at) continue;
     const self = r.direct_key === `${actor.id}:${actor.id}`;
-    const peerName = r.type === 'private' ? (self ? null : (r.peer_name ?? 'Удалённый аккаунт')) : null;
+    // Своё имя для собеседника (контакты) — в заголовке, настоящее остаётся в peer.display_name.
+    const peerName = r.type === 'private' ? (self ? null : (r.peer_contact_name ?? r.peer_name ?? 'Удалённый аккаунт')) : null;
     out.push({
       id: r.id,
       type: r.type,
@@ -521,7 +526,7 @@ export async function listChats(q: Queryable, actor: AuthedActor, rt: Realtime, 
       title: chatTitle(r, peerName),
       peer:
         r.type === 'private' && r.peer_id
-          ? { id: r.peer_id, display_name: r.peer_name!, position: r.peer_position, online: rt.isOnline(actor.company_id, r.peer_id), last_seen_at: r.peer_last_seen_at }
+          ? { id: r.peer_id, display_name: r.peer_name!, contact_name: r.peer_contact_name, position: r.peer_position, online: rt.isOnline(actor.company_id, r.peer_id), last_seen_at: r.peer_last_seen_at }
           : null,
       members_count: r.members_count,
       last_message: r.lm_id
@@ -566,7 +571,8 @@ export async function loadTopics(q: Queryable, chatId: string, userId: string): 
        FROM topics t JOIN chat_members cm ON cm.chat_id = t.chat_id AND cm.user_id = $2
        LEFT JOIN topic_reads tr ON tr.topic_id = t.id AND tr.user_id = $2
        LEFT JOIN LATERAL (
-         SELECT m.id, m.kind, m.text, m.sender_id, u.display_name AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+         SELECT m.id, m.kind, m.text, m.sender_id, COALESCE(cn.name, u.display_name) AS sender_name, m.created_at, m.contact_user_id FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+           LEFT JOIN contact_names cn ON cn.owner_id = $2 AND cn.company_id = cm.company_id AND cn.user_id = m.sender_id
           WHERE m.topic_id = t.id AND NOT m.deleted_for_all AND NOT ($2 = ANY(m.deleted_for)) ORDER BY m.seq DESC LIMIT 1
        ) lm ON TRUE
       WHERE t.chat_id = $1

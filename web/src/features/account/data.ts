@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { contactBook, type AccountProfile, type ContactName, type PersonCard, type PersonGroup, type QrLoginInfo } from '@offix/core';
 import { api } from '../../lib/api';
@@ -17,7 +18,7 @@ export const usePersonGroups = (id: string, enabled = true) => useQuery({ queryK
 /** Мои имена для коллег — одна выборка на всё приложение. */
 export function useContactBook(enabled = true) {
   const q = useQuery({ queryKey: ak.names, queryFn: () => api<ContactName[]>('/contacts/names'), enabled, staleTime: 60_000 });
-  return contactBook(q.data ?? []);
+  return useMemo(() => contactBook(q.data ?? []), [q.data]);
 }
 
 export const accountApi = {

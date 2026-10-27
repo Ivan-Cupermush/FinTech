@@ -323,3 +323,43 @@ describe('переписка', () => {
     expect(await screen.findByText(/Чат не найден/)).toBeInTheDocument();
   });
 });
+
+describe('личные заметки и свои имена в чате', () => {
+  const NOTE_MSG = msg('m5', 5, { kind: 'note', text: 'Держите регламент', note: { id: 's1', title: 'Регламент закупок', excerpt: 'Сначала заявка, потом счёт', files_count: 1, sender_id: 'u-anna' } });
+  const SHARE = { id: 's1', title: 'Регламент закупок', body: 'Сначала **заявка**', attachments: [], sender_id: 'u-anna', sender_name: 'Анна Королёва', created_at: at(9, 5), is_owner: false, accepted_note_id: null, original_note_id: null, original_exists: true, my_request: null };
+
+  it('карточка заметки в ленте открывает снимок; автор подписан моим именем', async () => {
+    mockApi(
+      chatRoutes({
+        'GET /chats/c-team/messages': { ...HISTORY, messages: [...HISTORY.messages, NOTE_MSG] },
+        'GET /contacts/names': [{ user_id: 'u-anna', name: 'Аня из приёмной' }],
+        'GET /my-notes/shared/s1': SHARE,
+      }),
+    );
+    renderApp('/app/chats/c-team');
+    const card = await screen.findByRole('button', { name: 'Заметка «Регламент закупок» — открыть' });
+    expect(card).toHaveTextContent('Сначала заявка, потом счёт');
+    expect((await screen.findAllByText('Аня из приёмной')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Анна Королёва')).toBeNull();
+    expect(screen.getByText('Держите регламент')).toBeInTheDocument();
+    await userEvent.click(card);
+    const dialog = await screen.findByRole('dialog', { name: 'Регламент закупок' });
+    expect(within(dialog).getByRole('button', { name: 'Сохранить к себе' })).toBeInTheDocument();
+  });
+
+  it('«Вложения → Заметка» — выбор из моих заметок и отправка в чат', async () => {
+    const calls: Call[] = mockApi(
+      chatRoutes({
+        'GET /my-notes': [{ id: 'n1', title: 'План на день', excerpt: 'Позвонить', note_date: '2026-10-19', is_favorite: false, files_count: 0, updated_at: at(8) }],
+        'POST /my-notes/n1/share': NOTE_MSG,
+      }),
+    );
+    renderApp('/app/chats/c-team');
+    await screen.findByText('Очередь разобрана');
+    await userEvent.click(screen.getByRole('button', { name: 'Вложения' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Заметка' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Отправить заметку' });
+    await userEvent.click(await within(dialog).findByRole('option', { name: /План на день/ }));
+    await waitFor(() => expect(calls.find((c) => c.path === '/my-notes/n1/share')?.body).toMatchObject({ chat_id: 'c-team', topic_id: null }));
+  });
+});

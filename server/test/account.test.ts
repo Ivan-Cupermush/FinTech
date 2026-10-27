@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { AccountProfile, ContactName, PersonCard, PersonGroup, QrLoginInfo, QrPollResult } from '@offix/core';
+import type { AccountProfile, ChatHistory, ChatSummary, ContactName, PersonCard, PersonGroup, QrLoginInfo, QrPollResult } from '@offix/core';
 import { signToken } from '../src/auth/auth';
 import { DEMO_PASSWORD } from '../src/seed/demo';
 import { NOW, SECRET, recordingRealtime, setup, type Ctx } from './helpers';
@@ -333,6 +333,36 @@ describe('коллеги и свои имена', () => {
     expect(other.status, JSON.stringify(other.body)).toBe(201);
     expect((await anna.get(`${API}/contacts/${other.body.data.user.id}`)).status).toBe(404);
     expect((await anna.put(`${API}/contacts/${other.body.data.user.id}/name`, { name: 'Чужой' })).status).toBe(404);
+  });
+
+  it('в списке чатов — моё имя для собеседника и автора последнего сообщения, у других — настоящее', async () => {
+    const anna = await ctx.as('anna');
+    const igor = await ctx.as('igor');
+    await anna.put(`${API}/contacts/${id('igor')}/name`, { name: 'Игорь из IT' });
+    const direct: ChatSummary = (await anna.post(`${API}/chats/direct`, { user_id: id('igor') })).body.data;
+    expect((await igor.post(`${API}/chats/${direct.id}/messages`, { text: 'Привет' })).status).toBe(201);
+    expect((await igor.post(`${API}/chats/${ctx.demo.chats.team}/messages`, { text: 'Всем привет' })).status).toBe(201);
+    const mine: ChatSummary[] = (await anna.get(`${API}/chats`)).body.data;
+    const chat = mine.find((c) => c.id === direct.id)!;
+    expect(chat.title).toBe('Игорь из IT');
+    expect(chat.peer).toMatchObject({ display_name: 'Игорь Лебедев', contact_name: 'Игорь из IT' });
+    expect(mine.find((c) => c.id === ctx.demo.chats.team)!.last_message?.sender_name).toBe('Игорь из IT');
+    const detail = (await anna.get(`${API}/chats/${direct.id}`)).body.data;
+    expect(detail.title).toBe('Игорь из IT');
+    const dima: ChatSummary[] = (await (await ctx.as('dima')).get(`${API}/chats`)).body.data;
+    expect(dima.find((c) => c.id === ctx.demo.chats.team)!.last_message?.sender_name).toBe('Игорь Лебедев');
+    const back: ChatSummary[] = (await igor.get(`${API}/chats`)).body.data;
+    expect(back.find((c) => c.id === direct.id)!.peer?.contact_name).toBeNull();
+  });
+
+  it('у цитаты есть автор — клиент подставит своё имя', async () => {
+    const igor = await ctx.as('igor');
+    const base = (await igor.post(`${API}/chats/${ctx.demo.chats.team}/messages`, { text: 'Вопрос' })).body.data;
+    const anna = await ctx.as('anna');
+    expect((await anna.post(`${API}/chats/${ctx.demo.chats.team}/messages`, { text: 'Ответ', reply_to_id: base.id })).status).toBe(201);
+    const h: ChatHistory = (await anna.get(`${API}/chats/${ctx.demo.chats.team}/messages`)).body.data;
+    const reply = h.messages.find((m) => m.text === 'Ответ')!;
+    expect(reply.reply_to).toMatchObject({ id: base.id, sender_id: id('igor'), sender_name: 'Игорь Лебедев' });
   });
 
   it('мои группы: где коллега уже есть и куда мне можно добавлять', async () => {
