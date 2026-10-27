@@ -12,6 +12,16 @@ export interface Db extends Queryable {
   close(): Promise<void>;
 }
 
+/**
+ * Несколько запросов по очереди — вместо Promise.all там, где `q` может быть
+ * транзакцией: у неё одно соединение, и pg не разрешает в нём параллельные запросы.
+ */
+export async function inOrder<T extends readonly (() => Promise<unknown>)[]>(...steps: T): Promise<{ -readonly [K in keyof T]: T[K] extends () => Promise<infer R> ? R : never }> {
+  const out: unknown[] = [];
+  for (const step of steps) out.push(await step());
+  return out as never;
+}
+
 /** timestamptz → ISO-строка в UTC; разные драйверы отдают разный текстовый формат. */
 export function normalizeTimestamp(value: string): string {
   const d = new Date(value.includes('T') ? value : value.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));

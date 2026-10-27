@@ -48,7 +48,7 @@ import {
   type SalesUnit,
 } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
-import type { Queryable } from '../db/db';
+import { inOrder, type Queryable } from '../db/db';
 import { conflict } from '../http/errors';
 import { audit } from './audit';
 import { loadDelegation } from './functions';
@@ -376,11 +376,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export async function importSalesReport(q: Queryable, acc: SalesAccess, file: { name: string; report: ParsedSalesReport }, now: Date): Promise<SalesReportImport> {
   const companyId = acc.actor.company_id;
   const rep = file.report;
-  const [people, lists, aliasRows] = await Promise.all([
-    loadPeople(q, companyId),
-    loadLists(q, companyId),
-    q.query<{ name_key: string; user_id: string }>(`SELECT name_key, user_id FROM sales_name_aliases WHERE company_id = $1`, [companyId]),
-  ]);
+  const [people, lists, aliasRows] = await inOrder(
+    () => loadPeople(q, companyId),
+    () => loadLists(q, companyId),
+    () => q.query<{ name_key: string; user_id: string }>(`SELECT name_key, user_id FROM sales_name_aliases WHERE company_id = $1`, [companyId]),
+  );
   const candidates = people.filter((p) => p.role !== 'observer');
   const matches = matchPeople(
     rep.blocks.map((b) => b.manager),
@@ -649,7 +649,7 @@ async function personMonths(q: Queryable, companyId: string, userId: string, cur
 export async function salesMonth(q: Queryable, acc: SalesAccess, who: SalesPersonRow, month: string, now: Date): Promise<SalesMonth> {
   const companyId = acc.actor.company_id;
   const today = todayMsk(now);
-  const [cov, lists, rows] = await Promise.all([monthCoverage(q, companyId, month), loadLists(q, companyId), loadPlans(q, companyId, who.id, month)]);
+  const [cov, lists, rows] = await inOrder(() => monthCoverage(q, companyId, month), () => loadLists(q, companyId), () => loadPlans(q, companyId, who.id, month));
   const plans = rows.map((r) => toPlan(r, cov, today));
   const self = who.id === acc.actor.id && acc.actor.role !== 'observer';
   const edit = canFor(acc, 'sales_assign', who.id);
@@ -689,7 +689,7 @@ export async function salesTeam(q: Queryable, acc: SalesAccess, month: string, n
     [companyId, from, to],
   );
   const activeIds = new Set(active.map((r) => r.user_id));
-  const [cov, lists] = await Promise.all([monthCoverage(q, companyId, month), loadLists(q, companyId)]);
+  const [cov, lists] = await inOrder(() => monthCoverage(q, companyId, month), () => loadLists(q, companyId));
   const members: SalesTeamMember[] = [];
   for (const p of people.filter((x) => activeIds.has(x.id))) {
     const plans = (await loadPlans(q, companyId, p.id, month)).map((r) => toPlan(r, cov, today));

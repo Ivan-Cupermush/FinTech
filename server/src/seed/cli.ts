@@ -1,4 +1,4 @@
-import { loadConfig } from '../config';
+import { loadConfig, loadDotEnv } from '../config';
 import { migrate } from '../db/migrate';
 import { createPgDb } from '../db/pg';
 import { DEMO_PASSWORD, seedDemo } from './demo';
@@ -10,6 +10,7 @@ import { aiProviderFromEnv } from '../services/ai';
 import { createKnowledgeService } from '../services/knowledge';
 import { createMediaStore } from '../services/media';
 
+loadDotEnv();
 const config = loadConfig();
 const db = createPgDb(config.databaseUrl);
 await migrate(db);

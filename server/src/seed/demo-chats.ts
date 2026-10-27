@@ -33,8 +33,10 @@ export async function seedDemoChats(q: Queryable, companyId: string, u: People, 
     );
     return rows[0]!;
   };
-  const react = (messageId: string, who: string[], emoji: string) =>
-    Promise.all(who.map((w) => q.query(`INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3)`, [messageId, w, emoji])));
+  // По одному: в транзакции у PostgreSQL одно соединение, параллельные запросы в нём pg запрещает.
+  const react = async (messageId: string, who: string[], emoji: string) => {
+    for (const w of who) await q.query(`INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3)`, [messageId, w, emoji]);
+  };
   /** Прочитано всё, кроме последних n сообщений. */
   const readAllBut = async (chatId: string, userId: string, keepUnread = 0, topic?: string) => {
     const { rows } = await q.query<{ seq: number }>(`SELECT seq FROM messages WHERE chat_id = $1 AND ($2::uuid IS NULL OR topic_id = $2::uuid) ORDER BY seq DESC`, [chatId, topic ?? null]);

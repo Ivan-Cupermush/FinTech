@@ -1,11 +1,25 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UPLOAD_MAX_MB_DEFAULT } from '@offix/core';
+import { resolveWebDist } from './http/site';
+
+/**
+ * Настройки из server/.env (служба и npm-скрипты запускаются в папке server;
+ * ENV_FILE — другой файл). Переменные окружения важнее файла.
+ */
+export function loadDotEnv(file = process.env.ENV_FILE ?? '.env'): boolean {
+  if (!existsSync(file)) return false;
+  process.loadEnvFile(file);
+  return true;
+}
 
 export interface Config {
   databaseUrl: string;
   jwtSecret: string;
   port: number;
+  /** Адрес, на котором слушать: за прокси или туннелем — 127.0.0.1; по умолчанию все адреса. */
+  host?: string;
   corsOrigins: string[];
   /** Push на телефоны через Expo. Выключен, пока не задан PUSH_ENABLED=1. */
   push: { enabled: boolean; accessToken?: string };
@@ -22,6 +36,12 @@ export interface Config {
    * голосовых: FFMPEG_DIR — папка с ffmpeg/ffprobe, FFMPEG=off — не искать.
    */
   uploads: UploadsConfig;
+  /**
+   * Собранный сайт (web/dist), который сервер отдаёт сам на том же порту, что и API.
+   * WEB_DIST_DIR — путь или «off»; без него — web/dist, если NODE_ENV=production.
+   * null — только API.
+   */
+  webDist: string | null;
   /** Дата «сегодня» для тестов и демо; в продакшене — системная. */
   now?: () => Date;
 }
@@ -53,10 +73,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: env.DATABASE_URL ?? 'postgres://offix:offix@localhost:5432/offix',
     jwtSecret: jwtSecret || 'dev-only-secret-change-me-dev-only-secret',
     port: Number(env.PORT ?? 4000),
+    host: env.HOST?.trim() || undefined,
     corsOrigins: (env.CORS_ORIGINS ?? 'http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean),
     push: { enabled: env.PUSH_ENABLED === '1', accessToken: env.EXPO_ACCESS_TOKEN || undefined },
     integrations: { enabled: env.INTEGRATIONS_ENABLED === '1' },
     uploads: loadUploadsConfig(env),
+    webDist: resolveWebDist(env),
     mail: {
       enabled: env.REPORT_MAIL_ENABLED === '1' && !!env.SMTP_URL && !!env.MAIL_FROM,
       smtpUrl: env.SMTP_URL || undefined,

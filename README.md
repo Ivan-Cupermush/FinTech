@@ -2,7 +2,7 @@
 
 Система управления результатом для организаций: цель → KPI → дорожная карта → задачи. offix показывает, движется ли показатель, где теряется время и какой срок под угрозой. Сделано для FinTech Academy, трек «Эффективность 360».
 
-Продукт, сценарии и UX-решения описаны в [docs/PRODUCT.md](docs/PRODUCT.md).
+Продукт, сценарии и UX-решения описаны в [docs/PRODUCT.md](docs/PRODUCT.md), установка на сервер и сборка приложения — в [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Состав
 
@@ -11,7 +11,8 @@
 | `packages/core` | Доменная логика без зависимостей: KPI и прогресс, правила целей, задачи, сроки и критический путь, риски A–D, оргструктура, права, аналитика, продуктовые метрики («Эффект»), импорт замеров из таблиц, шаблоны целей для вузов, обсуждения с @упоминаниями, заметки и разбор markdown, отчёт для руководства (сборка, CSV, текст), формы ответов API. Общая для сервера, сайта и приложения |
 | `server` | API `/api/v1` на Express 5 и PostgreSQL: аудит, идемпотентность, изоляция компаний, демо-данные |
 | `web` | Сайт и веб-приложение на React 19 и Vite |
-| `mobile` | Приложение для iOS и Android на Expo (вне npm workspaces, ставится отдельно) |
+| `mobile` | Приложение для iOS и Android на Expo (вне npm workspaces, ставится отдельно); сборка в EAS — `eas.json`, `app.config.ts` |
+| `deploy` | Скрипты установки и обновления: Linux-сервер, VPS с HTTPS и туннелем из офиса, Windows-служба, резервные копии |
 
 ## Быстрый старт
 
@@ -37,11 +38,14 @@ EXPO_PUBLIC_API_URL=http://<IP-компьютера>:4000 npm run mobile:start  
 ## Сервер с PostgreSQL
 
 ```bash
-cp server/.env.example server/.env    # DATABASE_URL, JWT_SECRET (от 32 символов), CORS_ORIGINS
+cp server/.env.example server/.env    # DATABASE_URL, JWT_SECRET (от 32 символов)
 npm run migrate -w server
 npm run seed -w server                 # по желанию: демо-данные
-npm run build -w server && npm start -w server
+npm run build -w web && npm run build -w server
+NODE_ENV=production npm start -w server   # сайт и API на одном порту :4000, проверка — /health
 ```
+
+Сервер читает `server/.env` сам. С `NODE_ENV=production` он отдаёт собранный сайт (`web/dist`) с того же порта, что и API, поэтому прокси нужен один адрес. Службы, HTTPS, обновление без простоя, откат и резервные копии — в [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Отчёт на почту
 
@@ -49,7 +53,7 @@ npm run build -w server && npm start -w server
 
 ### Push-уведомления
 
-Выключены, пока в `server/.env` не задано `PUSH_ENABLED=1`. Отправка идёт через Expo Push API; если в проекте Expo включена защита push, укажите `EXPO_ACCESS_TOKEN`. Приложению нужен `projectId` EAS (`expo.extra.eas.projectId` в `mobile/app.json`, появляется после `npx eas init`) и сборка разработки или релиз: в Expo Go удалённые push на Android не работают. Без них телефон не привязывается, а уведомления по-прежнему видны во «Входящих».
+Выключены, пока в `server/.env` не задано `PUSH_ENABLED=1`. Отправка идёт через Expo Push API; если в проекте Expo включена защита push, укажите `EXPO_ACCESS_TOKEN`. Приложению нужен `projectId` EAS (переменная `EAS_PROJECT_ID` при сборке, см. [docs/DEPLOY.md](docs/DEPLOY.md#7-приложение-сборка-в-eas)) и сборка разработки или релиз: в Expo Go удалённые push на Android не работают. Без них телефон не привязывается, а уведомления по-прежнему видны во «Входящих».
 
 ### Помощник базы знаний
 
