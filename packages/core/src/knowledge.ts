@@ -9,7 +9,7 @@
  * ответа без нейросети и запрос к языковой модели, когда она подключена.
  */
 
-import type { Attachment } from './media';
+import { formatBytes, type Attachment } from './media';
 
 export const KNOWLEDGE_LIMITS = { docBytes: 20 * 1024 * 1024, title: 200, question: 2000, sessionTitle: 80 } as const;
 
@@ -526,3 +526,38 @@ export function validateQuestion(q: unknown): string | null {
 
 /** Подсказки для пустого помощника: с чего начать. */
 export const KNOWLEDGE_SUGGESTIONS = ['Как мы считаем время обработки заявки?', 'Кто согласует изменение KPI цели?', 'Что делать, если заявка зависла на проверке?'] as const;
+
+// ——— Подписи для клиентов: сайт и телефон говорят одинаково ———
+
+export function knowledgeDocTypeLabel(t: KnowledgeDocType): string {
+  return t === 'pdf' ? 'PDF' : t === 'docx' ? 'DOCX' : 'Текст';
+}
+
+/** «PDF · 4 стр. · 12 фрагм. · 2,1 МБ» — что за файл и сколько помощник из него взял. */
+export function knowledgeDocFacts(d: Pick<KnowledgeDoc, 'type' | 'pages' | 'status' | 'chunks' | 'size'>): string {
+  const parts: string[] = [knowledgeDocTypeLabel(d.type)];
+  if (d.pages) parts.push(`${d.pages} стр.`);
+  if (d.status === 'ready') parts.push(`${d.chunks} ${d.chunks % 10 === 1 && d.chunks % 100 !== 11 ? 'фрагмент' : 'фрагм.'}`);
+  if (d.size) parts.push(formatBytes(d.size));
+  return parts.join(' · ');
+}
+
+/** Документ ещё читается — клиенты обновляют список, пока не станет готов. */
+export function knowledgeDocBusy(d: Pick<KnowledgeDoc, 'status'>): boolean {
+  return d.status === 'pending' || d.status === 'processing';
+}
+
+/** Как получен ответ — подпись над ним; у пустого ответа подписи нет. */
+export const KNOWLEDGE_MODE_LABEL: Record<KnowledgeAnswerMode, string | null> = {
+  ai: 'Ответ ИИ по базе знаний — проверьте по источникам',
+  extract: 'Цитаты из базы знаний',
+  empty: null,
+};
+
+/** Одна строка о том, как сейчас отвечает помощник. */
+export function knowledgeStatusLine(st: Pick<KnowledgeStatus, 'mode' | 'ready'> | undefined): string {
+  if (!st) return 'Ищет по статьям и документам, которые вам доступны, и отвечает со ссылками на источники.';
+  if (st.mode === 'ai' && st.ready) return 'ИИ отвечает по статьям и документам, которые вам доступны, — со ссылками на источники.';
+  if (st.mode === 'ai') return 'ИИ сейчас недоступен — помощник отвечает цитатами из базы знаний.';
+  return 'Ищет по смыслу в статьях и документах, которые вам доступны, и отвечает цитатами со ссылками.';
+}

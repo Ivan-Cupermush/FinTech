@@ -1,5 +1,4 @@
-import { addDays, formatDate, plural, type NoteSummary } from '@offix/core';
-import type { HeroStat } from './fx';
+import { formatDate, plural, type NoteSummary } from '@offix/core';
 
 /**
  * База знаний на телефоне: читать и искать. Писать заметки удобнее
@@ -22,15 +21,6 @@ export function noteMeta(n: Pick<NoteSummary, 'goal_title' | 'author_name' | 'up
   const parts = [n.author_name, formatDate(n.updated_at.slice(0, 10), { short: true, today })];
   if (withGoal && n.goal_title) parts.unshift(n.goal_title);
   return parts.join(' · ');
-}
-
-export function notesStats(notes: Pick<NoteSummary, 'goal_id' | 'updated_at'>[], today: string): HeroStat[] {
-  const weekAgo = addDays(today, -7);
-  return [
-    { label: 'заметок', value: notes.length },
-    { label: 'общих', value: notes.filter((n) => !n.goal_id).length },
-    { label: 'за неделю', value: notes.filter((n) => n.updated_at.slice(0, 10) >= weekAgo).length },
-  ];
 }
 
 /** Маркер пункта списка: «1.» у нумерованного, точка у обычного. */

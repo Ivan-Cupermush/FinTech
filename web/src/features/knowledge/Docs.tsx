@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeft, Download, FileText, Pencil, RefreshCw, Target, Trash2, UploadCloud } from 'lucide-react';
 import { useRef, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { KNOWLEDGE_LIMITS, KNOWLEDGE_STATUS_LABEL, formatBytes, formatDate, knowledgeDocType, todayIso, validateKnowledgeTitle, type KnowledgeDoc } from '@offix/core';
+import { KNOWLEDGE_LIMITS, KNOWLEDGE_STATUS_LABEL, formatBytes, formatDate, knowledgeDocBusy, knowledgeDocFacts, knowledgeDocType, knowledgeDocTypeLabel, todayIso, validateKnowledgeTitle, type KnowledgeDoc } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
 import { openFile, uploadKnowledgeDoc } from '../../lib/files';
 import { PageHero } from '../../ui/fx/PageHero';
@@ -11,26 +11,18 @@ import { Field } from '../../ui/Field';
 import { Dialog, Empty, Skeleton } from '../../ui/Misc';
 import { Pill, type Tone } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
-import { docBusy, docTypeLabel, useKnowledgeDoc, useKnowledgeDocs } from './data';
+import { useKnowledgeDoc, useKnowledgeDocs } from './data';
 import './knowledge.css';
 
 const STATUS_TONE: Record<KnowledgeDoc['status'], Tone> = { pending: 'info', processing: 'accent', ready: 'good', failed: 'bad' };
 
 export const DocStatus = ({ doc }: { doc: Pick<KnowledgeDoc, 'status'> }) => (
-  <Pill tone={STATUS_TONE[doc.status]} live={docBusy(doc)}>
+  <Pill tone={STATUS_TONE[doc.status]} live={knowledgeDocBusy(doc)}>
     {KNOWLEDGE_STATUS_LABEL[doc.status]}
   </Pill>
 );
 
 /** «12 стр. · 48 фрагментов · 2,1 МБ» — что известно о документе. */
-export function docFacts(d: KnowledgeDoc): string {
-  const parts: string[] = [docTypeLabel(d.type)];
-  if (d.pages) parts.push(`${d.pages} стр.`);
-  if (d.status === 'ready') parts.push(`${d.chunks} ${d.chunks % 10 === 1 && d.chunks % 100 !== 11 ? 'фрагмент' : 'фрагм.'}`);
-  if (d.size) parts.push(formatBytes(d.size));
-  return parts.join(' · ');
-}
-
 function useDocActions() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -176,7 +168,7 @@ export function DocsPanel({ goalId, canUpload }: { goalId?: string; canUpload: b
           {docs.data.map((d) => (
             <div key={d.id} className="list-row kb-doc-row">
               <span className={`kb-doc-badge is-${d.type}`} aria-hidden>
-                {docTypeLabel(d.type)}
+                {knowledgeDocTypeLabel(d.type)}
               </span>
               <span className="grow stack" style={{ '--gap': '3px', minWidth: 0 } as React.CSSProperties}>
                 <Link to={`/app/notes/docs/${d.id}`} className="kb-doc-title">
@@ -188,7 +180,7 @@ export function DocsPanel({ goalId, canUpload }: { goalId?: string; canUpload: b
                       <Target size={12} aria-hidden /> {d.goal_title} ·{' '}
                     </>
                   ) : null}
-                  {docFacts(d)} · {d.uploaded_by_name ?? 'Без автора'} · {formatDate(d.created_at.slice(0, 10), { short: true, today })}
+                  {knowledgeDocFacts(d)} · {d.uploaded_by_name ?? 'Без автора'} · {formatDate(d.created_at.slice(0, 10), { short: true, today })}
                 </span>
                 {d.status === 'failed' && d.error && (
                   <span className="kb-doc-error">
@@ -279,7 +271,7 @@ export function DocPage() {
                 <Target size={13} aria-hidden /> <Link to={`/app/goals/${d.goal_id}`}>{d.goal_title}</Link> ·{' '}
               </>
             )}
-            {docFacts(d)} · {d.uploaded_by_name ?? 'Без автора'} · {formatDate(d.created_at.slice(0, 10), { today })}
+            {knowledgeDocFacts(d)} · {d.uploaded_by_name ?? 'Без автора'} · {formatDate(d.created_at.slice(0, 10), { today })}
           </span>
         }
         actions={
@@ -303,7 +295,7 @@ export function DocPage() {
       {d.status !== 'ready' ? (
         <div className="card kb-doc-state">
           <DocStatus doc={d} />
-          {docBusy(d) ? (
+          {knowledgeDocBusy(d) ? (
             <p className="muted">Помощник читает документ и режет его на фрагменты. Обычно это занимает до минуты — страница обновится сама.</p>
           ) : (
             <>

@@ -2,8 +2,6 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { KnowledgeAskResult, KnowledgeDoc, KnowledgeMessage, KnowledgeSession, KnowledgeStatus } from '@offix/core';
-import { statusLine } from '../src/features/knowledge/AskPage';
-import { docFacts } from '../src/features/knowledge/Docs';
 import type { Dashboard, Me } from '../src/lib/types';
 import { TODAY } from './fixtures';
 import { mockUploads } from './fake-xhr';
@@ -136,13 +134,11 @@ describe('база знаний: помощник', () => {
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });
 
-  it('пояснение, когда ИИ недоступен, и строка состояния', async () => {
+  it('пояснение, когда ИИ недоступен, и строка состояния в шапке', async () => {
     mockApi({ ...base, 'GET /knowledge/sessions': [], 'GET /knowledge/sessions/s1': { session: session(), messages: [q('m1', 'Вопрос'), a('m2', { notice: 'Нейросеть сейчас недоступна — ответ собран из фрагментов базы знаний' })] } });
     renderApp('/app/notes/ask/s1');
     expect(await screen.findByRole('note')).toHaveTextContent('Нейросеть сейчас недоступна');
-    expect(statusLine({ ...STATUS, mode: 'ai', ready: false })).toMatch(/ИИ сейчас недоступен/);
-    expect(statusLine({ ...STATUS, mode: 'ai', ready: true })).toMatch(/^ИИ отвечает/);
-    expect(statusLine(STATUS)).toMatch(/цитатами со ссылками/);
+    expect(screen.getByText(/цитатами со ссылками/)).toBeInTheDocument();
   });
 });
 
@@ -209,11 +205,5 @@ describe('база знаний: документы', () => {
     renderApp('/app/notes/docs/d3');
     expect(await screen.findByText('В PDF не нашлось текста — похоже, это скан.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Обработать ещё раз' })).toBeInTheDocument();
-  });
-
-  it('сводка о документе', () => {
-    expect(docFacts(doc('d1'))).toBe('PDF · 4 стр. · 12 фрагм. · 2,1 МБ');
-    expect(docFacts(doc('d2', { type: 'text', pages: null, status: 'pending', size: 0 }))).toBe('Текст');
-    expect(docFacts(doc('d3', { chunks: 1, pages: null, type: 'docx', size: 0 }))).toBe('DOCX · 1 фрагмент');
   });
 });

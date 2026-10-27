@@ -1,9 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { KnowledgeAskResult, KnowledgeDoc, KnowledgeMessage, KnowledgeSession, KnowledgeStatus } from '@offix/core';
+import { knowledgeDocBusy, type KnowledgeAskResult, type KnowledgeDoc, type KnowledgeMessage, type KnowledgeSession, type KnowledgeStatus } from '@offix/core';
 import { api } from '../../lib/api';
-
-/** Документ ещё читается — список обновляем, пока не станет готов. */
-export const docBusy = (d: Pick<KnowledgeDoc, 'status'>) => d.status === 'pending' || d.status === 'processing';
 
 export const useKnowledgeStatus = () => useQuery({ queryKey: ['kb-status'], queryFn: () => api<KnowledgeStatus>('/knowledge/status'), staleTime: 30_000 });
 
@@ -11,7 +8,7 @@ export const useKnowledgeDocs = (goalId?: string) =>
   useQuery({
     queryKey: ['kb-docs', goalId ?? 'all'],
     queryFn: () => api<KnowledgeDoc[]>(`/knowledge/docs${goalId ? `?goal_id=${goalId}` : ''}`),
-    refetchInterval: (q) => (q.state.data?.some(docBusy) ? 2000 : false),
+    refetchInterval: (q) => (q.state.data?.some(knowledgeDocBusy) ? 2000 : false),
   });
 
 export const useKnowledgeDoc = (id: string | undefined) =>
@@ -19,7 +16,7 @@ export const useKnowledgeDoc = (id: string | undefined) =>
     queryKey: ['kb-doc', id],
     queryFn: () => api<{ doc: KnowledgeDoc; chunks: { idx: number; content: string }[] }>(`/knowledge/docs/${id}/text`),
     enabled: !!id,
-    refetchInterval: (q) => (q.state.data && docBusy(q.state.data.doc) ? 2000 : false),
+    refetchInterval: (q) => (q.state.data && knowledgeDocBusy(q.state.data.doc) ? 2000 : false),
   });
 
 export const useKnowledgeSessions = () => useQuery({ queryKey: ['kb-sessions'], queryFn: () => api<KnowledgeSession[]>('/knowledge/sessions') });
@@ -57,4 +54,3 @@ export function useFeedback(sessionId: string | undefined) {
   });
 }
 
-export const docTypeLabel = (t: KnowledgeDoc['type']) => (t === 'pdf' ? 'PDF' : t === 'docx' ? 'DOCX' : 'Текст');

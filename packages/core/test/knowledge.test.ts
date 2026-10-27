@@ -10,7 +10,12 @@ import {
   cosineSimilarity,
   extractiveAnswer,
   keywordOverlap,
+  KNOWLEDGE_MODE_LABEL,
+  knowledgeDocBusy,
+  knowledgeDocFacts,
   knowledgeDocType,
+  knowledgeDocTypeLabel,
+  knowledgeStatusLine,
   knowledgeTokens,
   normalizeDocText,
   pickChunks,
@@ -271,5 +276,34 @@ describe('запрос к языковой модели и ссылки', () => 
     expect(sessionTitleFrom('  Как   считаем KPI? ')).toBe('Как считаем KPI?');
     expect(sessionTitleFrom('x'.repeat(100))).toHaveLength(80);
     expect(sessionTitleFrom('')).toBe('Вопрос');
+  });
+});
+
+describe('подписи для сайта и телефона', () => {
+  const d = { type: 'pdf' as const, pages: 4, status: 'ready' as const, chunks: 12, size: 2_200_000 };
+  it('сводка о документе: тип, страницы, фрагменты, размер', () => {
+    expect(knowledgeDocFacts(d)).toBe('PDF · 4 стр. · 12 фрагм. · 2,1 МБ');
+    expect(knowledgeDocFacts({ ...d, type: 'text', pages: null, status: 'pending', size: 0 })).toBe('Текст');
+    expect(knowledgeDocFacts({ ...d, type: 'docx', pages: null, chunks: 1, size: 0 })).toBe('DOCX · 1 фрагмент');
+    expect(knowledgeDocFacts({ ...d, pages: null, chunks: 11, size: 0 })).toBe('PDF · 11 фрагм.');
+    expect(knowledgeDocFacts({ ...d, pages: null, chunks: 21, size: 0 })).toBe('PDF · 21 фрагмент');
+  });
+  it('пока документ читается, его статус живой', () => {
+    expect(knowledgeDocBusy({ status: 'pending' })).toBe(true);
+    expect(knowledgeDocBusy({ status: 'processing' })).toBe(true);
+    expect(knowledgeDocBusy({ status: 'ready' })).toBe(false);
+    expect(knowledgeDocBusy({ status: 'failed' })).toBe(false);
+    expect(knowledgeDocTypeLabel('text')).toBe('Текст');
+  });
+  it('строка состояния помощника', () => {
+    expect(knowledgeStatusLine(undefined)).toMatch(/со ссылками на источники/);
+    expect(knowledgeStatusLine({ mode: 'ai', ready: true })).toMatch(/^ИИ отвечает/);
+    expect(knowledgeStatusLine({ mode: 'ai', ready: false })).toMatch(/ИИ сейчас недоступен/);
+    expect(knowledgeStatusLine({ mode: 'builtin', ready: true })).toMatch(/цитатами со ссылками/);
+  });
+  it('у ответа ИИ — просьба проверить по источникам, у пустого — без подписи', () => {
+    expect(KNOWLEDGE_MODE_LABEL.ai).toMatch(/проверьте по источникам/);
+    expect(KNOWLEDGE_MODE_LABEL.extract).toBe('Цитаты из базы знаний');
+    expect(KNOWLEDGE_MODE_LABEL.empty).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { ArrowLeft, ArrowUp, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { KNOWLEDGE_LIMITS, KNOWLEDGE_SUGGESTIONS, formatDate, todayIso, validateQuestion, type KnowledgeMessage, type KnowledgeStatus } from '@offix/core';
+import { KNOWLEDGE_LIMITS, KNOWLEDGE_SUGGESTIONS, formatDate, knowledgeStatusLine, todayIso, validateQuestion, type KnowledgeMessage } from '@offix/core';
 import { api } from '../../lib/api';
 import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
@@ -11,14 +11,6 @@ import { useToast } from '../../ui/Toast';
 import { AnswerCard } from './Answer';
 import { useAsk, useFeedback, useKnowledgeSession, useKnowledgeSessions, useKnowledgeStatus } from './data';
 import './knowledge.css';
-
-/** Как сейчас отвечает помощник — одной фразой под заголовком. */
-export function statusLine(st: KnowledgeStatus | undefined): string {
-  if (!st) return 'Ищет по статьям и документам, которые вам доступны, и отвечает со ссылками на источники.';
-  if (st.mode === 'ai' && st.ready) return 'ИИ отвечает по статьям и документам, которые вам доступны, — со ссылками на источники.';
-  if (st.mode === 'ai') return 'ИИ сейчас недоступен — помощник отвечает цитатами из базы знаний.';
-  return 'Ищет по смыслу в статьях и документах, которые вам доступны, и отвечает цитатами со ссылками.';
-}
 
 function QuestionBubble({ text }: { text: string }) {
   return (
@@ -137,7 +129,7 @@ export function AskPage() {
         }
         eyebrow="Помощник"
         title={session.data?.session.title ?? 'Спросить базу знаний'}
-        subtitle={statusLine(status.data)}
+        subtitle={knowledgeStatusLine(status.data)}
         actions={
           sid && (
             <Button size="sm" icon={<MessageSquarePlus size={14} />} onClick={() => navigate('/app/notes/ask')}>

@@ -1,7 +1,7 @@
 import { BookOpen, FileText, Info, Sparkles, ThumbsDown, ThumbsUp, Target } from 'lucide-react';
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { answerParts, type KnowledgeMessage, type KnowledgeSource } from '@offix/core';
+import { answerParts, KNOWLEDGE_MODE_LABEL, type KnowledgeMessage, type KnowledgeSource } from '@offix/core';
 
 /** Куда ведёт источник: статья — на статью, документ — на его страницу с текстом. */
 export const sourceHref = (s: Pick<KnowledgeSource, 'kind' | 'id'>) => (s.id ? (s.kind === 'note' ? `/app/notes/${s.id}` : `/app/notes/docs/${s.id}`) : null);
@@ -87,11 +87,9 @@ export function SourceList({ sources }: { sources: KnowledgeSource[] }) {
   );
 }
 
-const MODE_LABEL = { ai: 'Ответ ИИ по базе знаний — проверьте по источникам', extract: 'Цитаты из базы знаний', empty: null } as const;
-
 /** Ответ помощника: текст со ссылками, источники, пометка, как получен, и оценка. */
 export function AnswerCard({ message, onFeedback, busy }: { message: KnowledgeMessage; onFeedback?: (f: 'up' | 'down' | null) => void; busy?: boolean }) {
-  const label = message.mode ? MODE_LABEL[message.mode] : null;
+  const label = message.mode ? KNOWLEDGE_MODE_LABEL[message.mode] : null;
   return (
     <article className={`kb-a ${message.mode === 'empty' ? 'is-empty' : ''}`} aria-label="Ответ помощника">
       <span className="kb-orb" aria-hidden>
