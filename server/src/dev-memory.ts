@@ -15,6 +15,7 @@ import { fakeSystemsFetch } from './seed/fake-systems';
 import { startIntegrationLoop } from './services/integrations';
 import { createMediaStore } from './services/media';
 import { seedDemoMedia } from './seed/demo-media';
+import { seedDemoPersonal } from './seed/demo-personal';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,6 +27,7 @@ const demo = await seedDemo(db);
 // База в памяти — и файлы демо во временной папке: после остановки ничего не остаётся.
 const media = createMediaStore({ ...config.uploads, dir: process.env.UPLOADS_DIR || mkdtempSync(join(tmpdir(), 'offix-demo-uploads-')) }, config.jwtSecret);
 await seedDemoMedia(db, media, demo);
+await seedDemoPersonal(db, demo);
 const realtime = createRealtimeHub();
 const pushSender = config.push.enabled ? expoSender({ accessToken: config.push.accessToken }) : undefined;
 if (pushSender) startPushLoop(db, pushSender, { onError: (e) => console.error('push:', e) });

@@ -433,3 +433,36 @@ describe('лента уведомлений', () => {
     expect(((await (await ctx.as('igor')).get(`${API}/notifications`)).body.data as { id: string }[]).some((x) => x.id === item.id)).toBe(true);
   });
 });
+
+describe('демо: личное пространство', () => {
+  it('у директора ежедневник на месяц, в группе — заметка Ольги, во «Входящих» — запрос', async () => {
+    const own = await setup({ now: () => NOW });
+    const { seedDemoPersonal } = await import('../src/seed/demo-personal');
+    await seedDemoPersonal(own.db, own.demo, NOW);
+    const dir = await own.as('director');
+    const notes: MyNoteSummary[] = (await dir.get(`${API}/my-notes`)).body.data;
+    expect(notes.length).toBeGreaterThanOrEqual(5);
+    expect(notes.find((n) => n.note_date === TODAY)).toMatchObject({ title: 'План на неделю', is_favorite: true });
+    const days: MyNoteDay[] = (await dir.get(`${API}/my-notes/days?month=${TODAY.slice(0, 7)}`)).body.data;
+    expect(days.some((d) => d.date === TODAY)).toBe(true);
+    // Чужие личные заметки не видны: у Ольги свой список.
+    const olga: MyNoteSummary[] = (await (await own.as('olga')).get(`${API}/my-notes`)).body.data;
+    expect(olga.map((n) => n.title)).toEqual(['Регламент приёма заявок — черновик']);
+
+    const team: ChatHistory = (await dir.get(`${API}/chats/${own.demo.chats.team}/messages`)).body.data;
+    const card = team.messages.filter((m) => m.kind === 'note').at(-1)!;
+    expect(card).toMatchObject({ sender_id: own.demo.users.olga, text: 'Черновик регламента — посмотрите до пятницы', note: { title: 'Регламент приёма заявок — черновик' } });
+    const view: NoteShareView = (await dir.get(`${API}/my-notes/shared/${card.note!.id}`)).body.data;
+    expect(view).toMatchObject({ is_owner: false, accepted_note_id: null, original_exists: true });
+
+    const inbox = (await dir.get(`${API}/notifications?unread=1`)).body.data as { kind: string; request_status: string; actor_name: string; data: { request_id: string } }[];
+    const ask = inbox.find((n) => n.kind === 'note_request')!;
+    expect(ask).toMatchObject({ request_status: 'pending', actor_name: 'Ольга Смирнова' });
+    const rq: NoteRequestView = (await dir.get(`${API}/my-notes/requests/${ask.data.request_id}`)).body.data;
+    expect(rq).toMatchObject({ is_owner: true, status: 'pending', shared: { title: 'Идеи для отчёта' } });
+
+    const list = (await dir.get(`${API}/chats`)).body.data as { id: string; title: string; last_message: { sender_name: string } | null }[];
+    expect((await dir.get(`${API}/contacts/names`)).body.data).toHaveLength(2);
+    expect(list.find((c) => c.id === own.demo.chats.team)?.last_message?.sender_name).toBe('Ольга Смирнова');
+  });
+});
