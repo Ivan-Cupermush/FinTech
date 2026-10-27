@@ -1,8 +1,9 @@
-import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
+import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
 import { useAuth } from '../lib/auth';
+import { useTheme } from '../lib/theme';
 import { AvatarProvider } from '../lib/avatars';
 import { useChatsUnread } from '../features/chats/data';
 import { ChatRealtimeProvider } from '../features/chats/realtime';
@@ -22,35 +23,12 @@ const NAV = [
   { to: '/app/metrics', label: 'Эффект', icon: TrendingUp, tab: false },
   { to: '/app/report', label: 'Отчёт', icon: FileText, tab: false },
   { to: '/app/notes', label: 'База знаний', icon: BookOpen, tab: false },
+  { to: '/app/my-notes', label: 'Мои заметки', icon: NotebookPen, tab: false },
   { to: '/app/org', label: 'Организация', icon: Building2 },
   // Интеграции настраивает администратор: остальным пункт не показываем.
   { to: '/app/integrations', label: 'Интеграции', icon: Plug, tab: false, admin: true },
   { to: '/app/notifications', label: 'Уведомления', icon: Bell },
 ];
-
-type Theme = 'system' | 'light' | 'dark';
-
-function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      return (localStorage.getItem('offix.theme') as Theme) || 'system';
-    } catch {
-      return 'system';
-    }
-  });
-  useEffect(() => {
-    const el = document.documentElement;
-    if (theme === 'system') el.removeAttribute('data-theme');
-    else el.setAttribute('data-theme', theme);
-    try {
-      localStorage.setItem('offix.theme', theme);
-    } catch {
-      /* ignore */
-    }
-  }, [theme]);
-  const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  return [theme, toggle];
-}
 
 export function Shell() {
   const { logout } = useAuth();
@@ -105,14 +83,14 @@ export function Shell() {
                   <Camera size={11} strokeWidth={2.4} />
                 </span>
               </button>
-              <div className="grow">
+              <Link to="/app/profile" className="grow me-link" title="Профиль, пароль и QR-код">
                 <div className="clip" style={{ fontWeight: 600, fontSize: 14 }}>
                   {me.data.display_name}
                 </div>
                 <div className="clip faint" style={{ fontSize: 12.5 }}>
                   {COMPANY_ROLE_LABELS[me.data.role]} · {me.data.company_name}
                 </div>
-              </div>
+              </Link>
             </div>
           )}
         </div>

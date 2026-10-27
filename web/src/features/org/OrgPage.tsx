@@ -1,4 +1,5 @@
-import { Building2, Copy, Network, Plus, UserPlus, Users } from 'lucide-react';
+import { Building2, Copy, KeyRound, Network, Plus, UserPlus, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { buildTree, plural, COMPANY_ROLE_HINTS, COMPANY_ROLE_LABELS, COMPANY_ROLES, UNIT_TYPE_LABELS, UNIT_TYPES, type CompanyRole, type FieldErrors, type TreeNode, type UnitType } from '@offix/core';
 import { useQueryClient } from '@tanstack/react-query';
@@ -59,7 +60,7 @@ export function OrgPage() {
           ]}
         />
       </div>
-      {tab === 'structure' ? <Structure admin={admin} onAdd={() => setDialog('unit')} /> : <People admin={admin} myRole={me.data?.role} />}
+      {tab === 'structure' ? <Structure admin={admin} onAdd={() => setDialog('unit')} /> : <People admin={admin} myRole={me.data?.role} meId={me.data?.id} />}
       {dialog === 'unit' && <UnitDialog onClose={() => setDialog(null)} />}
       {dialog === 'invite' && <InviteDialog onClose={() => setDialog(null)} canOwner={me.data?.role === 'owner'} />}
     </div>
@@ -119,8 +120,9 @@ function UnitNode({ node, depth }: { node: TreeNode<OrgUnitRow>; depth: number }
   );
 }
 
-function People({ admin, myRole }: { admin: boolean; myRole?: CompanyRole }) {
+function People({ admin, myRole, meId }: { admin: boolean; myRole?: CompanyRole; meId?: string }) {
   const [search, setSearch] = useState('');
+  const [reset, setReset] = useState<{ id: string; name: string } | null>(null);
   const users = useUsers(search);
   const qc = useQueryClient();
   const toast = useToast();
@@ -145,7 +147,10 @@ function People({ admin, myRole }: { admin: boolean; myRole?: CompanyRole }) {
               <Avatar name={m.display_name} size={32} id={m.id} />
               <span className="grow stack" style={{ '--gap': '2px' } as React.CSSProperties}>
                 <span style={{ fontWeight: 560 }}>
-                  {m.display_name} {!m.active && <span className="faint">· отключён</span>}
+                  <Link to={`/app/people/${m.id}`} className="org-person">
+                    {m.display_name}
+                  </Link>{' '}
+                  {!m.active && <span className="faint">· отключён</span>}
                 </span>
                 <span className="faint clip" style={{ fontSize: 12.5 }}>
                   {[m.position, m.units.map((u) => `${u.name}${u.is_manager ? ' (рук.)' : ''}`).join(', '), m.email].filter(Boolean).join(' · ')}
@@ -162,11 +167,75 @@ function People({ admin, myRole }: { admin: boolean; myRole?: CompanyRole }) {
               ) : (
                 <Pill plain>{COMPANY_ROLE_LABELS[m.role]}</Pill>
               )}
+              {admin && m.id !== meId && m.active && (m.role !== 'owner' || myRole === 'owner') && (
+                <Button size="sm" variant="ghost" icon={<KeyRound size={15} />} aria-label={`Сбросить пароль: ${m.display_name}`} title="Сбросить пароль" onClick={() => setReset({ id: m.id, name: m.display_name })} />
+              )}
             </div>
           ))}
         </div>
       )}
+      {reset && <ResetPasswordDialog person={reset} onClose={() => setReset(null)} />}
     </section>
+  );
+}
+
+/**
+ * Сброс пароля администратором: временный пароль показываем один раз, все
+ * сеансы сотрудника закрываются — войти можно только с новым паролем.
+ */
+function ResetPasswordDialog({ person, onClose }: { person: { id: string; name: string }; onClose: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [temp, setTemp] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ password: string | null }>(`/users/${person.id}/reset-password`, { body: {} });
+      setTemp(r.password);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (temp)
+    return (
+      <Dialog title="Пароль сброшен" onClose={onClose} footer={<Button variant="primary" onClick={onClose}>Готово</Button>}>
+        <p className="muted">Передайте пароль лично — он показывается один раз. При входе {person.name.split(' ')[0]} сменит его в профиле.</p>
+        <div className="card card-tight row" style={{ gap: 8, background: 'var(--surface-2)' }}>
+          Временный пароль: <b className="num">{temp}</b>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Copy size={14} />}
+            aria-label="Скопировать пароль"
+            onClick={() => {
+              void navigator.clipboard?.writeText(temp);
+              toast('Пароль скопирован');
+            }}
+          />
+        </div>
+      </Dialog>
+    );
+  return (
+    <Dialog
+      title="Сбросить пароль?"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Отмена
+          </Button>
+          <Button variant="danger" loading={busy} onClick={() => void run()}>
+            Сбросить
+          </Button>
+        </>
+      }
+    >
+      <p className="muted">
+        {person.name} выйдет на всех устройствах и сможет войти только с новым временным паролем. Пригодится, если сотрудник забыл пароль или его могли узнать.
+      </p>
+    </Dialog>
   );
 }
 

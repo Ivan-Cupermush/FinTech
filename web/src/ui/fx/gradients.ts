@@ -10,7 +10,7 @@ export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | 'wallpaper' | 
  * раздела свой третий цвет и свой разворот волны: разделы узнаются с первого
  * взгляда и при этом остаются одной семьёй.
  */
-export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create', 'chats'] as const;
+export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 
 const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; rotationZ: number; positionX: number; polar: number }> = {
@@ -32,6 +32,10 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   create: { colors: ['#4a62ff', '#121a5e', '#9d86ff'], rotationZ: 235, positionX: -0.5, polar: 115 },
   // Чаты — синий с тёплым янтарём: живой разговор.
   chats: { colors: ['#3050ff', '#0d0b2c', '#ffb547'], rotationZ: 245, positionX: -0.45, polar: 117 },
+  // Мои заметки — синий со свежим лаймом: личный ежедневник, а не архив.
+  notes: { colors: ['#3352ff', '#08162a', '#a8e05f'], rotationZ: 225, positionX: -0.55, polar: 113 },
+  // Профиль — синий с ледяным серебром: спокойно, про себя и безопасность.
+  profile: { colors: ['#2e4cff', '#0a0c2e', '#b9c6ff'], rotationZ: 205, positionX: -0.25, polar: 109 },
 };
 
 export function isSectionVariant(v: string): v is SectionVariant {

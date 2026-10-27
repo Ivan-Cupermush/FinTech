@@ -76,3 +76,35 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 export function newIdempotencyKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
+
+/** Файл по токену (PDF заметки): публичной ссылки нет, скачиваем своим запросом. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = tokenStore.get();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { headers });
+  } catch {
+    throw new ApiError(0, 'NETWORK', 'Нет связи с сервером. Попробуйте ещё раз');
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    if (res.status === 401 && token) unauthorizedListeners.forEach((fn) => fn());
+    throw new ApiError(res.status, json?.error?.code ?? 'UNKNOWN', json?.error?.message ?? 'Не удалось скачать файл');
+  }
+  return res.blob();
+}
+
+/** Сохранить скачанное: ссылка на blob живёт, пока браузер не начал загрузку. */
+export function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}

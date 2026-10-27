@@ -189,6 +189,13 @@ export interface Notification {
   task_id: string | null;
   read_at: string | null;
   created_at: string;
+  /** Для перехода: запрос заметки (request_id), её копия (note_id) и т. п. */
+  data?: Record<string, string>;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  actor_avatar_url?: string | null;
+  /** Запрос заметки уже отвечен — кнопки ответа не показываем. */
+  request_status?: 'pending' | 'approved' | 'declined' | null;
 }
 
 /** GET /metrics: продуктовые метрики в зоне видимости человека. */

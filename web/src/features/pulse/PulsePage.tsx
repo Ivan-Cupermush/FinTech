@@ -6,6 +6,7 @@ import { useDashboard, useMe } from '../../lib/queries';
 import type { Dashboard } from '../../lib/types';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
+import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
 import { GoalTile, RiskList } from '../goals/parts';
@@ -40,6 +41,11 @@ export function PulsePage() {
   return (
     <div className="page">
       <Backdrop variant="hero" mark markMode="side" className="app-hero on-color" aria-labelledby="pulse-h">
+        {me.data && (
+          <Link to="/app/profile" className="pulse-me mobile-only" aria-label="Профиль и разделы">
+            <Avatar name={me.data.display_name} size={38} id={me.data.id} />
+          </Link>
+        )}
         <div className="app-hero-text">
           <div className="eyebrow">{d ? formatDate(d.today, { today: '0000' }) : ' '}</div>
           <h1 id="pulse-h">

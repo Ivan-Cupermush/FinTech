@@ -36,6 +36,7 @@ import { ChatInfo } from './ChatInfo';
 import { Composer, type ComposerMode } from './Composer';
 import { chatApi, ck, jumpTo, loadNewer, loadOlder, markListRead, patchMessage, removeMessages, sendMessage, useChat, useChatSearch, useHistory, usePinned, useScheduled, type SendInput } from './data';
 import { AttachDialog } from './attach';
+import { NotePickerDialog, SharedNoteDialog } from '../my-notes/NoteDialogs';
 import { ChatPickerDialog, ConfirmDialog, ContactPickerDialog, PollDialog, ScheduleDialog, ScheduledDialog, TopicDialog, VotersDialog } from './dialogs';
 import { isVisual } from './media';
 import type { Recording } from './recorder';
@@ -252,6 +253,8 @@ type Dialogs =
   | { kind: 'poll' }
   | { kind: 'attach'; files: File[]; asFile: boolean }
   | { kind: 'contact' }
+  | { kind: 'note-pick' }
+  | { kind: 'note'; shareId: string }
   | { kind: 'viewer'; items: ViewerItem[]; index: number }
   | { kind: 'schedule'; text: string }
   | { kind: 'scheduled' }
@@ -565,6 +568,7 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
         patchMessage(qc, chat.id, m.id, (x) => ({ ...x, listened: true }));
         void chatApi.listen(m.id).catch(() => undefined);
       },
+      openNote: (m) => m.note && setDialog({ kind: 'note', shareId: m.note.id }),
       writeTo: (c) => {
         if (c.id === meId) return;
         chatApi
@@ -765,6 +769,7 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
           onShowScheduled={() => setDialog({ kind: 'scheduled' })}
           onFiles={onFiles}
           onContact={() => setDialog({ kind: 'contact' })}
+          onNote={() => setDialog({ kind: 'note-pick' })}
           onRecorded={(kind, r) => void sendRecording(kind, r)}
           onError={(msg) => toast(msg, 'error')}
           busy={busy}
@@ -817,6 +822,8 @@ function ChatView({ chat, topic, onInfo, onTopics, jumpReq }: { chat: ChatDetail
           }}
         />
       )}
+      {dialog?.kind === 'note-pick' && <NotePickerDialog chatId={chat.id} topicId={topicId} onClose={() => setDialog(null)} onSent={() => scrollToBottom(true)} />}
+      {dialog?.kind === 'note' && <SharedNoteDialog shareId={dialog.shareId} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'viewer' && <MediaViewer items={dialog.items} index={dialog.index} onClose={() => setDialog(null)} onJump={(id) => void jump(id)} />}
       {dialog?.kind === 'poll' && <PollDialog chatId={chat.id} topicId={topicId} onClose={() => setDialog(null)} onCreated={() => scrollToBottom(true)} />}
       {dialog?.kind === 'schedule' && <ScheduleDialog chatId={chat.id} topicId={topicId} initialText={dialog.text} onClose={() => setDialog(null)} onDone={() => void qc.invalidateQueries({ queryKey: ck.scheduled(chat.id) })} />}

@@ -393,3 +393,43 @@ describe('запрос свежей версии', () => {
     expect((await (await ctx.as('maria')).post(`${API}/my-notes/requests/${r.body.data.id}/approve`)).status).toBe(409);
   });
 });
+
+describe('лента уведомлений', () => {
+  it('автор и статус запроса в ленте, счётчик непрочитанных, отметка и очистка', async () => {
+    const n = await create('igor', { title: 'Архитектура', body: 'схема' });
+    const msg = await share('igor', n.id, await direct('igor', 'dima'));
+    const r = await (await ctx.as('dima')).post(`${API}/my-notes/shared/${msg.note!.id}/request`);
+    expect(rt.of('notification')[0]?.users).toEqual([id('igor')]);
+    const i = await ctx.as('igor');
+    const before = (await i.get(`${API}/notifications/unread-count`)).body.data.count as number;
+    const [item] = (await i.get(`${API}/notifications?unread=1`)).body.data;
+    expect(item).toMatchObject({ kind: 'note_request', actor_id: id('dima'), actor_name: 'Дмитрий Орлов', request_status: 'pending', data: { request_id: r.body.data.id } });
+    await i.post(`${API}/my-notes/requests/${r.body.data.id}/decline`);
+    const after = (await i.get(`${API}/notifications`)).body.data.find((x: { id: string }) => x.id === item.id);
+    expect(after).toMatchObject({ request_status: 'declined' });
+    expect(after.read_at).not.toBeNull();
+    expect((await i.get(`${API}/notifications/unread-count`)).body.data.count).toBe(before - 1);
+    expect(rt.of('notification').map((e) => e.users[0])).toContain(id('dima'));
+    // Страницы по времени.
+    const page = (await i.get(`${API}/notifications?limit=1`)).body.data;
+    expect(page).toHaveLength(1);
+    const next = (await i.get(`${API}/notifications?limit=50&before=${encodeURIComponent(page[0].created_at)}`)).body.data as { created_at: string }[];
+    expect(next.every((x) => x.created_at < page[0].created_at)).toBe(true);
+    expect((await i.get(`${API}/notifications?before=вчера`)).status).toBe(422);
+    // Удалить одно и очистить прочитанные.
+    expect((await i.delete(`${API}/notifications/${item.id}`)).status).toBe(204);
+    expect(((await i.get(`${API}/notifications`)).body.data as { id: string }[]).some((x) => x.id === item.id)).toBe(false);
+    await i.post(`${API}/notifications/read`, {});
+    expect((await i.delete(`${API}/notifications?read=1`)).status).toBe(204);
+    expect((await i.get(`${API}/notifications`)).body.data).toEqual([]);
+  });
+
+  it('чужое уведомление не удалить', async () => {
+    const n = await create('igor', { title: 'Чужое', body: 'x' });
+    const msg = await share('igor', n.id, await direct('igor', 'sergey'));
+    await (await ctx.as('sergey')).post(`${API}/my-notes/shared/${msg.note!.id}/request`);
+    const [item] = (await (await ctx.as('igor')).get(`${API}/notifications?unread=1`)).body.data;
+    await (await ctx.as('sergey')).delete(`${API}/notifications/${item.id}`);
+    expect(((await (await ctx.as('igor')).get(`${API}/notifications`)).body.data as { id: string }[]).some((x) => x.id === item.id)).toBe(true);
+  });
+});

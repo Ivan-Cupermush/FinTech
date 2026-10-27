@@ -116,6 +116,15 @@
   background: var(--surface);
   border: 1px solid var(--line);
 }
+.me-link {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.me-link:hover .clip:first-child {
+  color: var(--accent);
+}
 .me-photo {
   position: relative;
   flex: none;
@@ -344,6 +353,18 @@
 }
 
 /* ——— Шапка экрана на живом градиенте (Пульс) ——— */
+/* На телефоне профиль и разделы без вкладки — за аватаром в углу Пульса. */
+.pulse-me {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  padding: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
 .app-hero {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,449 @@
+/* Профиль, карточка коллеги, вход по QR */
+.acc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.acc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.acc-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+.acc-h svg {
+  color: var(--accent);
+}
+.acc-note {
+  margin: -6px 0 0;
+  font-size: 13.5px;
+}
+.acc-me {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.acc-photo {
+  position: relative;
+  flex: none;
+}
+.acc-photo .me-photo-cam {
+  width: 24px;
+  height: 24px;
+}
+.acc-me-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.acc-me-text b {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.acc-me-text .btn {
+  margin: 6px 0 0 -10px;
+}
+.acc-inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acc-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.acc-facts > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.acc-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.acc-facts dd {
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14.5px;
+}
+.acc-facts a {
+  color: inherit;
+}
+.acc-presence {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.acc-presence.is-online {
+  color: var(--good);
+  font-weight: 600;
+}
+.acc-group {
+  align-items: center;
+}
+.acc-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--good);
+  font-size: 13px;
+  font-weight: 600;
+}
+.acc-howto {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.acc-howto svg {
+  flex: none;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.acc-howto p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.acc-howto b {
+  color: var(--ink);
+}
+.acc-menu {
+  display: none;
+  margin-top: 18px;
+}
+.acc-menu .list-row {
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+}
+.acc-menu .list-row svg:first-child {
+  color: var(--ink-2);
+}
+.acc-logout,
+.acc-logout svg:first-child {
+  color: var(--bad) !important;
+}
+
+/* Надёжность пароля */
+.pwd-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.pwd-bars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  width: 140px;
+}
+.pwd-bars i {
+  height: 5px;
+  border-radius: 5px;
+  background: var(--surface-3);
+  transition: background var(--dur);
+}
+.pwd-strength[data-level='0'] .on {
+  background: var(--bad);
+}
+.pwd-strength[data-level='0'] {
+  color: var(--bad);
+}
+.pwd-strength[data-level='1'] .on {
+  background: var(--warn);
+}
+.pwd-strength[data-level='2'] .on {
+  background: var(--accent);
+}
+.pwd-strength[data-level='3'] .on {
+  background: var(--good);
+}
+.pwd-strength[data-level='3'] {
+  color: var(--good);
+}
+
+/* QR-код профиля на градиенте под стеклом */
+.acc-qr {
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.acc-qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 18px 16px;
+  color: #fff;
+  text-align: center;
+}
+.qr {
+  display: block;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.55);
+  transition:
+    opacity var(--dur),
+    filter var(--dur);
+}
+.qr.is-faded {
+  opacity: 0.28;
+  filter: blur(2px);
+}
+.acc-qr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 300px;
+}
+.acc-qr-text b {
+  font-size: 16px;
+}
+.acc-qr-text span {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+.acc-qr-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.acc-qr-copy:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Вход по QR на странице входа */
+.qr-login {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.qr-login-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 26px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.qr-login-glass {
+  width: 260px;
+}
+.qr-login-code {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+.qr-login-blank {
+  width: 208px;
+  height: 208px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.5);
+  animation: qr-pulse 1.4s ease-in-out infinite;
+}
+@keyframes qr-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+.qr-login-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+.qr-login-over b {
+  font-size: 16px;
+  line-height: 1.3;
+}
+.qr-login-timer {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.qr-login-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.qr-login-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+.qr-login-steps svg {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Подтверждение входа на телефоне */
+.qr-confirm {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+.qr-confirm-inner {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  position: relative;
+  z-index: 1;
+}
+.qr-confirm-logo {
+  color: #fff;
+  text-decoration: none;
+}
+.qr-confirm-logo rect {
+  fill: #fff;
+}
+.qr-confirm-logo circle {
+  stroke: #141625;
+}
+.qr-confirm-glass {
+  width: 100%;
+}
+.qr-confirm-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 30px 24px 24px;
+  text-align: center;
+  color: #fff;
+}
+.qr-confirm-body h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.qr-confirm-body p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.5;
+}
+.qr-confirm-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.qr-confirm-facts {
+  width: 100%;
+  margin: 4px 0 0;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.qr-confirm-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+.qr-confirm-facts > div + div {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.qr-confirm-facts dt {
+  color: rgba(255, 255, 255, 0.65);
+}
+.qr-confirm-facts dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+.qr-confirm-warn {
+  font-size: 13px;
+}
+.qr-confirm-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+.qr-confirm-actions .btn-ghost {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.qr-confirm-link {
+  color: #fff;
+  font-weight: 650;
+}
+
+@media (max-width: 900px) {
+  .acc-grid {
+    grid-template-columns: 1fr;
+  }
+  .acc-menu {
+    display: block;
+  }
+  .acc-facts > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

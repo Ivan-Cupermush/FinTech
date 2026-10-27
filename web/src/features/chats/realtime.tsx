@@ -157,6 +157,26 @@ export function ChatRealtimeProvider({ meId, children }: { meId: string | undefi
         void qc.invalidateQueries({ queryKey: avatarsKey });
         if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
       },
+      // Новое во «Входящих»: запрос заметки и ответ на него.
+      notification: () => {
+        void qc.invalidateQueries({ queryKey: ['notifications'] });
+        void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      },
+      contact_names_changed: () => {
+        void qc.invalidateQueries({ queryKey: ['contact-names'] });
+        refreshList();
+      },
+      profile_changed: (p: { user_id: string }) => {
+        void qc.invalidateQueries({ queryKey: ['users'] });
+        void qc.invalidateQueries({ queryKey: ['person', p.user_id] });
+        if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
+        refreshList();
+      },
+      // Сеансы завершили (смена пароля, «выйти везде»). Это устройство могло
+      // уже получить новый токен — проверяем чуть позже, старый токен выйдет сам.
+      session_revoked: () => {
+        setTimeout(() => void qc.invalidateQueries({ queryKey: ['me'] }), 1500);
+      },
     };
     for (const [event, fn] of Object.entries(on)) s.on(event, fn);
     return () => {

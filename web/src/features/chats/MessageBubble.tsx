@@ -5,6 +5,7 @@ import { avatarHue } from '../../lib/color';
 import { Avatar } from '../../ui/Avatar';
 import { Album, ContactView, FileRow, VideoNote, VoicePlayer, isVisual } from './media';
 import { Popover, RichText, Ticks } from './parts';
+import { NoteShareCardView } from '../my-notes/NoteDialogs';
 
 const TOUCH = () => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none)').matches;
 
@@ -26,6 +27,8 @@ export interface BubbleActions {
   listen: (m: ChatMessage) => void;
   /** «Написать» на карточке контакта. */
   writeTo: (c: ContactCard) => void;
+  /** Открыть отправленную в чат заметку. */
+  openNote: (m: ChatMessage) => void;
 }
 
 export const Bubble = memo(function Bubble({
@@ -86,7 +89,7 @@ export const Bubble = memo(function Bubble({
   const round = m.kind === 'video_note' && !!sound;
   const header = showName || !!m.forwarded_from || !!m.reply_to || !!m.external_reply;
   const caption = !!m.text?.trim();
-  const textBlock = m.kind === 'text' || (m.kind === 'media' && caption);
+  const textBlock = m.kind === 'text' || ((m.kind === 'media' || m.kind === 'note') && caption);
   const overPhoto = visual.length > 0 && !caption && !files.length;
   const bubbleCls = [
     'bubble',
@@ -151,6 +154,7 @@ export const Bubble = memo(function Bubble({
           {sound && m.kind === 'voice' && <VoicePlayer a={sound} listened={m.listened} mine={mine} onListen={() => actions.listen(m)} />}
           {round && sound && <VideoNote a={sound} listened={m.listened} mine={mine} onListen={() => actions.listen(m)} />}
           {m.contact && <ContactView c={m.contact} onWrite={actions.writeTo} />}
+          {m.note && <NoteShareCardView note={m.note} onOpen={() => !selecting && actions.openNote(m)} />}
           {textBlock && (
             <div className="bubble-text">
               <RichText text={m.text ?? ''} highlight={highlight} />

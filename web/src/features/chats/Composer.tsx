@@ -1,4 +1,4 @@
-import { ArrowUp, BarChart3, Clock3, CornerUpLeft, File as FileIcon, Forward, Image as ImageIcon, Mic, Pencil, Plus, Smile, UserRound, Video, X } from 'lucide-react';
+import { ArrowUp, BarChart3, Clock3, CornerUpLeft, File as FileIcon, Forward, Image as ImageIcon, Mic, NotebookPen, Pencil, Plus, Smile, UserRound, Video, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { EMOJI_CATEGORIES, MESSAGE_MAX, messageBody, searchEmoji, type ChatMessage } from '@offix/core';
 import { Menu, Popover } from './parts';
@@ -46,6 +46,7 @@ export function Composer({
   onShowScheduled,
   onFiles,
   onContact,
+  onNote,
   onRecorded,
   onError,
   busy,
@@ -66,6 +67,8 @@ export function Composer({
   /** Выбранные, вставленные или перетащенные файлы. */
   onFiles: (files: File[], asFile: boolean) => void;
   onContact: () => void;
+  /** Отправить свою личную заметку. */
+  onNote: () => void;
   onRecorded: (kind: 'voice' | 'video_note', r: Recording) => void;
   onError: (message: string) => void;
   /** «Отправка голосового… 40%» — над полем ввода. */
@@ -270,6 +273,7 @@ export function Composer({
             { label: 'Фото или видео', icon: <ImageIcon size={16} />, onSelect: () => photos.current?.click() },
             { label: 'Файл', icon: <FileIcon size={16} />, onSelect: () => docs.current?.click() },
             { label: 'Контакт', icon: <UserRound size={16} />, onSelect: onContact },
+            { label: 'Заметка', icon: <NotebookPen size={16} />, onSelect: onNote },
             canRecord() && { label: 'Видеосообщение', icon: <Video size={16} />, onSelect: () => setRecording('video_note') },
             { label: 'Опрос', icon: <BarChart3 size={16} />, onSelect: onPoll },
             { label: text.trim() ? 'Отправить позже…' : 'Запланировать сообщение…', icon: <Clock3 size={16} />, onSelect: () => onSchedule(text.trim()) },

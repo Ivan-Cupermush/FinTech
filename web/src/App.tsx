@@ -1,6 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from './app/Shell';
+import { AccountPage } from './features/account/AccountPage';
+import { PersonPage } from './features/account/PersonPage';
+import { QrConfirmPage } from './features/account/QrConfirmPage';
+import { MyNotePage, MyNotesPage } from './features/my-notes/MyNotesPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { GoalNewPage } from './features/goals/GoalTemplates';
 import { NotePage, NotesPage } from './features/notes/NotesPage';
@@ -34,7 +38,10 @@ export function createQueryClient() {
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
-  return token ? <>{children}</> : <Navigate to="/login" replace />;
+  const { pathname, search } = useLocation();
+  // Ссылка из QR-кода профиля открылась без входа — после входа вернёмся к ней.
+  const next = pathname === '/app' ? '' : `?next=${encodeURIComponent(pathname + search)}`;
+  return token ? <>{children}</> : <Navigate to={`/login${next}`} replace />;
 }
 
 export function AppRoutes() {
@@ -43,6 +50,7 @@ export function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/licenses" element={<LicensesPage />} />
+      <Route path="/qr/:token" element={<QrConfirmPage />} />
       <Route
         path="/app"
         element={
@@ -66,6 +74,10 @@ export function AppRoutes() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="notes/:id" element={<NotePage />} />
+        <Route path="my-notes" element={<MyNotesPage />} />
+        <Route path="my-notes/:id" element={<MyNotePage />} />
+        <Route path="profile" element={<AccountPage />} />
+        <Route path="people/:id" element={<PersonPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

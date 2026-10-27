@@ -303,7 +303,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
   r.post('/shared/:id/request', async (req, res) => {
     const actor = actorOf(req);
     const shareId = idParam(req.params.id);
-    const out = await db.tx(async (q) => {
+    const out = await db.tx(async (q): Promise<{ state: NoteRequestState; already: boolean; owner?: string }> => {
       const s = await visibleShare(q, actor, shareId);
       if (s.sender_id === actor.id) throw new ApiError('CONFLICT', 'Это ваша заметка — свежая версия у вас в заметках');
       if (!s.note_id || !s.sender_id) throw new ApiError('CONFLICT', 'Автор удалил эту заметку — свежей версии больше нет');
@@ -318,8 +318,9 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
       );
       const title = noteTitle((await q.query<{ title: string }>(`SELECT title FROM personal_notes WHERE id = $1`, [s.note_id])).rows[0]?.title ?? s.title);
       await notify(q, { company_id: actor.company_id, user_id: s.sender_id, kind: 'note_request', title: `${actor.display_name} просит свежую версию заметки`, body: title, data: { request_id: rows[0]!.id, share_id: s.id } }, actor.id);
-      return { state: requestState(rows[0]!, false), already: false };
+      return { state: requestState(rows[0]!, false), already: false, owner: s.sender_id };
     });
+    if (!out.already && out.owner) rt.emit(actor.company_id, [out.owner], 'notification', { kind: 'note_request' });
     res.status(out.already ? 200 : 201).json({ data: { ...out.state, already: out.already } });
   });
 
@@ -345,7 +346,9 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
       await notify(q, { company_id: actor.company_id, user_id: rq.requester_id, kind: 'note_request_approved', title: `${actor.display_name} поделился свежей версией`, body: noteTitle(title), data: { request_id: rq.id, note_id: copy } }, actor.id);
       await markRequestRead(q, actor.id, rq.id);
     });
-    res.json({ data: requestView(await loadRequest(db, actor, id), actor.id) });
+    const done = await loadRequest(db, actor, id);
+    rt.emit(actor.company_id, [done.requester_id], 'notification', { kind: 'note_request_approved' });
+    res.json({ data: requestView(done, actor.id) });
   });
 
   r.post('/requests/:id/decline', async (req, res) => {
@@ -359,7 +362,9 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
       await notify(q, { company_id: actor.company_id, user_id: rq.requester_id, kind: 'note_request_declined', title: `${actor.display_name} не стал делиться новой версией`, body: noteTitle(rq.note_title ?? rq.shared_title), data: { request_id: rq.id, share_id: rq.share_id } }, actor.id);
       await markRequestRead(q, actor.id, rq.id);
     });
-    res.json({ data: requestView(await loadRequest(db, actor, id), actor.id) });
+    const done = await loadRequest(db, actor, id);
+    rt.emit(actor.company_id, [done.requester_id], 'notification', { kind: 'note_request_declined' });
+    res.json({ data: requestView(done, actor.id) });
   });
 
   // ------------------------------------------------------------ одна заметка
