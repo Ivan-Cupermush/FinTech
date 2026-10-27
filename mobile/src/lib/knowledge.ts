@@ -45,8 +45,8 @@ export function answerBlocks(content: string): AnswerPart[][] {
 export function knowledgeStats(notes: Pick<NoteSummary, 'updated_at'>[], readyDocs: number | undefined, today: string): HeroStat[] {
   const weekAgo = addDays(today, -7);
   return [
-    { label: 'статей', value: notes.length },
-    ...(readyDocs === undefined ? [] : [{ label: 'документов', value: readyDocs }]),
+    { label: plural(notes.length, ['статья', 'статьи', 'статей']), value: notes.length },
+    ...(readyDocs === undefined ? [] : [{ label: plural(readyDocs, ['документ', 'документа', 'документов']), value: readyDocs }]),
     { label: 'за неделю', value: notes.filter((n) => n.updated_at.slice(0, 10) >= weekAgo).length },
   ];
 }

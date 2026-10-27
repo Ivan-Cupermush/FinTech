@@ -89,7 +89,7 @@ describe('база знаний: помощник', () => {
     const calls = mockApi({ ...base, 'GET /knowledge/sessions': [session()], 'POST /knowledge/ask': result, 'GET /knowledge/sessions/s2': { session: result.session, messages: [result.question, result.answer] } });
     renderApp('/app/notes/ask');
     expect(await screen.findByText('Спросите — найду в базе знаний')).toBeInTheDocument();
-    expect(await screen.findByText(/В базе: 4 статей и 2 документов/)).toBeInTheDocument();
+    expect(await screen.findByText(/В базе: 4 статьи и 2 документа/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Кто согласует командировку\?/ })).toHaveAttribute('href', '/app/notes/ask/s1');
     await userEvent.click(screen.getByRole('button', { name: 'Как мы считаем время обработки заявки?' }));
     await waitFor(() => expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ question: 'Как мы считаем время обработки заявки?' }));

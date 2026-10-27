@@ -441,7 +441,9 @@ export function extractiveAnswer(question: string, chunks: RetrievedChunk[], num
     const first = chunks[0];
     return first ? `${bestExcerpt(first.content, question, 300)} [${numberOf(first)}]` : '';
   }
-  return picked.map((p) => `${p.text.replace(/\s+/g, ' ')} [${p.n}]`).join('\n\n');
+  // Пункт списка в ответе — уже отдельная фраза: с заглавной буквы.
+  const cap = (t: string) => t.charAt(0).toLocaleUpperCase('ru') + t.slice(1);
+  return picked.map((p) => `${cap(p.text.replace(/\s+/g, ' '))} [${p.n}]`).join('\n\n');
 }
 
 export const NO_ANSWER_TEXT = 'В базе знаний пока нет ничего об этом. Попробуйте спросить другими словами или добавьте статью или документ — тогда помощник сможет ответить.';

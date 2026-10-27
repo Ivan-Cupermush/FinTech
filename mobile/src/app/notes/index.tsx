@@ -194,7 +194,7 @@ function DocsList({ goalId, canUpload, today, docs }: { goalId?: string; canUplo
           <Empty title="Не удалось загрузить" text={(docs.error as Error).message} action={<Button title="Повторить" variant="secondary" onPress={() => docs.refetch()} />} />
         </Card>
       ) : docs.data?.length ? (
-        docs.data.map((d) => <DocRow key={d.id} doc={d} today={today} onRetry={() => reprocess.mutate(d.id)} retrying={reprocess.isPending && reprocess.variables === d.id} />)
+        docs.data.map((d) => <DocRow key={d.id} doc={d} today={today} showGoal={!goalId} onRetry={() => reprocess.mutate(d.id)} retrying={reprocess.isPending && reprocess.variables === d.id} />)
       ) : (
         !docs.isLoading && (
           <Card>

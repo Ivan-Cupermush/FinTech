@@ -167,7 +167,7 @@ export async function seedDemoKnowledge(db: Db, store: MediaStore, kb: Knowledge
       '- старые замеры не удаляем: по ним видно, откуда начинали',
     ].join('\n'),
     u.director,
-    ago(8),
+    ago(3),
   ]);
 
   for (const id of ids) await kb.processDoc(id);

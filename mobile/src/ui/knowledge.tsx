@@ -26,13 +26,13 @@ export function DocBadge({ type, size = 40 }: { type: KnowledgeDoc['type']; size
   const c = toneColors(p, type === 'pdf' ? 'bad' : type === 'docx' ? 'accent' : 'neutral');
   return (
     <View style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: c.fg, fontFamily: font.bold, fontSize: size * 0.26, letterSpacing: 0.2 }}>{knowledgeDocTypeLabel(type).slice(0, 4).toUpperCase()}</Text>
+      <Text style={{ color: c.fg, fontFamily: font.bold, fontSize: size * 0.26, letterSpacing: 0.2 }}>{type === 'text' ? 'TXT' : knowledgeDocTypeLabel(type)}</Text>
     </View>
   );
 }
 
 /** Строка документа: тип, название, сводка, статус и — если не прочитался — почему. */
-export function DocRow({ doc, today, onRetry, retrying }: { doc: KnowledgeDoc; today: string; onRetry?: () => void; retrying?: boolean }) {
+export function DocRow({ doc, today, onRetry, retrying, showGoal = true }: { doc: KnowledgeDoc; today: string; onRetry?: () => void; retrying?: boolean; /** В документах одной цели её название не повторяем. */ showGoal?: boolean }) {
   const p = usePalette();
   return (
     <Card onPress={() => router.push(`/notes/doc/${doc.id}`)} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
@@ -44,7 +44,7 @@ export function DocRow({ doc, today, onRetry, retrying }: { doc: KnowledgeDoc; t
         <Text variant="caption" tone="faint" numberOfLines={1}>
           {knowledgeDocFacts(doc)} · {formatDate(doc.created_at.slice(0, 10), { short: true, today })}
         </Text>
-        {doc.goal_title && (
+        {showGoal && doc.goal_title && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Target size={12} color={p.ink3} />
             <Text variant="caption" tone="muted" numberOfLines={1} style={{ flex: 1 }}>

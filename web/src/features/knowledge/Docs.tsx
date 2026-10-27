@@ -283,10 +283,8 @@ export function DocPage() {
             )}
             {d.can_edit && (
               <>
-                <Button size="sm" variant="ghost" icon={<Pencil size={14} />} onClick={() => (setRename(d.title), setRenameError(null))}>
-                  Переименовать
-                </Button>
-                <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label="Удалить документ" onClick={() => setConfirm(true)} />
+                <Button size="sm" variant="ghost" icon={<Pencil size={14} />} aria-label="Переименовать" title="Переименовать" onClick={() => (setRename(d.title), setRenameError(null))} />
+                <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label="Удалить документ" title="Удалить документ" onClick={() => setConfirm(true)} />
               </>
             )}
           </>

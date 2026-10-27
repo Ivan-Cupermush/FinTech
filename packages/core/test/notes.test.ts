@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noteExcerpt, parseInline, parseMarkdown, plainText, safeHref, searchWords, validateNote } from '../src';
+import { noteExcerpt, parseInline, parseMarkdown, plainParagraphs, plainText, safeHref, searchWords, validateNote } from '../src';
 
 const FENCE = '`'.repeat(3);
 
@@ -61,6 +61,13 @@ describe('разметка', () => {
     const meeting = ['- [x] Убрать согласование для типовых заявок', '- [ ] Автозаполнение формы', '', 'Следующая встреча — после пилота'].join('\n');
     expect(noteExcerpt(meeting)).toBe('Убрать согласование для типовых заявок · Автозаполнение формы. Следующая встреча — после пилота');
     expect(plainText(['## Вопрос?', '', 'Ответ'].join('\n'))).toBe('Вопрос? Ответ');
+  });
+
+  it('текст для помощника: абзацы сохраняются, пункты — законченными фразами, разметки нет', () => {
+    const meeting = ['## Решения', '', '- [x] Убрать согласование для типовых заявок', '- [ ] Автозаполнение формы — делает **IT**', '', 'Следующая встреча — после пилота'].join('\n');
+    expect(plainParagraphs(meeting)).toBe('Решения\n\nУбрать согласование для типовых заявок.\nАвтозаполнение формы — делает IT.\n\nСледующая встреча — после пилота');
+    expect(plainParagraphs('')).toBe('');
+    expect(plainParagraphs('- пункт;\n- второй?')).toBe('пункт;\nвторой?');
   });
 
   it('слова поиска без спецсимволов LIKE', () => {

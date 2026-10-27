@@ -47,12 +47,13 @@ describe('answerBlocks', () => {
 describe('knowledgeStats', () => {
   const notes = [{ updated_at: '2026-10-20T10:00:00Z' }, { updated_at: '2026-10-14T10:00:00Z' }, { updated_at: '2026-09-01T10:00:00Z' }];
   it('статьи, готовые документы и обновлённое за неделю — как на сайте', () => {
-    const s = knowledgeStats(notes, 3, TODAY);
-    expect(s.map((x) => x.label)).toEqual(['статей', 'документов', 'за неделю']);
-    expect(s.map((x) => x.value)).toEqual([3, 3, 2]);
+    const s = knowledgeStats(notes, 5, TODAY);
+    expect(s.map((x) => x.label)).toEqual(['статьи', 'документов', 'за неделю']);
+    expect(s.map((x) => x.value)).toEqual([3, 5, 2]);
+    expect(knowledgeStats(notes.slice(0, 1), 1, TODAY).map((x) => x.label)).toEqual(['статья', 'документ', 'за неделю']);
   });
   it('пока документы не загрузились, плитки документов нет', () => {
-    expect(knowledgeStats(notes, undefined, TODAY).map((x) => x.label)).toEqual(['статей', 'за неделю']);
+    expect(knowledgeStats(notes, undefined, TODAY).map((x) => x.label)).toEqual(['статьи', 'за неделю']);
   });
 });
 

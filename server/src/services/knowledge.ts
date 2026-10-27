@@ -11,6 +11,7 @@ import {
   keywordOverlap,
   knowledgeTokens,
   pickChunks,
+  plainParagraphs,
   sourcesOf,
   stripBadCitations,
   type KnowledgeAnswerMode,
@@ -225,7 +226,7 @@ export function createKnowledgeService(db: Db, store: MediaStore, opts: Knowledg
       [companyId, model, limit],
     );
     for (const n of rows) {
-      const parts = chunkText(n.body).map((c) => c.content);
+      const parts = chunkText(plainParagraphs(n.body)).map((c) => c.content);
       const contents = parts.length ? parts : [n.title];
       const { vectors, model: used } = await embedMany(contents.map((c) => embedText(n.title, c)));
       await db.tx(async (q) => {

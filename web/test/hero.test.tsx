@@ -61,6 +61,9 @@ describe('цифры в шапках разделов', () => {
     // Главная базы знаний: статьи, прочитанные документы (пока не загрузились — прочерк), свежие правки.
     expect(values(knowledgeHeroStats([{ updated_at: '2026-10-18T10:00:00Z' }], 4, TODAY))).toEqual([1, 4, 1]);
     expect(values(knowledgeHeroStats([], undefined, TODAY))).toEqual([0, '—', 0]);
+    // Подписи склоняются: «1 статья», «3 документа», «5 статей».
+    expect(knowledgeHeroStats([{ updated_at: '2026-10-18T10:00:00Z' }], 3, TODAY).map((s) => s.label)).toEqual(['статья', 'документа', 'обновлено за неделю']);
+    expect(knowledgeHeroStats(Array(5).fill({ updated_at: '2026-01-01T00:00:00Z' }), 1, TODAY).map((s) => s.label).slice(0, 2)).toEqual(['статей', 'документ']);
   });
   it('интеграции, входящие, организация и отчёт', () => {
     expect(values(integrationsHeroStats([{ state: 'ok' }, { state: 'error' }, { state: 'never' }]))).toEqual([3, 1, 1]);
@@ -156,7 +159,7 @@ describe('шапки на экранах', () => {
     const { container } = renderApp('/app/notes');
     const hero = await screen.findByRole('region', { name: 'База знаний' });
     expect(hero).toHaveAttribute('data-section', 'knowledge');
-    await within(hero).findByText('документов');
+    await within(hero).findByText('документ');
     await waitFor(() => expect([...container.querySelectorAll('.app-hero-stat-body .num')].map((n) => n.textContent)).toEqual(['2', '1', '2']));
   });
 

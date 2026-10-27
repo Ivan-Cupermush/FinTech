@@ -155,7 +155,7 @@ export function GoalPage() {
             { value: 'timeline', label: 'Таймлайн' },
             { value: 'analytics', label: 'Аналитика' },
             { value: 'discussion', label: <>Обсуждение{!!summary.data?.unread && view !== 'discussion' && <span className="tab-badge" aria-label={`новых: ${summary.data.unread}`}>{summary.data.unread}</span>}</> },
-            { value: 'notes', label: 'Заметки' },
+            { value: 'notes', label: 'База знаний' },
           ]}
         />
         {g.permissions.edit && (view === 'tree' || view === 'timeline') && (

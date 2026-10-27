@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { AlertTriangle, Download, RefreshCw, Target, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
-import { formatDate, knowledgeDocBusy, knowledgeDocFacts, knowledgeDocTypeLabel, todayIso } from '@offix/core';
+import { formatDate, knowledgeDocBusy, knowledgeDocFacts, knowledgeDocTypeLabel, plural, todayIso } from '@offix/core';
 import { openAttachment } from '../../../lib/files';
 import { useDeleteDoc, useKnowledgeDoc, useReprocessDoc } from '../../../lib/knowledge-api';
 import { font, usePalette } from '../../../lib/theme';
@@ -117,7 +117,7 @@ export default function KnowledgeDocScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <Text variant="title">Что прочитал помощник</Text>
                 <Text variant="caption" tone="faint">
-                  {chunks.length} фрагм.
+                  {chunks.length} {plural(chunks.length, ['фрагмент', 'фрагмента', 'фрагментов'])}
                 </Text>
               </View>
               {chunks.slice(0, shown).map((c) => (

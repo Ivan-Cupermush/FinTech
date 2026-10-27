@@ -2,7 +2,7 @@ import { ArrowLeft, ArrowUp, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { KNOWLEDGE_LIMITS, KNOWLEDGE_SUGGESTIONS, formatDate, knowledgeStatusLine, todayIso, validateQuestion, type KnowledgeMessage } from '@offix/core';
+import { KNOWLEDGE_LIMITS, KNOWLEDGE_SUGGESTIONS, formatDate, knowledgeStatusLine, plural, todayIso, validateQuestion, type KnowledgeMessage } from '@offix/core';
 import { api } from '../../lib/api';
 import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
@@ -192,7 +192,7 @@ export function AskPage() {
               </div>
               {status.data && (
                 <p className="faint kb-welcome-stat">
-                  В базе: {status.data.notes} {status.data.notes === 1 ? 'статья' : 'статей'} и {status.data.docs.ready} {status.data.docs.ready === 1 ? 'документ' : 'документов'}
+                  В базе: {status.data.notes} {plural(status.data.notes, ['статья', 'статьи', 'статей'])} и {status.data.docs.ready} {plural(status.data.docs.ready, ['документ', 'документа', 'документов'])}
                   {status.data.docs.processing ? ` · ещё ${status.data.docs.processing} читается` : ''}
                 </p>
               )}

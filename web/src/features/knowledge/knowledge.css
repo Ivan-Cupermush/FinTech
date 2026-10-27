@@ -1,8 +1,18 @@
 /* Помощник базы знаний и документы */
 
 /* ——— Строка «Спросить» на шапке ——— */
+.kb-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 600px);
+}
+.kb-hero-row > .btn {
+  flex: none;
+}
 .kb-askbar {
-  width: min(100%, 640px);
+  flex: 1;
+  min-width: 0;
 }
 .kb-askbar .glass {
   background: rgba(255, 255, 255, 0.1);
@@ -711,6 +721,13 @@ a.kb-src:hover {
 }
 
 @media (max-width: 900px) {
+  .kb-hero-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .kb-askbar {
+    flex-basis: 100%;
+  }
   .kb-ask-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 14px;

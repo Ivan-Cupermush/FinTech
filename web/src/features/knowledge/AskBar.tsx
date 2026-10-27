@@ -19,7 +19,7 @@ export function AskBar() {
     <Glass className="kb-askbar" radius={24} clip elasticity={0.04} displacement={36}>
       <form className="kb-askbar-form" role="search" aria-label="Спросить базу знаний" onSubmit={submit}>
         <Sparkles size={18} aria-hidden className="kb-askbar-spark" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Спросите базу знаний: кто согласует командировку?" aria-label="Вопрос помощнику" maxLength={2000} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Спросите базу знаний…" aria-label="Вопрос помощнику" maxLength={2000} />
         <button type="submit" className="kb-send" aria-label="Спросить помощника">
           <ArrowUp size={18} />
         </button>

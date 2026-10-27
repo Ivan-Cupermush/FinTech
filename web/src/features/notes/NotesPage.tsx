@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookOpen, Eye, FileText, Pencil, Plus, Search, Sparkles, Target, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Eye, FileText, Pencil, Plus, Search, Target, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDate, NOTE_LIMITS, todayIso, validateNote, type Note, type NoteSummary } from '@offix/core';
@@ -90,20 +90,16 @@ export function NotesPage() {
         title="База знаний"
         subtitle="Регламенты, договорённости и документы — и помощник, который отвечает по ним со ссылками."
         stats={all.data ? knowledgeHeroStats(all.data, readyDocs, today) : undefined}
-        actions={
-          <>
-            {canWrite && tab === 'notes' && (
-              <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
-                Новая статья
-              </Button>
-            )}
-            <Button icon={<Sparkles size={16} />} onClick={() => navigate('/app/notes/ask')}>
-              Помощник
-            </Button>
-          </>
-        }
       >
-        <AskBar />
+        {/* Строка вопроса — главное действие шапки; справа от неё — новая статья. Правую треть занимает знак раздела. */}
+        <div className="kb-hero-row">
+          <AskBar />
+          {canWrite && tab === 'notes' && (
+            <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
+              Новая статья
+            </Button>
+          )}
+        </div>
       </PageHero>
       <div className="row wrap" style={{ gap: 12, marginBottom: 16 }}>
         <Segmented<Tab>

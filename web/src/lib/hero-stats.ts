@@ -1,4 +1,4 @@
-import { addDays, isOverdue } from '@offix/core';
+import { addDays, isOverdue, plural } from '@offix/core';
 import type { HeroStat } from '../ui/fx/PageHero';
 import type { Notification, Task } from './types';
 
@@ -44,9 +44,9 @@ export function notesHeroStats(notes: { goal_id: string | null; updated_at: stri
 export function knowledgeHeroStats(notes: { updated_at: string }[], readyDocs: number | undefined, today: string): HeroStat[] {
   const weekAgo = addDays(today, -7);
   return [
-    { label: 'статей', value: notes.length },
-    { label: 'документов', value: readyDocs ?? '—' },
-    { label: 'обновлены за неделю', value: notes.filter((n) => n.updated_at.slice(0, 10) >= weekAgo).length },
+    { label: plural(notes.length, ['статья', 'статьи', 'статей']), value: notes.length },
+    { label: readyDocs === undefined ? 'документов' : plural(readyDocs, ['документ', 'документа', 'документов']), value: readyDocs ?? '—' },
+    { label: 'обновлено за неделю', value: notes.filter((n) => n.updated_at.slice(0, 10) >= weekAgo).length },
   ];
 }
 
