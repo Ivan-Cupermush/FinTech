@@ -256,6 +256,8 @@ describe('продажи: импорт из Excel', () => {
     expect(await within(dialog).findByText(/Пройдёт строк: 2 из 3/)).toBeInTheDocument();
     expect(uploads[0]!.path).toBe('/sales/entries/import');
     expect(within(dialog).getByText('Строка 4: Нет даты')).toBeInTheDocument();
+    // Дата из ячейки — по-русски, а не 2026-10-02.
+    expect(within(dialog).getByRole('cell', { name: /^2 окт/ })).toBeInTheDocument();
     expect((within(dialog).getByLabelText('Товар') as HTMLSelectElement).value).toBe('1');
     fireEvent.change(within(dialog).getByLabelText('Клиент'), { target: { value: '1' } });
     expect(await within(dialog).findByText(/Пройдёт строк: 3 из 3/)).toBeInTheDocument();

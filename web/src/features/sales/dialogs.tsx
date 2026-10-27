@@ -6,6 +6,7 @@ import {
   ENTRY_FIELD_LABELS,
   ENTRY_FIELDS,
   FACT_RULE_LABELS,
+  formatDate,
   formatNumber,
   formatRub,
   parseFactInput,
@@ -548,7 +549,8 @@ export function ImportEntriesDialog({ userId, plans, onClose }: { userId?: strin
                 {preview.sample.map((r, i) => (
                   <tr key={i}>
                     {r.map((c, j) => (
-                      <td key={j}>{c}</td>
+                      // Даты из ячеек Excel приходят как 2026-10-02 — показываем по-человечески.
+                      <td key={j}>{/^\d{4}-\d{2}-\d{2}$/.test(c) ? formatDate(c, { short: true }) : c}</td>
                     ))}
                   </tr>
                 ))}
