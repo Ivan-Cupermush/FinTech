@@ -18,6 +18,13 @@ const task = (id: string, over: Partial<Task> = {}): Task => ({
   blocker: null,
   goal_ids: [],
   depends_on: [],
+  kind: 'task',
+  thanked_at: null,
+  archived: null,
+  checkpoints: [],
+  watcher_ids: [],
+  created_by: 'u1',
+  created_by_name: null,
   ...over,
 });
 

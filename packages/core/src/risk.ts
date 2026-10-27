@@ -178,3 +178,73 @@ export function analyzeRisks(input: RiskInput): Risk[] {
 
   return risks.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
+
+// ------------------------------------------------------------ светофор задачи
+
+/**
+ * Светофор задачи. В прошлом проекте цвет задачи ставил автор руками
+ * («важность»), и он не говорил, почему задача красная. В offix светофор —
+ * это тот же риск, что и в рисках цели, только по одной задаче: красный —
+ * критичный риск, жёлтый — предупреждение, зелёный — рисков нет. Второго
+ * индикатора нет, и у каждого цвета есть объяснение.
+ */
+export type TaskLight = 'red' | 'yellow' | 'green';
+
+export interface TaskLightView {
+  light: TaskLight;
+  reason: string;
+}
+
+export const TASK_LIGHT_LABELS: Record<TaskLight, string> = { red: 'Критичный риск', yellow: 'Есть риск', green: 'Идёт по плану' };
+
+export const SEVERITY_LIGHT: Record<Severity, TaskLight> = { critical: 'red', warning: 'yellow', info: 'green' };
+
+export interface LightTask extends RiskTask {
+  /** Пройденные и ближайшие контрольные точки: сорванная или просроченная точка — предупреждение. */
+  checkpoints?: readonly { status: 'pending' | 'done' | 'missed'; due_at: string }[];
+}
+
+/** Цвет задачи по тем же правилам, что analyzeRisks: блокировка и просрочка; плюс точки и «срок завтра, а не начата». */
+export function taskLight(t: LightTask, today: string, opts: { critical?: boolean } = {}): TaskLightView | null {
+  if (t.status === 'done' || t.status === 'cancelled') return null;
+  if (t.status === 'blocked') {
+    const long = diffDays(t.blocked_since?.slice(0, 10) ?? today, today);
+    const reason = `Заблокирована ${long > 0 ? days(long) : 'сегодня'}${t.blocked_reason ? `: ${BLOCKER_LABELS[t.blocked_reason].toLowerCase()}` : ''}`;
+    return { light: opts.critical || long >= 3 ? 'red' : 'yellow', reason };
+  }
+  if (isOverdue(t, today)) {
+    const late = diffDays(t.due_at!, today);
+    return { light: opts.critical ? 'red' : 'yellow', reason: `Просрочена на ${days(late)}${opts.critical ? ' — на критическом пути' : ''}` };
+  }
+  const cps = t.checkpoints ?? [];
+  const missed = cps.filter((c) => c.status === 'missed' || (c.status === 'pending' && c.due_at < today)).length;
+  if (missed) return { light: 'yellow', reason: missed === 1 ? 'Контрольная точка не пройдена в срок' : `${missed} ${plural(missed, ['контрольная точка', 'контрольные точки', 'контрольных точек'])} не пройдены в срок` };
+  if (t.status === 'todo' && t.due_at && diffDays(today, t.due_at) <= 1) {
+    return { light: 'yellow', reason: t.due_at === today ? 'Срок сегодня, а работа не начата' : 'Срок завтра, а работа не начата' };
+  }
+  return { light: 'green', reason: t.due_at ? `Идёт по плану, срок ${formatDate(t.due_at, { today })}` : 'Идёт по плану' };
+}
+
+const LIGHT_RANK: Record<TaskLight, number> = { red: 0, yellow: 1, green: 2 };
+
+/** Сначала красные, потом жёлтые; внутри — по сроку. Закрытые — в конце. */
+export function byLight<T extends LightTask>(tasks: readonly T[], today: string): T[] {
+  const rank = (t: T) => {
+    const l = taskLight(t, today);
+    return l ? LIGHT_RANK[l.light] : 3;
+  };
+  return [...tasks].sort((a, b) => rank(a) - rank(b) || (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999'));
+}
+
+/** Светофор по рискам цели: задача получает цвет самого серьёзного риска, в котором она названа. */
+export function lightsFromRisks(risks: readonly Risk[]): Map<string, TaskLight> {
+  const out = new Map<string, TaskLight>();
+  for (const r of risks) {
+    const light = SEVERITY_LIGHT[r.severity];
+    for (const id of r.task_ids) {
+      const cur = out.get(id);
+      if (!cur || LIGHT_RANK[light] < LIGHT_RANK[cur]) out.set(id, light);
+    }
+  }
+  return out;
+}

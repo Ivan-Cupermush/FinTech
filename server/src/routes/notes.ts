@@ -4,6 +4,7 @@ import { canEditGoal, noteExcerpt, searchWords, validateNote, type Note, type No
 import { actorOf, type AuthedActor } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
+import { allowedByFunction } from '../services/functions';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { effectiveAccess, getVisibleGoal } from '../services/goals';
 import { visibleGoals } from './roadmap';
@@ -34,12 +35,15 @@ const SELECT = `SELECT n.id, n.title, n.body, n.goal_id, g.title AS goal_title, 
                   LEFT JOIN goals g ON g.id = n.goal_id`;
 
 /**
- * Править заметку может её автор, администратор, а для заметки цели — ещё и
- * тот, кто управляет целью. Наблюдатель только читает.
+ * Править заметку может её автор, администратор, тот, кому включили «Вести
+ * базу знаний», а для заметки цели — ещё и тот, кто управляет целью.
+ * Наблюдатель только читает.
  */
 async function canEdit(q: Queryable, actor: AuthedActor, n: Pick<NoteRow, 'created_by' | 'goal_id'>): Promise<boolean> {
   if (actor.role === 'observer') return false;
   if (n.created_by === actor.id || actor.role === 'owner' || actor.role === 'admin') return true;
+  // Функция «Вести базу знаний»: руководитель включил — можно править и чужие статьи.
+  if (await allowedByFunction(q, actor, 'knowledge_manage', { byRole: false })) return true;
   if (!n.goal_id) return false;
   const { goal, org } = await getVisibleGoal(q, actor, n.goal_id);
   return canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'description', org);

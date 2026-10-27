@@ -4,6 +4,7 @@ import type { Direction, KpiProgress } from './kpi';
 import type { GoalStatus, GoalType } from './goal';
 import type { Risk } from './risk';
 import type { BlockerReason, TaskStatus } from './task';
+import type { Checkpoint, CheckpointStatus, TaskKind } from './task-flow';
 import type { UnitId } from './units';
 import type { UnitType } from './org';
 import type { ProductMetrics } from './metrics';
@@ -84,10 +85,21 @@ export interface Task {
   blocker: { reason: BlockerReason; note: string | null; since: string; next_step: string | null } | null;
   goal_ids: string[];
   depends_on: string[];
-  permissions?: { view: boolean; edit: boolean; status: boolean };
+  /** Задача или просьба коллеге. */
+  kind: TaskKind;
+  /** Автор поблагодарил за выполненную просьбу. */
+  thanked_at: string | null;
+  archived: { at: string; by_name: string | null } | null;
+  /** Контрольные точки — для светофора и строки списка. */
+  checkpoints: { id: string; title: string; due_at: string; status: CheckpointStatus }[];
+  watcher_ids: string[];
+  created_by: string;
+  created_by_name: string | null;
+  permissions?: { view: boolean; edit: boolean; status: boolean; mark: boolean };
 }
 
-export interface TaskDetail extends Task {
+export interface TaskDetail extends Omit<Task, 'checkpoints'> {
+  checkpoints: Checkpoint[];
   history: { status: TaskStatus; blocked_reason: BlockerReason | null; note: string | null; at: string; actor_name: string | null }[];
   dependencies: { id: string; title: string; status: TaskStatus; due_at: string | null; direction: 'before' | 'after' }[];
   participants: { user_id: string; role: string; display_name: string }[];

@@ -18,6 +18,12 @@ export const NOTIFICATION_KINDS = [
   'note_request',
   'note_request_approved',
   'note_request_declined',
+  // Просьбы и задачи: новая просьба, работа выполнена, автор благодарит.
+  'task_request',
+  'task_done',
+  'task_thanks',
+  // Руководитель включил функцию: вносить KPI, вести базу знаний.
+  'function_granted',
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -26,7 +32,7 @@ export const PUSH_TOPICS = ['tasks', 'blockers', 'goals', 'comments', 'messages'
 export type PushTopic = (typeof PUSH_TOPICS)[number];
 
 export const PUSH_TOPIC_LABELS: Record<PushTopic, { title: string; hint: string }> = {
-  tasks: { title: 'Мои задачи', hint: 'Новая задача, перенос срока' },
+  tasks: { title: 'Мои задачи', hint: 'Новая задача или просьба, перенос срока, работа выполнена' },
   blockers: { title: 'Блокеры', hint: 'Задача в вашей зоне заблокирована или снова в работе' },
   goals: { title: 'Цели', hint: 'Вас назначили владельцем, цель запущена, KPI достиг цели' },
   comments: { title: 'Обсуждения', hint: 'Ответы и упоминания' },
@@ -45,6 +51,10 @@ export const KIND_TOPIC: Record<NotificationKind, PushTopic> = {
   note_request: 'messages',
   note_request_approved: 'messages',
   note_request_declined: 'messages',
+  task_request: 'tasks',
+  task_done: 'tasks',
+  task_thanks: 'tasks',
+  function_granted: 'goals',
 };
 
 export interface PushSettings {
