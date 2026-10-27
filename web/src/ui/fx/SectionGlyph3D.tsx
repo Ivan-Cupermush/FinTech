@@ -79,6 +79,34 @@ function Glass({ tint = '#f2f4ff', attenuation = '#dfe4ff' }: { tint?: string; a
     />
   );
 }
+/**
+ * Золотое стекло монет. Прозрачное стекло в стопке смотрит сквозь соседние
+ * монеты в пустой фон и чернеет, поэтому здесь стекла меньше, а металла
+ * и собственного тёплого свечения больше: монета светится золотом на любом фоне.
+ */
+function GoldGlass() {
+  return (
+    <meshPhysicalMaterial
+      transmission={0.3}
+      thickness={0.3}
+      roughness={0.16}
+      metalness={0.55}
+      ior={1.5}
+      color="#ffd45c"
+      attenuationColor="#ffb21e"
+      attenuationDistance={0.8}
+      emissive="#a86a00"
+      emissiveIntensity={0.35}
+      clearcoat={1}
+      clearcoatRoughness={0.05}
+      iridescence={0.35}
+      iridescenceIOR={1.3}
+      sheen={0.6}
+      sheenColor="#fff1c2"
+      envMapIntensity={2.6}
+    />
+  );
+}
 function Solid() {
   return <meshPhysicalMaterial color="#f2f4ff" roughness={0.18} clearcoat={1} clearcoatRoughness={0.06} envMapIntensity={1.2} />;
 }
@@ -345,7 +373,7 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
       {[0, 1, 2, 3].map((i) => (
         <mesh key={i} position={[-0.32 + (i % 2) * 0.04, -0.62 + i * 0.2, 0]}>
           <cylinderGeometry args={[0.5, 0.5, 0.16, 48]} />
-          <Glass tint="#fff1c2" attenuation="#ffd84a" />
+          <GoldGlass />
         </mesh>
       ))}
       <mesh position={[-0.28, 0.06, 0]} rotation={[Math.PI / 2, 0, 0]}>
