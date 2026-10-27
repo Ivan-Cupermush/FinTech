@@ -108,7 +108,8 @@ export function heroVariantForKpi(state: string | null | undefined): HeroVariant
   return 'hero';
 }
 
-export type HeroStat = { label: string; value: number | string; tone?: 'bad' | 'warn' | 'good' };
+/** unit — единица мельче числа: «563» и «тыс. ₽», чтобы длинная сумма не рвалась посередине слова. */
+export type HeroStat = { label: string; value: number | string; unit?: string; tone?: 'bad' | 'warn' | 'good' };
 
 /** Цифра на стекле градиента: тревожные — тёплым светлым, чтобы читались на синем. */
 export function heroStatColor(tone: HeroStat['tone']): string {

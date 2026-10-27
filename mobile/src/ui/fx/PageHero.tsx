@@ -14,8 +14,11 @@ export function HeroStats({ stats }: { stats: HeroStat[] }) {
     <View style={{ flexDirection: 'row', gap: 8 }}>
       {stats.map((s) => (
         <Glass key={s.label} radius={18} style={{ flex: 1 }}>
-          <View style={{ paddingVertical: 10, paddingHorizontal: 12 }} accessible accessibilityLabel={`${s.label}: ${s.value}`}>
-            <Text style={{ color: heroStatColor(s.tone), fontFamily: font.bold, fontSize: 22, lineHeight: 26 }}>{s.value}</Text>
+          <View style={{ paddingVertical: 10, paddingHorizontal: 12 }} accessible accessibilityLabel={`${s.label}: ${s.value}${s.unit ? ` ${s.unit}` : ''}`}>
+            <Text style={{ color: heroStatColor(s.tone), fontFamily: font.bold, fontSize: 22, lineHeight: 26 }}>
+              {s.value}
+              {s.unit ? <Text style={{ color: heroStatColor(s.tone), fontFamily: font.semibold, fontSize: 13 }}>{` ${s.unit}`}</Text> : null}
+            </Text>
             <Text variant="caption" style={{ color: 'rgba(255,255,255,0.72)' }}>
               {s.label}
             </Text>

@@ -21,7 +21,7 @@ import {
 import { payoutScale } from '../lib/sales';
 import { font, radius, usePalette, type Tone } from '../lib/theme';
 import { Glass } from './fx/Glass';
-import { Hero } from './fx/Hero';
+import { GradientBackdrop } from './fx/GradientBackdrop';
 import { Card, Pill, Text } from './primitives';
 
 /** ‹ Октябрь 2026 › — вперёд не дальше следующего месяца: план ставят заранее. */
@@ -68,7 +68,9 @@ export function PayoutCard({ m }: { m: SalesMonth }) {
     </View>
   );
   return (
-    <Hero mark={false} variant="sales">
+    // Статичный градиент, а не живой: на экране уже есть GL-шапка, второй холст телефону ни к чему.
+    <View style={{ borderRadius: 28, overflow: 'hidden', backgroundColor: '#071c18' }}>
+      <GradientBackdrop variant="sales" />
       <View style={{ padding: 12 }}>
         <Glass radius={22}>
           <View style={{ padding: 16, gap: 14 }} accessible accessibilityLabel={`${file ? 'К выплате по файлу KPI' : 'Прогноз выплаты'}: ${formatRub(file ? t.file! : t.forecast)}`}>
@@ -85,7 +87,7 @@ export function PayoutCard({ m }: { m: SalesMonth }) {
             </View>
             {scale && (
               <View style={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
-                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${scale.forecast}%`, backgroundColor: 'rgba(255,216,74,0.45)' }} />
+                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${scale.forecast}%`, backgroundColor: 'rgba(255,255,255,0.32)' }} />
                 <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${scale.now}%`, backgroundColor: '#ffd84a' }} />
               </View>
             )}
@@ -97,7 +99,7 @@ export function PayoutCard({ m }: { m: SalesMonth }) {
           </View>
         </Glass>
       </View>
-    </Hero>
+    </View>
   );
 }
 
@@ -192,8 +194,8 @@ export function PlanCard({ plan, today, onFact }: { plan: SalesPlan; today: stri
         </Text>
       )}
       {c.hint && (
-        <View style={{ padding: 10, borderRadius: radius.sm, backgroundColor: p.accentSoft }}>
-          <Text variant="small" style={{ color: p.accent }}>
+        <View style={{ padding: 10, borderRadius: radius.sm, backgroundColor: tone === 'done' ? p.goodSoft : p.accentSoft }}>
+          <Text variant="small" style={{ color: tone === 'done' ? p.good : p.accent }}>
             {c.hint}
           </Text>
         </View>

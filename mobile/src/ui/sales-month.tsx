@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { FileUp, ListPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
-import { formatRub, plansLine, reportImportSummary, type SalesMonth } from '@offix/core';
+import { formatRub, reportImportSummary, type SalesMonth } from '@offix/core';
 import { fromDocumentAsset } from '../lib/media';
 import { isSalesTable, planFactEditable, SALES_FILE_TYPES } from '../lib/sales';
 import { salesApi, useSalesEntries, useSalesMutation, useSalesRefresh } from '../lib/sales-api';
@@ -21,7 +21,7 @@ export function SalesMonthBody({ m, today, self }: { m: SalesMonth; today: strin
   return (
     <>
       {m.plans.length > 0 && <PayoutCard m={m} />}
-      <SectionTitle title="План на месяц" right={<Text variant="caption" tone="faint">{plansLine(m.plans)}</Text>} />
+      <SectionTitle title="План на месяц" />
       {m.plans.length ? (
         m.plans.map((x) => <PlanCard key={x.id} plan={x} today={today} onFact={planFactEditable(m, x) ? () => router.push(`/sales/fact/${x.id}?${query}`) : undefined} />)
       ) : (

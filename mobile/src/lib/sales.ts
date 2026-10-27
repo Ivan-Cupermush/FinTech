@@ -2,8 +2,8 @@ import {
   addDays,
   averagePercent,
   formatNumber,
-  formatRubShort,
   moscowDay,
+  rubShortParts,
   type SalesEmployee,
   type SalesMonth,
   type SalesPlan,
@@ -36,12 +36,26 @@ export const salesToday = (now: Date = new Date()) => moscowDay(now.toISOString(
 
 export type SalesView = 'month' | 'team';
 
+/**
+ * С какой вкладки открыть «Продажи»: руководитель без своего плана и продаж
+ * приходит смотреть команду — ему сразу «Команда», остальным — свой месяц.
+ */
+export function defaultSalesView(m: Pick<SalesMonth, 'can' | 'plans' | 'stats' | 'entries'>): SalesView {
+  return m.can.team && !m.plans.length && !m.stats && !m.entries.count ? 'team' : 'month';
+}
+
+/** Сумма для плитки: число крупно, «тыс. ₽» / «млн ₽» — мельче. */
+const moneyStat = (n: number) => {
+  const p = rubShortParts(n);
+  return { value: p.value, unit: p.unit };
+};
+
 /** Цифры в шапке «Моих продаж»: выручка, клиенты, выполнение плана. Суммы — коротко, чтобы влезли в плитку. */
 export function salesHeroStats(m: Pick<SalesMonth, 'plans' | 'stats' | 'entries'>): HeroStat[] {
   const avg = averagePercent(m.plans);
   const money = m.stats ? m.stats.revenue : m.entries.count ? m.entries.amount : null;
   return [
-    { label: m.stats || !m.entries.count ? 'выручка' : 'вручную', value: money == null ? '—' : formatRubShort(money) },
+    { label: m.stats || !m.entries.count ? 'выручка' : 'вручную', ...(money == null ? { value: '—' } : moneyStat(money)) },
     { label: 'клиентов', value: m.stats ? m.stats.clients : '—' },
     { label: 'плана', value: avg == null ? '—' : `${formatNumber(avg, 0)} %`, tone: avg == null ? undefined : avg >= 100 ? 'good' : avg < 70 ? 'warn' : undefined },
   ];
@@ -51,8 +65,8 @@ export function salesHeroStats(m: Pick<SalesMonth, 'plans' | 'stats' | 'entries'
 export function teamHeroStats(t: Pick<SalesTeam, 'members' | 'totals'>): HeroStat[] {
   return [
     { label: 'в команде', value: t.members.length },
-    { label: 'выручка', value: formatRubShort(t.totals.revenue) },
-    { label: 'прогноз выплат', value: formatRubShort(t.totals.forecast) },
+    { label: 'выручка', ...moneyStat(t.totals.revenue) },
+    { label: 'прогноз выплат', ...moneyStat(t.totals.forecast) },
   ];
 }
 

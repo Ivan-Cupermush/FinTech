@@ -3,7 +3,7 @@ import { ChevronRight, Wallet } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { coverageText, formatRub, plansLine, teamMemberLine, type SalesTeam } from '@offix/core';
-import { salesHeroStats, salesToday, teamHeroStats, type SalesView } from '../../lib/sales';
+import { defaultSalesView, salesHeroStats, salesToday, teamHeroStats, type SalesView } from '../../lib/sales';
 import { useSalesMonth, useSalesTeam } from '../../lib/sales-api';
 import { font, usePalette } from '../../lib/theme';
 import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
@@ -22,10 +22,10 @@ export default function SalesScreen() {
   const today = salesToday();
   const current = today.slice(0, 7);
   const [month, setMonth] = useState(params.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(params.month) ? params.month : current);
-  const [picked, setView] = useState<SalesView>(params.view === 'team' ? 'team' : 'month');
+  const [picked, setView] = useState<SalesView | null>(params.view === 'team' || params.view === 'month' ? params.view : null);
   const m = useSalesMonth(month);
   const can = m.data?.can;
-  const view: SalesView = picked === 'team' && can?.team ? 'team' : 'month';
+  const view: SalesView = (picked ?? (m.data ? defaultSalesView(m.data) : 'month')) === 'team' && can?.team ? 'team' : 'month';
   const team = useSalesTeam(month, !!can?.team && view === 'team');
   const d = m.data;
 

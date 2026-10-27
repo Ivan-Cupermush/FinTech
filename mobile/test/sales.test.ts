@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { validateSaleEntry } from '@offix/core';
 import { heroColors, heroStatColor, SECTION_VARIANTS } from '../src/lib/fx';
 import {
+  defaultSalesView,
   emptyEntry,
   employeeTaskFigures,
   entryBody,
@@ -17,6 +18,7 @@ import {
 } from '../src/lib/sales';
 
 const plain = (s: string | number) => String(s).replace(/ /g, ' ');
+const shown = (x: { value: string | number; unit?: string }) => plain(x.unit ? `${x.value} ${x.unit}` : x.value);
 
 const plan = (over: Record<string, unknown> = {}) => ({
   plan: 400000,
@@ -48,7 +50,7 @@ describe('ключи и запросы продаж', () => {
 describe('шапка продаж', () => {
   it('выручка по отчётам коротко, клиенты и среднее выполнение плана', () => {
     const s = salesHeroStats({ plans: [plan({ calc: { percent: 120 } }), plan({ calc: { percent: 90 } })] as never, stats: { revenue: 562_400, clients: 14 } as never, entries: { count: 0, amount: 0, quantity: 0 } });
-    expect(s.map((x) => [x.label, plain(x.value), x.tone])).toEqual([
+    expect(s.map((x) => [x.label, shown(x), x.tone])).toEqual([
       ['выручка', '562 тыс. ₽', undefined],
       ['клиентов', '14', undefined],
       ['плана', '105 %', 'good'],
@@ -56,7 +58,7 @@ describe('шапка продаж', () => {
   });
   it('без отчётов — продажи вручную; без плана и продаж — прочерки', () => {
     const manual = salesHeroStats({ plans: [plan({ calc: { percent: 40 } })] as never, stats: null, entries: { count: 3, amount: 86_862, quantity: 3 } });
-    expect(manual.map((x) => [x.label, plain(x.value), x.tone])).toEqual([
+    expect(manual.map((x) => [x.label, shown(x), x.tone])).toEqual([
       ['вручную', '86 862 ₽', undefined],
       ['клиентов', '—', undefined],
       ['плана', '40 %', 'warn'],
@@ -72,7 +74,8 @@ describe('шапка продаж', () => {
   });
   it('команда: люди, выручка и прогноз выплат', () => {
     const s = teamHeroStats({ members: [{}, {}] as never, totals: { revenue: 1_064_000, now: 0, forecast: 98_500, max: 0 } });
-    expect(s.map((x) => `${x.label}: ${plain(x.value)}`)).toEqual(['в команде: 2', 'выручка: 1,06 млн ₽', 'прогноз выплат: 98 500 ₽']);
+    expect(s.map((x) => `${x.label}: ${shown(x)}`)).toEqual(['в команде: 2', 'выручка: 1,06 млн ₽', 'прогноз выплат: 98 500 ₽']);
+    expect(s[1]).toMatchObject({ value: '1,06', unit: 'млн\u00a0₽' });
   });
   it('у раздела продаж своя шапка, хорошая цифра — светло-зелёная', () => {
     expect(SECTION_VARIANTS).toContain('sales');
@@ -144,5 +147,19 @@ describe('запись продажи', () => {
     expect(ok.entry).toMatchObject({ product: 'Курс Python', amount: 45000.5, quantity: 1, sold_on: today, client: null });
     const bad = validateSaleEntry({ ...emptyEntry(today, null), sold_on: '2026-10-28', quantity: '0' }, today);
     expect(bad.errors).toMatchObject({ product: 'Укажите товар или услугу', quantity: 'Количество — больше нуля', sold_on: 'Продажа не может быть в будущем' });
+  });
+});
+
+describe('с какой вкладки открыть продажи', () => {
+  const can = (team: boolean) => ({ edit: false, fact: false, kpi_file: false, add_entry: true, team, reports: team });
+  const empty = { plans: [], stats: null, entries: { count: 0, amount: 0, quantity: 0 } };
+  it('руководитель без своего плана и продаж — сразу команда', () => {
+    expect(defaultSalesView({ ...empty, can: can(true) })).toBe('team');
+  });
+  it('свой план, отчёты или продажи — свой месяц; без команды — всегда свой месяц', () => {
+    expect(defaultSalesView({ ...empty, plans: [{}] as never, can: can(true) })).toBe('month');
+    expect(defaultSalesView({ ...empty, stats: {} as never, can: can(true) })).toBe('month');
+    expect(defaultSalesView({ ...empty, entries: { count: 1, amount: 10, quantity: 1 }, can: can(true) })).toBe('month');
+    expect(defaultSalesView({ ...empty, can: can(false) })).toBe('month');
   });
 });

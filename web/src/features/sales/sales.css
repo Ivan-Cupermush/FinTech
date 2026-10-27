@@ -16,6 +16,16 @@
   white-space: nowrap;
   opacity: 0.9;
 }
+/* В узкой плитке единица не помещается рядом с числом — ставим её мелкой строкой под ним, а не жирной подписью. */
+@media (max-width: 520px) {
+  .hero-money small {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.75;
+  }
+}
 
 /* ——— Переключатель месяца ——— */
 .sl-month {
