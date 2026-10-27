@@ -55,7 +55,7 @@ export function RoadmapTree({ roadmap, onTask }: { roadmap: Roadmap; onTask: (id
                     {g.tasks.map((t) => (
                       <div key={t.id} className="row" style={{ gap: 0 }}>
                         <div className="grow">
-                          <TaskRow task={t} today={today} onOpen={onTask} />
+                          <TaskRow task={t} today={today} onOpen={onTask} critical={critical.has(t.id)} />
                         </div>
                         {critical.has(t.id) && t.status !== 'done' && (
                           <span className="critical-mark" title="Задержка этой задачи сдвигает срок цели">

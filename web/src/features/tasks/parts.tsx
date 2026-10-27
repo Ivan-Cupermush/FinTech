@@ -21,6 +21,7 @@ export function TaskRow({
   onOpen,
   showAssignee = true,
   meta,
+  critical,
 }: {
   task: Task;
   today: string;
@@ -28,6 +29,8 @@ export function TaskRow({
   showAssignee?: boolean;
   /** Своя вторая строка — например, когда и кто убрал задачу в архив. */
   meta?: string | null;
+  /** На критическом пути цели: блокировка и просрочка здесь — красный. */
+  critical?: boolean;
 }) {
   const Icon = ICON[task.status];
   const overdue = isOverdue(task, today);
@@ -62,7 +65,7 @@ export function TaskRow({
           )}
         </span>
       </span>
-      <LightDot view={meta === undefined ? lightOf(task, today) : null} />
+      <LightDot view={meta === undefined ? lightOf(task, today, { critical }) : null} />
       <TaskStatusPill status={task.status} overdue={overdue} />
       {showAssignee && task.assignee && <Avatar name={task.assignee.display_name ?? ''} size={26} />}
     </button>
