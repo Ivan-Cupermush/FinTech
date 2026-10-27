@@ -1,8 +1,8 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { Target } from 'lucide-react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NoteSummary } from '@offix/core';
-import { goalsHeroStats, inboxHeroStats, integrationsHeroStats, notesHeroStats, orgHeroStats, reportHeroStats, tasksHeroStats } from '../src/lib/hero-stats';
+import { goalsHeroStats, inboxHeroStats, integrationsHeroStats, knowledgeHeroStats, notesHeroStats, orgHeroStats, reportHeroStats, tasksHeroStats } from '../src/lib/hero-stats';
 import type { Dashboard, Me } from '../src/lib/types';
 import { gradientCss, gradientLook, SECTION_VARIANTS } from '../src/ui/fx/gradients';
 import { glyphPlacement, markPlacement } from '../src/ui/fx/layout';
@@ -58,6 +58,9 @@ describe('цифры в шапках разделов', () => {
       TODAY,
     );
     expect(values(s)).toEqual([3, 1, 2]);
+    // Главная базы знаний: статьи, прочитанные документы (пока не загрузились — прочерк), свежие правки.
+    expect(values(knowledgeHeroStats([{ updated_at: '2026-10-18T10:00:00Z' }], 4, TODAY))).toEqual([1, 4, 1]);
+    expect(values(knowledgeHeroStats([], undefined, TODAY))).toEqual([0, '—', 0]);
   });
   it('интеграции, входящие, организация и отчёт', () => {
     expect(values(integrationsHeroStats([{ state: 'ok' }, { state: 'error' }, { state: 'never' }]))).toEqual([3, 1, 1]);
@@ -149,13 +152,12 @@ describe('шапки на экранах', () => {
   const note = (id: string, goal_id: string | null): NoteSummary => ({ id, title: `Заметка ${id}`, excerpt: '', goal_id, goal_title: goal_id ? 'Цель' : null, author_name: 'Ольга', updated_at: new Date().toISOString() });
 
   it('база знаний: шапка с цифрами по всей базе', async () => {
-    mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /notes': [note('n1', null), note('n2', 'g1')] });
+    mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /notes': [note('n1', null), note('n2', 'g1')], 'GET /knowledge/docs': [{ id: 'd1', status: 'ready' }, { id: 'd2', status: 'failed' }] });
     const { container } = renderApp('/app/notes');
     const hero = await screen.findByRole('region', { name: 'База знаний' });
     expect(hero).toHaveAttribute('data-section', 'knowledge');
-    await within(hero).findByText('общих');
-    const nums = [...container.querySelectorAll('.app-hero-stat-body .num')].map((n) => n.textContent);
-    expect(nums).toEqual(['2', '1', '2']);
+    await within(hero).findByText('документов');
+    await waitFor(() => expect([...container.querySelectorAll('.app-hero-stat-body .num')].map((n) => n.textContent)).toEqual(['2', '1', '2']));
   });
 
   it('уведомления: шапка раздела с непрочитанными', async () => {

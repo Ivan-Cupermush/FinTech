@@ -40,6 +40,16 @@ export function notesHeroStats(notes: { goal_id: string | null; updated_at: stri
   ];
 }
 
+/** База знаний: статьи, прочитанные помощником документы и свежие правки. */
+export function knowledgeHeroStats(notes: { updated_at: string }[], readyDocs: number | undefined, today: string): HeroStat[] {
+  const weekAgo = addDays(today, -7);
+  return [
+    { label: 'статей', value: notes.length },
+    { label: 'документов', value: readyDocs ?? '—' },
+    { label: 'обновлены за неделю', value: notes.filter((n) => n.updated_at.slice(0, 10) >= weekAgo).length },
+  ];
+}
+
 export function integrationsHeroStats(items: { state: string }[]): HeroStat[] {
   const failing = items.filter((i) => i.state === 'error').length;
   return [

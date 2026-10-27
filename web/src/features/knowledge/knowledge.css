@@ -1,0 +1,762 @@
+/* Помощник базы знаний и документы */
+
+/* ——— Строка «Спросить» на шапке ——— */
+.kb-askbar {
+  width: min(100%, 640px);
+}
+.kb-askbar .glass {
+  background: rgba(255, 255, 255, 0.1);
+}
+.kb-askbar-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 16px;
+}
+.kb-askbar-form input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+}
+.kb-askbar-form input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+.kb-askbar-spark {
+  flex: none;
+  color: #fff;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+}
+
+/* Кнопка «Спросить»: круглая, на шапке — белая, в поле ввода — фирменный градиент. */
+.kb-send {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background:
+    radial-gradient(100% 80% at 30% 10%, rgba(255, 255, 255, 0.42), transparent 55%),
+    linear-gradient(150deg, #4a63ff, #3050ff 55%, #9a5cff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 8px 20px -8px rgba(60, 70, 255, 0.9);
+  cursor: pointer;
+  transition:
+    transform 160ms var(--ease),
+    opacity var(--dur),
+    filter var(--dur);
+}
+.kb-send:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.05);
+}
+.kb-send:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.kb-send:disabled {
+  opacity: 0.45;
+  filter: saturate(0.4);
+  box-shadow: none;
+  cursor: default;
+}
+.kb-askbar .kb-send {
+  background: #fff;
+  color: #3050ff;
+  box-shadow: 0 8px 22px -10px rgba(0, 0, 20, 0.6);
+}
+
+/* ——— Помощник ——— */
+.kb-ask-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.kb-history {
+  position: sticky;
+  top: 16px;
+  padding: 8px;
+}
+.kb-history-head {
+  padding: 8px 10px 10px;
+  font-size: 14px;
+}
+.kb-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kb-history li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+}
+.kb-history li a {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 34px 8px 10px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 12px;
+}
+.kb-history li a:hover {
+  background: var(--surface-2);
+}
+.kb-history li.is-active a {
+  background: var(--accent-soft);
+}
+.kb-history-title {
+  font-size: 14px;
+  font-weight: 560;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-history-meta {
+  font-size: 12px;
+}
+.kb-history-del {
+  position: absolute;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur);
+}
+.kb-history li:hover .kb-history-del,
+.kb-history-del:focus-visible {
+  opacity: 1;
+}
+.kb-history-del:hover {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.kb-history-empty {
+  padding: 4px 10px 10px;
+  font-size: 13px;
+}
+
+.kb-thread {
+  min-width: 0;
+  min-height: 52vh;
+  display: flex;
+  flex-direction: column;
+}
+.kb-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 8px;
+}
+
+/* Вопрос — облачко справа, в фирменном градиенте. */
+.kb-q {
+  align-self: flex-end;
+  max-width: min(78%, 620px);
+  padding: 11px 16px;
+  border-radius: 20px 20px 6px 20px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+    linear-gradient(150deg, #4a63ff, #3050ff 60%, #7a55ff);
+  box-shadow: 0 12px 28px -16px rgba(48, 80, 255, 0.9);
+  animation: fade-up 220ms var(--ease);
+}
+.kb-q p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Ответ — карточка слева со стеклянной «сферой» помощника. */
+.kb-a {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  animation: fade-up 260ms var(--ease);
+}
+.kb-orb {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background:
+    radial-gradient(70% 60% at 30% 25%, rgba(255, 255, 255, 0.75), transparent 60%),
+    radial-gradient(90% 90% at 70% 80%, #d26bff, transparent 70%),
+    linear-gradient(140deg, #3a4cff, #120a30);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 10px 24px -12px rgba(110, 70, 255, 0.9);
+}
+.kb-orb.is-big {
+  width: 68px;
+  height: 68px;
+}
+.kb-a-body {
+  min-width: 0;
+  padding: 14px 18px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px 20px 20px 20px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, color-mix(in srgb, #3a4cff 45%, transparent), var(--line) 38%, var(--line) 62%, color-mix(in srgb, #d26bff 45%, transparent)) border-box;
+  box-shadow: var(--shadow-1);
+}
+.kb-a.is-empty .kb-a-body {
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(var(--line), var(--line)) border-box;
+}
+.kb-a-mode {
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #8a5cff 80%, var(--ink));
+}
+.kb-answer-text p {
+  margin: 0 0 10px;
+  line-height: 1.62;
+  overflow-wrap: anywhere;
+}
+.kb-answer-text p:last-child {
+  margin-bottom: 0;
+}
+.kb-cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  padding: 0 5px;
+  border-radius: 999px;
+  vertical-align: 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--accent-soft);
+  transition:
+    background var(--dur),
+    color var(--dur);
+}
+a.kb-cite:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.kb-cite.is-dead {
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+.kb-a-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--warn-soft);
+  font-size: 13px;
+}
+.kb-a-notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warn);
+}
+.kb-sources {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+  gap: 8px;
+}
+.kb-src {
+  height: 100%;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--dur),
+    transform 160ms var(--ease),
+    box-shadow var(--dur);
+}
+a.kb-src:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+.kb-src.is-dead {
+  opacity: 0.6;
+}
+.kb-src-n {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+.kb-src-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.kb-src-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.kb-src-title svg,
+.kb-src-goal svg {
+  vertical-align: -1px;
+  color: var(--ink-3);
+}
+.kb-src-goal {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.kb-src-excerpt {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.kb-a-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12.5px;
+}
+.kb-a-foot .faint {
+  margin-right: 4px;
+}
+.kb-fb {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background var(--dur),
+    color var(--dur);
+}
+.kb-fb:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.kb-fb[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.kb-a.is-thinking .kb-a-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.kb-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.kb-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #4a63ff, #d26bff);
+  animation: kb-dot 1.1s var(--ease) infinite;
+}
+.kb-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.kb-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes kb-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+/* Пустой помощник: сфера, приглашение и примеры вопросов. */
+.kb-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px 32px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, #d26bff 16%, transparent), transparent 70%),
+    radial-gradient(50% 60% at 15% 100%, color-mix(in srgb, #3a4cff 12%, transparent), transparent 70%),
+    var(--surface);
+}
+.kb-welcome h2 {
+  margin: 6px 0 0;
+  font-size: clamp(20px, 2.4vw, 26px);
+  letter-spacing: -0.03em;
+}
+.kb-welcome p {
+  max-width: 520px;
+  margin: 0;
+}
+.kb-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kb-chip {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    border-color var(--dur),
+    transform 160ms var(--ease);
+}
+.kb-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  transform: translateY(-1px);
+}
+.kb-welcome-stat {
+  font-size: 13px;
+}
+
+/* Поле вопроса: стеклянная капсула, прилипает к низу экрана. */
+.kb-composer {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 20px;
+  padding: 7px 7px 7px 18px;
+  border-radius: 26px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    var(--shadow-2);
+}
+.kb-composer:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.kb-composer textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  max-height: 180px;
+  padding: 9px 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  field-sizing: content;
+}
+.kb-composer textarea::placeholder {
+  color: var(--ink-3);
+}
+
+/* ——— Документы ——— */
+.kb-drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, #ee8466 12%, transparent), transparent 60%),
+    radial-gradient(80% 120% at 100% 100%, color-mix(in srgb, #3a55ff 10%, transparent), transparent 60%),
+    var(--surface);
+  transition:
+    border-color var(--dur),
+    background var(--dur);
+}
+.kb-drop.is-over {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.kb-drop-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background:
+    radial-gradient(90% 70% at 30% 10%, rgba(255, 255, 255, 0.45), transparent 60%),
+    linear-gradient(140deg, #3a55ff, #ee8466);
+  box-shadow: 0 10px 24px -14px rgba(58, 85, 255, 0.9);
+}
+.kb-drop-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.kb-drop-text .faint {
+  font-size: 13px;
+}
+.kb-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 14px;
+}
+.kb-upload .grow {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-upload-bar {
+  flex: none;
+  width: 120px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.kb-upload-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3a55ff, #ee8466);
+  transition: width 200ms linear;
+}
+.kb-doc-row {
+  align-items: center;
+  gap: 12px;
+}
+.kb-doc-badge {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background:
+    radial-gradient(90% 70% at 30% 10%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(150deg, #8a8a96, #4a4a55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.kb-doc-badge.is-pdf {
+  background:
+    radial-gradient(90% 70% at 30% 10%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(150deg, #ff6a6a, #d4245b);
+}
+.kb-doc-badge.is-docx {
+  background:
+    radial-gradient(90% 70% at 30% 10%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(150deg, #4a63ff, #2a3fd0);
+}
+.kb-doc-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.kb-doc-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kb-doc-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.kb-doc-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--bad);
+}
+.kb-doc-error svg {
+  flex: none;
+  margin-top: 2px;
+}
+.kb-doc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.kb-doc-state p {
+  margin: 0;
+}
+.kb-h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.kb-h3 {
+  margin: 14px 0 0;
+  font-size: 16px;
+  letter-spacing: -0.015em;
+}
+.kb-chunks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kb-chunk {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+}
+.kb-chunk-n {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.kb-chunk p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .kb-ask-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  /* На телефоне история — лентой карточек над диалогом. */
+  .kb-history {
+    position: static;
+    order: 2;
+  }
+  .kb-history ul {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .kb-history li {
+    flex: none;
+    width: 220px;
+  }
+  .kb-history-del {
+    opacity: 1;
+  }
+  .kb-q {
+    max-width: 88%;
+  }
+  .kb-a {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kb-a > .kb-orb {
+    display: none;
+  }
+  .kb-composer {
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 18px);
+  }
+  .kb-drop {
+    flex-wrap: wrap;
+  }
+  .kb-drop-text {
+    flex-basis: calc(100% - 60px);
+  }
+  .kb-doc-row {
+    flex-wrap: wrap;
+  }
+  .kb-doc-row > .grow {
+    flex-basis: calc(100% - 56px);
+  }
+  .kb-upload-bar {
+    width: 70px;
+  }
+}

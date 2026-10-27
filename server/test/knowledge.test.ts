@@ -361,3 +361,30 @@ describe('Ollama', () => {
     expect(p).toMatchObject({ name: 'ollama', embedModel: 'ollama:bge-m3', chatModel: 'llama3.1:8b' });
   });
 });
+
+describe('база знаний в демо', () => {
+  it('регламент, положение и памятка читаются, «скан» — честно не обработан; помощник отвечает по ним', async () => {
+    const ctx = await setup();
+    const { seedDemoKnowledge } = await import('../src/seed/demo-knowledge');
+    const ids = await seedDemoKnowledge(ctx.db, ctx.store, ctx.knowledge, ctx.demo, new Date('2026-10-19T12:00:00Z'));
+    expect(ids).toHaveLength(4);
+    const docs = (await (await ctx.as('director')).get(`${API}/docs`)).body.data as KnowledgeDoc[];
+    const byTitle = Object.fromEntries(docs.map((d) => [d.title, d]));
+    expect(byTitle['Регламент рассмотрения заявлений студентов']).toMatchObject({ status: 'ready', type: 'docx' });
+    expect(byTitle['Положение о защите персональных данных студентов']).toMatchObject({ status: 'ready', type: 'pdf', pages: 1 });
+    expect(byTitle['Памятка наставнику']).toMatchObject({ status: 'ready', type: 'text' });
+    expect(byTitle['Скан приказа № 214']!.status).toBe('failed');
+    expect(byTitle['Скан приказа № 214']!.error).toMatch(/скан/);
+
+    const stuck = (await ask(ctx, 'anna', 'Что делать, если заявка зависла на проверке?')).body.data.answer as KnowledgeMessage;
+    expect(stuck.sources[0]).toMatchObject({ kind: 'doc', title: 'Регламент рассмотрения заявлений студентов' });
+    expect(stuck.content).toContain('руководителю учебного офиса');
+    const kpi = (await ask(ctx, 'anna', 'Кто согласует изменение KPI цели?')).body.data.answer as KnowledgeMessage;
+    expect(kpi.sources.map((s) => s.title)).toContain('Как меняем KPI цели');
+    const leak = (await ask(ctx, 'dima', 'Куда сообщить об утечке персональных данных?')).body.data.answer as KnowledgeMessage;
+    expect(leak.sources[0]!.title).toBe('Положение о защите персональных данных студентов');
+    expect(leak.content).toContain('24 часов');
+    // Памятка — документ цели адаптации: Дмитрий её не видит.
+    expect(docs.length).toBeGreaterThan(((await (await ctx.as('dima')).get(`${API}/docs`)).body.data as KnowledgeDoc[]).length);
+  });
+});

@@ -98,6 +98,22 @@ function Check({ position, scale = 1 }: { position: [number, number, number]; sc
   );
 }
 
+/** Четырёхлучевая искра — знак ИИ: два вытянутых белых ромба крест-накрест. */
+function Sparkle({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh scale={[0.3, 1, 0.3]}>
+        <octahedronGeometry args={[0.5, 0]} />
+        <Solid />
+      </mesh>
+      <mesh scale={[1, 0.3, 0.3]}>
+        <octahedronGeometry args={[0.5, 0]} />
+        <Solid />
+      </mesh>
+    </group>
+  );
+}
+
 const GLYPHS: Record<SectionVariant, () => ReactNode> = {
   // Мишень: три стеклянных кольца и белое «яблочко».
   goals: () => (
@@ -166,6 +182,21 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
           <Solid />
         </mesh>
       ))}
+    </group>
+  ),
+  // Помощник: стеклянная сфера с искрой внутри, орбита и маленькая искра рядом — «спроси, и найдётся».
+  assistant: () => (
+    <group rotation={[0.2, -0.35, 0]}>
+      <mesh>
+        <sphereGeometry args={[0.6, 48, 48]} />
+        <Glass tint="#f6eeff" />
+      </mesh>
+      <Sparkle position={[0, 0, 0]} scale={0.62} />
+      <mesh rotation={[1.15, 0.3, 0.25]}>
+        <torusGeometry args={[0.86, 0.035, 16, 96]} />
+        <Glass />
+      </mesh>
+      <Sparkle position={[0.72, 0.64, 0.25]} scale={0.32} />
     </group>
   ),
   // Интеграции: два сцепленных звена — стеклянное и белое.

@@ -1,5 +1,5 @@
 import { unzipSync } from 'fflate';
-import type { KnowledgeDocType } from '@offix/core';
+import { unwrapLines, type KnowledgeDocType } from '@offix/core';
 
 /** Текст документа длиннее — обрезаем: базе знаний хватит, а сервер не захлебнётся. */
 export const DOC_TEXT_MAX_CHARS = 2_000_000;
@@ -114,7 +114,9 @@ async function pdfText(buf: Uint8Array): Promise<ExtractedText> {
  */
 export async function extractDocText(buf: Uint8Array, type: KnowledgeDocType): Promise<ExtractedText> {
   const r = type === 'pdf' ? await pdfText(buf) : type === 'docx' ? docxText(buf) : plainText(buf);
-  const text = r.text.length > DOC_TEXT_MAX_CHARS ? r.text.slice(0, DOC_TEXT_MAX_CHARS) : r.text;
+  // В PDF и текстовых файлах строки рвёт вёрстка — склеиваем фразы обратно.
+  const joined = type === 'docx' ? r.text : unwrapLines(r.text);
+  const text = joined.length > DOC_TEXT_MAX_CHARS ? joined.slice(0, DOC_TEXT_MAX_CHARS) : joined;
   if (!text.replace(/\s+/g, '')) {
     throw new DocTextError(
       type === 'pdf' ? 'В PDF не нашлось текста — похоже, это скан. Загрузите версию с текстом (например, PDF, сохранённый из Word)' : 'В документе нет текста',

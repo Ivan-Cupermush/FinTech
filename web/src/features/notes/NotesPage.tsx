@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookOpen, Eye, Pencil, Plus, Search, Target, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Eye, FileText, Pencil, Plus, Search, Sparkles, Target, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { formatDate, NOTE_LIMITS, todayIso, validateNote, type Note, type NoteSummary } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
-import { notesHeroStats } from '../../lib/hero-stats';
+import { knowledgeHeroStats } from '../../lib/hero-stats';
 import { useMe } from '../../lib/queries';
 import { PageHero } from '../../ui/fx/PageHero';
 import { Button } from '../../ui/Button';
@@ -12,9 +12,13 @@ import { Field } from '../../ui/Field';
 import { Dialog, Empty, Segmented, Skeleton } from '../../ui/Misc';
 import { useToast } from '../../ui/Toast';
 import { Markdown } from './Markdown';
+import { AskBar } from '../knowledge/AskBar';
+import { DocsPanel } from '../knowledge/Docs';
+import { useKnowledgeDocs, useKnowledgeStatus } from '../knowledge/data';
 import './notes.css';
 
 type Scope = 'all' | 'company';
+type Tab = 'notes' | 'docs';
 
 export const useNotes = (params: { q?: string; goal_id?: string; scope?: Scope }) => {
   const qs = new URLSearchParams();
@@ -59,18 +63,24 @@ export function NoteList({ items, today }: { items: NoteSummary[]; today: string
 }
 
 /**
- * База знаний: регламенты, договорённости, «как считаем KPI». Общие заметки
- * видят все в компании, заметки цели — те, кто видит цель.
+ * База знаний: статьи (регламенты, договорённости, «как считаем KPI») и
+ * загруженные документы. Над ними — помощник: вопрос словами, ответ со
+ * ссылками на статьи и документы, которые человек вправе видеть.
  */
 export function NotesPage() {
   const navigate = useNavigate();
   const me = useMe();
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'docs' ? 'docs' : 'notes';
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const q = useNotes({ q: useDebounced(query), scope });
   const all = useNotes({});
+  const docs = useKnowledgeDocs();
+  const status = useKnowledgeStatus();
   const today = todayIso();
   const canWrite = me.data?.role !== 'observer';
+  const readyDocs = docs.data?.filter((d) => d.status === 'ready').length;
 
   return (
     <div className="page" style={{ maxWidth: 960 }}>
@@ -78,39 +88,61 @@ export function NotesPage() {
         variant="knowledge"
         icon={BookOpen}
         title="База знаний"
-        subtitle="Регламенты, договорённости и решения — рядом с целями, а не в переписке."
-        stats={all.data ? notesHeroStats(all.data, today) : undefined}
+        subtitle="Регламенты, договорённости и документы — и помощник, который отвечает по ним со ссылками."
+        stats={all.data ? knowledgeHeroStats(all.data, readyDocs, today) : undefined}
         actions={
-          canWrite && (
-            <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
-              Новая заметка
+          <>
+            {canWrite && tab === 'notes' && (
+              <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
+                Новая статья
+              </Button>
+            )}
+            <Button icon={<Sparkles size={16} />} onClick={() => navigate('/app/notes/ask')}>
+              Помощник
             </Button>
-          )
+          </>
         }
-      />
+      >
+        <AskBar />
+      </PageHero>
       <div className="row wrap" style={{ gap: 12, marginBottom: 16 }}>
-        <div className="note-search grow">
-          <Search size={16} className="faint" aria-hidden />
-          <input className="input" type="search" aria-label="Поиск заметок" placeholder="Поиск по заголовку и тексту" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </div>
-        <Segmented<Scope>
-          label="Какие заметки"
-          value={scope}
-          onChange={setScope}
+        <Segmented<Tab>
+          label="Раздел базы знаний"
+          value={tab}
+          onChange={(t) => setParams(t === 'docs' ? { tab: 'docs' } : {}, { replace: true })}
           options={[
-            { value: 'all', label: 'Все' },
-            { value: 'company', label: 'Общие' },
+            { value: 'notes', label: <><BookOpen size={13} /> Статьи</> },
+            { value: 'docs', label: <><FileText size={13} /> Документы{docs.data?.length ? ` · ${docs.data.length}` : ''}</> },
           ]}
         />
+        {tab === 'notes' && (
+          <>
+            <div className="note-search grow">
+              <Search size={16} className="faint" aria-hidden />
+              <input className="input" type="search" aria-label="Поиск заметок" placeholder="Поиск по заголовку и тексту" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+            <Segmented<Scope>
+              label="Какие заметки"
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: 'all', label: 'Все' },
+                { value: 'company', label: 'Общие' },
+              ]}
+            />
+          </>
+        )}
       </div>
-      {q.isLoading ? (
+      {tab === 'docs' ? (
+        <DocsPanel canUpload={!!status.data?.can_manage} />
+      ) : q.isLoading ? (
         <Skeleton h={200} />
       ) : q.data?.length ? (
         <NoteList items={q.data} today={today} />
       ) : (
         <div className="card">
           <Empty icon={<BookOpen size={22} />} title={query.trim() ? 'Ничего не нашлось' : 'Заметок пока нет'} action={canWrite && !query.trim() ? <Button onClick={() => navigate('/app/notes/new')}>Написать первую</Button> : undefined}>
-            {query.trim() ? 'Проверьте написание или поищите другое слово.' : 'Начните с того, что спрашивают чаще всего: как считаем KPI, кто согласует, где лежат шаблоны.'}
+            {query.trim() ? 'Проверьте написание или поищите другое слово — или спросите помощника своими словами.' : 'Начните с того, что спрашивают чаще всего: как считаем KPI, кто согласует, где лежат шаблоны.'}
           </Empty>
         </div>
       )}
@@ -290,8 +322,8 @@ export function NotePage() {
   );
 }
 
-/** Вкладка «Заметки» на карточке цели. */
-export function GoalNotes({ goalId, canWrite }: { goalId: string; canWrite: boolean }) {
+/** Вкладка «Заметки» на карточке цели: статьи и документы этой цели. */
+export function GoalNotes({ goalId, canWrite, canUploadDocs = false }: { goalId: string; canWrite: boolean; canUploadDocs?: boolean }) {
   const navigate = useNavigate();
   const q = useNotes({ goal_id: goalId });
   const today = todayIso();
@@ -315,6 +347,8 @@ export function GoalNotes({ goalId, canWrite }: { goalId: string; canWrite: bool
           </Empty>
         </div>
       )}
+      <h3 className="kb-h3">Документы цели</h3>
+      <DocsPanel goalId={goalId} canUpload={canUploadDocs} />
     </section>
   );
 }

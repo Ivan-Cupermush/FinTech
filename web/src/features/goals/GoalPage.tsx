@@ -169,7 +169,7 @@ export function GoalPage() {
       {view === 'timeline' && <RoadmapTimeline roadmap={r} onTask={setTaskId} />}
       {view === 'analytics' && <RoadmapAnalytics roadmap={r} />}
       {view === 'discussion' && <Discussion type="goal" id={g.id} />}
-      {view === 'notes' && <GoalNotes goalId={g.id} canWrite={!!me.data && me.data.role !== 'observer'} />}
+      {view === 'notes' && <GoalNotes goalId={g.id} canWrite={!!me.data && me.data.role !== 'observer'} canUploadDocs={g.permissions.edit} />}
 
       {taskId && <TaskPanel id={taskId} onClose={() => setTaskId(null)} />}
       {dialog === 'observe' && primary && <ObservationDialog goalId={g.id} metric={primary} onClose={() => setDialog(null)} />}

@@ -160,6 +160,21 @@ export function normalizeDocText(text: string): string {
 
 const SENTENCE_END = new Set(['.', '!', '?', '…']);
 
+/**
+ * Склеивает строки, разорванные вёрсткой: в PDF и старых TXT предложение
+ * переносится посреди фразы («…персональных⏎данных студентов»). Перенос
+ * убираем, если строка не кончается знаком препинания, а следующая
+ * начинается со строчной буквы или цифры. Заголовки и пункты списков
+ * (следующая строка с заглавной, «-», «•») остаются на своих строках.
+ */
+export function unwrapLines(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    // Перенос по слогам: «обра-⏎ботка» → «обработка».
+    .replace(/([a-zа-яё])-\n(?=[a-zа-яё])/g, '$1')
+    .replace(/([^\s.!?…:;])[ \t]*\n[ \t]*(?=[a-zа-яё0-9«(])/g, '$1 ');
+}
+
 /** Границы предложений и абзацев: [start, end) в тексте, пробелы после — в конце единицы. */
 function textUnits(text: string, max: number): { start: number; end: number }[] {
   const units: { start: number; end: number }[] = [];
@@ -229,8 +244,10 @@ const STOP = new Set(
 
 /** Окончания русских слов — снимаем, чтобы «заявка», «заявки», «заявкой» совпадали. */
 const ENDINGS = [
-  'иями', 'ями', 'ами', 'ого', 'его', 'ому', 'ему', 'ыми', 'ими', 'ешь', 'ете', 'ить', 'ать', 'ять', 'еть', 'ыть',
-  'ой', 'ей', 'ий', 'ый', 'ая', 'яя', 'ое', 'ее', 'ую', 'юю', 'ам', 'ям', 'ах', 'ях', 'ом', 'ем', 'ов', 'ев', 'ых', 'их',
+  'ования', 'ование', 'овать', 'ениями', 'ениях', 'ением', 'ении', 'ения', 'ение',
+  'иями', 'ями', 'ами', 'ого', 'его', 'ому', 'ему', 'ыми', 'ими', 'ешь', 'ете',
+  'ает', 'яет', 'еет', 'ует', 'ают', 'яют', 'уют', 'ить', 'ать', 'ять', 'еть', 'ыть',
+  'ой', 'ей', 'ий', 'ый', 'ые', 'ие', 'ая', 'яя', 'ое', 'ее', 'ую', 'юю', 'ым', 'им', 'ам', 'ям', 'ах', 'ях', 'ом', 'ем', 'ов', 'ев', 'ых', 'их',
   'ет', 'ут', 'ют', 'ит', 'ат', 'ят', 'ть', 'ся', 'сь', 'ок', 'ек',
   'а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й',
 ];
@@ -396,11 +413,17 @@ export function bestExcerpt(text: string, question: string, max = 220): string {
 export function extractiveAnswer(question: string, chunks: RetrievedChunk[], numberOf: (c: RetrievedChunk) => number, maxSentences = 4): string {
   const candidates: { text: string; n: number; score: number; order: number }[] = [];
   chunks.forEach((c, ci) => {
+    const title = c.title.trim().toLowerCase();
     sentencesOf(c.content).forEach((s, si) => {
       if (s.length < 12) return;
+      // Заголовок документа — не ответ, а подпись к нему.
+      const bare = s.replace(/^[#>*•\-\s]+/, '').replace(/[.:]$/, '').trim().toLowerCase();
+      if (bare === title) return;
       const overlap = keywordOverlap(question, s);
       if (overlap <= 0) return;
-      candidates.push({ text: s, n: numberOf(c), score: overlap + c.score * 0.5, order: ci * 1000 + si });
+      // Законченная фраза важнее подзаголовка с теми же словами.
+      const sentence = /[.!?…;]$/.test(s) ? 1 : 0.6;
+      candidates.push({ text: s, n: numberOf(c), score: (overlap + c.score * 0.5) * sentence, order: ci * 1000 + si });
     });
   });
   const seen = new Set<string>();

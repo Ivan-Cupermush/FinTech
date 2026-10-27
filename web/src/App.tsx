@@ -8,6 +8,8 @@ import { MyNotePage, MyNotesPage } from './features/my-notes/MyNotesPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { GoalNewPage } from './features/goals/GoalTemplates';
 import { NotePage, NotesPage } from './features/notes/NotesPage';
+import { AskPage } from './features/knowledge/AskPage';
+import { DocPage } from './features/knowledge/Docs';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
@@ -74,6 +76,9 @@ export function AppRoutes() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="notes/:id" element={<NotePage />} />
+        <Route path="notes/ask" element={<AskPage />} />
+        <Route path="notes/ask/:sid" element={<AskPage />} />
+        <Route path="notes/docs/:id" element={<DocPage />} />
         <Route path="my-notes" element={<MyNotesPage />} />
         <Route path="my-notes/:id" element={<MyNotePage />} />
         <Route path="profile" element={<AccountPage />} />

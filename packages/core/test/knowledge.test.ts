@@ -18,6 +18,7 @@ import {
   sourcesOf,
   stripBadCitations,
   titleFromFileName,
+  unwrapLines,
   validateKnowledgeTitle,
   validateQuestion,
   wordStem,
@@ -73,6 +74,14 @@ describe('нарезка текста', () => {
     expect(c).toEqual([{ index: 0, content: 'Одно предложение. И второе.', start: 0, end: 27 }]);
   });
 
+  it('строки, разорванные вёрсткой PDF, склеиваются; заголовки и списки — нет', () => {
+    const pdf = 'Положение о защите персональных\nданных студентов\nЧто защищаем\n• Документы не пересылаются через личные\nмессенджеры.\nСотрудник сообщает в течение 24\nчасов. Обра-\nботка — по регламенту.\n- пункт списка';
+    expect(unwrapLines(pdf)).toBe(
+      'Положение о защите персональных данных студентов\nЧто защищаем\n• Документы не пересылаются через личные мессенджеры.\nСотрудник сообщает в течение 24 часов. Обработка — по регламенту.\n- пункт списка',
+    );
+    expect(unwrapLines('a\r\nb')).toBe('a b');
+  });
+
   it('пустой текст — без фрагментов', () => {
     expect(chunkText('  \n\n ')).toEqual([]);
   });
@@ -118,6 +127,11 @@ describe('слова и векторы', () => {
     expect(wordStem('заявкой')).toBe(wordStem('заявка'));
     expect(wordStem('обработки')).toBe(wordStem('обработка'));
     expect(wordStem('ёлка')).toBe('елка');
+    // Глаголы и прилагательные: «сообщает» ~ «сообщить», «данные» ~ «данными», «согласует» ~ «согласование».
+    expect(wordStem('сообщает')).toBe(wordStem('сообщить'));
+    expect(wordStem('данные')).toBe(wordStem('данными'));
+    expect(wordStem('согласует')).toBe(wordStem('согласование'));
+    expect(wordStem('согласовать')).toBe(wordStem('согласование'));
     expect(wordStem('kpi')).toBe('kpi');
   });
 
@@ -211,6 +225,12 @@ describe('ответ без нейросети', () => {
     const chunks = [chunk({ id: 'a', content: s }), chunk({ id: 'a', content: `${s} Другое.` })];
     const answer = extractiveAnswer('кто переназначает заявку', chunks, () => 1);
     expect(answer.match(/переназначает/g)).toHaveLength(1);
+  });
+
+  it('заголовок документа не выдаётся за ответ; законченная фраза важнее подзаголовка', () => {
+    const c = chunk({ id: 'p', title: 'Положение о персональных данных', content: 'Положение о персональных данных\nЕсли произошла утечка данных\nО утечке данных сотрудник сообщает в ИБ в течение 24 часов.' });
+    const answer = extractiveAnswer('Куда сообщить об утечке данных?', [c], () => 1, 1);
+    expect(answer).toBe('О утечке данных сотрудник сообщает в ИБ в течение 24 часов. [1]');
   });
 });
 
