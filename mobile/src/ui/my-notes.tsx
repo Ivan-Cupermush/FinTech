@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, NotebookPen, Paperclip, Star } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
-import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, noteBadge, noteDayLabel, noteTitle, plural, type MyNoteDay, type MyNoteSummary, type NoteShareCard } from '@offix/core';
+import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, noteBadge, noteDayLabel, noteTitle, plural, type CalendarCell, type MyNoteDay, type MyNoteSummary, type NoteShareCard } from '@offix/core';
 import { font, usePalette } from '../lib/theme';
 import { Glass } from './fx/Glass';
 import { GradientBackdrop } from './fx/GradientBackdrop';
@@ -13,10 +13,43 @@ const DAY_LABEL = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'lon
  * сегодня — в кольце, выбранный день — белый. Стрелки листают месяцы.
  */
 export function NoteCalendar({ month, today, selected, days, onMonth, onSelect }: { month: string; today: string; selected: string | null; days: readonly MyNoteDay[]; onMonth: (m: string) => void; onSelect: (d: string | null) => void }) {
-  const weeks = monthGrid(month, { today, selected, counts: days });
   const total = days.reduce((s, d) => s + d.count, 0);
-  const nav = (by: number, label: string) => (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => onMonth(addMonths(month, by))} hitSlop={8}>
+  return (
+    <MonthCalendar
+      label="Календарь заметок"
+      variant="notes"
+      month={month}
+      weeks={monthGrid(month, { today, selected, counts: days })}
+      summary={total ? `${total} ${plural(total, ['заметка', 'заметки', 'заметок'])}` : 'нет заметок'}
+      cellLabel={(c) => (c.count ? `, заметок: ${c.count}` : '')}
+      onMonth={onMonth}
+      onSelect={onSelect}
+    />
+  );
+}
+
+/** Месяц на градиенте — общий для заметок и задач; `late` точек под днём — красные. */
+export function MonthCalendar({
+  label,
+  variant,
+  month,
+  weeks,
+  summary,
+  cellLabel,
+  onMonth,
+  onSelect,
+}: {
+  label: string;
+  variant: 'notes' | 'tasks';
+  month: string;
+  weeks: (CalendarCell & { late?: number })[][];
+  summary: string;
+  cellLabel: (c: CalendarCell & { late?: number }) => string;
+  onMonth: (m: string) => void;
+  onSelect: (d: string | null) => void;
+}) {
+  const nav = (by: number, text: string) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={text} onPress={() => onMonth(addMonths(month, by))} hitSlop={8}>
       <Glass radius={16} style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
         {by < 0 ? <ChevronLeft size={18} color="#fff" /> : <ChevronRight size={18} color="#fff" />}
       </Glass>
@@ -24,16 +57,16 @@ export function NoteCalendar({ month, today, selected, days, onMonth, onSelect }
   );
   return (
     <View style={{ borderRadius: 28, overflow: 'hidden', backgroundColor: '#08162a' }}>
-      <GradientBackdrop variant="notes" />
+      <GradientBackdrop variant={variant} />
       <View style={{ padding: 10 }}>
         <Glass radius={22}>
-          <View accessibilityLabel="Календарь заметок" style={{ padding: 12, gap: 8 }}>
+          <View accessibilityLabel={label} style={{ padding: 12, gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               {nav(-1, 'Предыдущий месяц')}
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontFamily: font.semibold, fontSize: 16 }}>{monthTitle(month)}</Text>
                 <Text variant="caption" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  {total ? `${total} ${plural(total, ['заметка', 'заметки', 'заметок'])}` : 'нет заметок'}
+                  {summary}
                 </Text>
               </View>
               {nav(1, 'Следующий месяц')}
@@ -52,7 +85,7 @@ export function NoteCalendar({ month, today, selected, days, onMonth, onSelect }
                     key={c.date}
                     accessibilityRole="button"
                     accessibilityState={{ selected: c.selected }}
-                    accessibilityLabel={`${DAY_LABEL.format(new Date(`${c.date}T00:00:00Z`))}${c.today ? ', сегодня' : ''}${c.count ? `, заметок: ${c.count}` : ''}`}
+                    accessibilityLabel={`${DAY_LABEL.format(new Date(`${c.date}T00:00:00Z`))}${c.today ? ', сегодня' : ''}${cellLabel(c)}`}
                     onPress={() => onSelect(c.selected ? null : c.date)}
                     style={{ flex: 1, alignItems: 'center', paddingVertical: 2 }}
                   >
@@ -72,7 +105,7 @@ export function NoteCalendar({ month, today, selected, days, onMonth, onSelect }
                       {c.count > 0 && (
                         <View style={{ position: 'absolute', bottom: 4, flexDirection: 'row', gap: 2 }}>
                           {Array.from({ length: Math.min(3, c.count) }, (_, i) => (
-                            <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: c.selected ? '#3352ff' : '#c6f07f' }} />
+                            <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: i < (c.late ?? 0) ? (c.selected ? '#e5484d' : '#ffb4a8') : c.selected ? '#3352ff' : '#c6f07f' }} />
                           ))}
                         </View>
                       )}

@@ -118,6 +118,18 @@ export function validateRequest(
   return errors;
 }
 
+/** Быстрый выбор срока просьбы: сегодня, завтра, к пятнице, через неделю. */
+export function requestDuePresets(today: string): { label: string; value: string }[] {
+  const weekday = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7; // пн = 0
+  const list = [
+    { label: 'Сегодня', value: today },
+    { label: 'Завтра', value: addDays(today, 1) },
+    ...(weekday < 3 ? [{ label: 'К пятнице', value: addDays(today, 4 - weekday) }] : []),
+    { label: 'Через неделю', value: addDays(today, 7) },
+  ];
+  return list;
+}
+
 // ------------------------------------------------------------ архив
 
 /** Через сколько дней закрытая задача уходит в архив сама. */

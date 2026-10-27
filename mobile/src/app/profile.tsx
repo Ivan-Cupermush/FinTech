@@ -11,6 +11,7 @@ import { useMe } from '../lib/queries';
 import { useSession } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
 import { GradientBackdrop } from '../ui/fx/GradientBackdrop';
+import { MyFunctionsCard } from '../ui/functions';
 import { Glass } from '../ui/fx/Glass';
 import { PageHero } from '../ui/fx/PageHero';
 import { Button, Card, Input, Screen, Text } from '../ui/primitives';
@@ -180,6 +181,8 @@ export default function ProfileScreen() {
               </>
             )}
           </Section>
+
+          <MyFunctionsCard />
 
           <Section icon={<KeyRound size={18} color={p.ink} />} title="Пароль">
             <Input label="Текущий пароль" value={pwd.current} onChangeText={(v) => setPwd({ ...pwd, current: v })} secureTextEntry autoComplete="current-password" error={pwdErr.current_password} />

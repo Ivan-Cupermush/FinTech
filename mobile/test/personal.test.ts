@@ -67,6 +67,9 @@ describe('входящие', () => {
     expect(inboxTarget(n({ goal_id: 'g1' }))).toEqual({ kind: 'route', path: '/goal/g1' });
     expect(inboxTarget(n({ kind: 'note_request' }))).toBeNull();
   });
+  it('включили функцию — ведёт в профиль, где видно, что именно', () => {
+    expect(inboxTarget(n({ kind: 'function_granted' }))).toEqual({ kind: 'route', path: '/profile' });
+  });
   it('итог отвеченного запроса', () => {
     expect(requestOutcome('approved')).toBe('Вы поделились');
     expect(requestOutcome('declined')).toBe('Вы отказали');

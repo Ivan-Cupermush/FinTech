@@ -19,6 +19,7 @@ import {
   TASK_ROLE_LABELS,
   validateCheckpoint,
   validateRequest,
+  requestDuePresets,
   type Risk,
 } from '../src';
 
@@ -217,6 +218,16 @@ describe('форма просьбы', () => {
     expect(validateRequest(ok, 'u1', today)).toEqual({});
     expect(validateRequest({ ...ok, title: ' ', assignee_id: null }, 'u1', today)).toEqual({ title: 'Напишите, о чём просите', assignee_id: 'Выберите, кого просите' });
     expect(validateRequest({ ...ok, assignee_id: 'u1' }, 'u1', today).assignee_id).toBe('Просьбу отправляют коллеге, а не себе');
+  });
+  it('быстрые сроки: «к пятнице» — только в начале недели', () => {
+    // 10 ноября 2026 — вторник.
+    expect(requestDuePresets(today)).toEqual([
+      { label: 'Сегодня', value: '2026-11-10' },
+      { label: 'Завтра', value: '2026-11-11' },
+      { label: 'К пятнице', value: '2026-11-13' },
+      { label: 'Через неделю', value: '2026-11-17' },
+    ]);
+    expect(requestDuePresets('2026-11-12').map((p) => p.label)).toEqual(['Сегодня', 'Завтра', 'Через неделю']);
   });
   it('срок — не в прошлом, точки — не позже срока', () => {
     expect(validateRequest({ ...ok, due_at: '2026-11-09' }, 'u1', today).due_at).toBe('Срок уже прошёл — выберите сегодня или позже');

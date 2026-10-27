@@ -58,6 +58,8 @@ export function inboxTarget(n: Pick<Notification, 'kind' | 'task_id' | 'goal_id'
   if (n.kind === 'note_request_declined' && d.share_id) return { kind: 'share', id: d.share_id };
   if (n.task_id) return { kind: 'route', path: `/task/${n.task_id}` };
   if (n.goal_id) return { kind: 'route', path: `/goal/${n.goal_id}` };
+  // Включили функцию — в профиле видно, что именно и где.
+  if (n.kind === 'function_granted') return { kind: 'route', path: '/profile' };
   return null;
 }
 

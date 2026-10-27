@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Building2, MessageCircle, Pencil, Plus, Users } from 'lucide-react-native';
+import { Building2, HandHelping, MessageCircle, Pencil, Plus, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { CONTACT_NAME_MAX, COMPANY_ROLE_LABELS, contactNameError, lastSeenText, nameFor } from '@offix/core';
@@ -9,6 +9,7 @@ import { absUri } from '../../lib/files';
 import { accountApi, mk, usePerson, usePersonGroups } from '../../lib/personal-api';
 import { font, usePalette } from '../../lib/theme';
 import { PageHero } from '../../ui/fx/PageHero';
+import { PersonFunctionsCard } from '../../ui/functions';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
 
 /**
@@ -89,9 +90,12 @@ export default function PersonScreen() {
       {person.is_me ? (
         <Button title="Открыть мой профиль" variant="secondary" onPress={() => router.replace('/profile')} />
       ) : (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {person.active && <Button title="Написать" variant="accent" style={{ flex: 1 }} icon={<MessageCircle size={17} color={p.accentInk} />} loading={busy === 'write'} onPress={() => void write()} />}
-          <Button title="Переименовать" variant="secondary" style={{ flex: 1 }} icon={<Pencil size={16} color={p.ink} />} onPress={() => setRename(person.my_name ?? '')} />
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {person.active && <Button title="Написать" variant="accent" style={{ flex: 1 }} icon={<MessageCircle size={17} color={p.accentInk} />} loading={busy === 'write'} onPress={() => void write()} />}
+            <Button title="Переименовать" variant="secondary" style={{ flex: 1 }} icon={<Pencil size={16} color={p.ink} />} onPress={() => setRename(person.my_name ?? '')} />
+          </View>
+          {person.active && <Button title="Попросить о помощи" variant="secondary" icon={<HandHelping size={16} color={p.ink} />} onPress={() => router.push({ pathname: '/request', params: { to: person.id } })} />}
         </View>
       )}
       {rename !== null && (
@@ -124,6 +128,7 @@ export default function PersonScreen() {
           </Text>
         )}
       </Card>
+      {!person.is_me && person.active && <PersonFunctionsCard userId={person.id} name={shown} />}
       {!person.is_me && !!groups.data?.length && (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 }}>

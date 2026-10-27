@@ -89,6 +89,7 @@ export function NotificationsPage() {
     else if (n.kind === 'note_request_declined' && d.share_id) setOpen({ kind: 'share', id: d.share_id });
     else if (n.task_id) setOpen({ kind: 'task', id: n.task_id });
     else if (n.goal_id) navigate(`/app/goals/${n.goal_id}`);
+    else if (n.kind === 'function_granted') navigate('/app/profile');
   };
   /** «Взять в работу» и «Спасибо» прямо из ленты — задачу открывать не нужно. */
   const act = async (n: Notification, action: 'start' | 'thank') => {

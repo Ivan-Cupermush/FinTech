@@ -365,7 +365,7 @@ export function TypingDots({ color }: { color: string }) {
 
 
 /** Выбор коллег: поиск, отметки; уже добавленные — неактивны. */
-export function PeoplePicker({ people, selected, exclude = [], meId, single, onToggle }: { people: { id: string; display_name: string; position: string | null; active: boolean }[]; selected: string[]; exclude?: string[]; meId?: string; single?: boolean; onToggle: (id: string) => void }) {
+export function PeoplePicker({ people, selected, exclude = [], excludeNote = 'уже в чате', meId, single, onToggle }: { people: { id: string; display_name: string; position: string | null; active: boolean }[]; selected: string[]; exclude?: string[]; excludeNote?: string; meId?: string; single?: boolean; onToggle: (id: string) => void }) {
   const p = usePalette();
   const list = people.filter((u) => u.active && u.id !== meId);
   if (!list.length) return <Text tone="faint">Никого не нашлось</Text>;
@@ -390,7 +390,7 @@ export function PeoplePicker({ people, selected, exclude = [], meId, single, onT
                 {u.display_name}
               </Text>
               <Text numberOfLines={1} variant="caption" tone="faint">
-                {off ? 'уже в чате' : (u.position ?? '')}
+                {off ? excludeNote : (u.position ?? '')}
               </Text>
             </View>
             {!single && (

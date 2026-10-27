@@ -1,14 +1,17 @@
-import { Ban, Check, Circle, CircleDot, CornerDownRight, Eye } from 'lucide-react-native';
+import { Ban, Check, Circle, CircleDot, CornerDownRight, Eye, Flag, HandHelping } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 import {
   BLOCKER_LABELS,
+  checkpointProgress,
   diffDays,
   formatDate,
   formatNumber,
   GOAL_TYPE_LABELS,
   isOverdue,
   KPI_STATE_LABELS,
+  lightOf,
+  TASK_LIGHT_LABELS,
   plural,
   TASK_STATUS_LABELS,
   UNITS,
@@ -17,6 +20,7 @@ import {
   type Metric,
   type Risk,
   type Task,
+  type TaskLightView,
   type TaskStatus,
   type UnitId,
 } from '@offix/core';
@@ -150,26 +154,65 @@ export function TaskStatusPill({ task, today }: { task: Pick<Task, 'id' | 'statu
 
 const ICON = { todo: Circle, in_progress: CircleDot, blocked: Ban, review: Eye, done: Check, cancelled: Circle } as const;
 
-export function TaskRow({ task, today, onPress, showAssignee = true }: { task: Task; today: string; onPress: () => void; showAssignee?: boolean }) {
+/** Светофор задачи: цвет — это риск, подпись объясняет почему. */
+export function LightDot({ view, size = 10 }: { view: TaskLightView | null; size?: number }) {
+  const p = usePalette();
+  if (!view) return null;
+  const color = view.light === 'red' ? p.bad : view.light === 'yellow' ? p.warn : p.good;
+  return <View accessible accessibilityRole="image" accessibilityLabel={`${TASK_LIGHT_LABELS[view.light]}: ${view.reason}`} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, borderWidth: 2, borderColor: `${color}55` }} />;
+}
+
+/** Плашка «Просьба» — коротко, рядом с названием. */
+export function RequestBadge({ text = 'Просьба' }: { text?: string }) {
+  const p = usePalette();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: p.infoSoft }}>
+      <HandHelping size={11} color={p.info} />
+      <Text variant="caption" style={{ color: p.info, fontFamily: font.semibold }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+export function TaskRow({ task, today, onPress, showAssignee = true, meta }: { task: Task; today: string; onPress: () => void; showAssignee?: boolean; /** Своя вторая строка — например, про архив. */ meta?: string | null }) {
   const p = usePalette();
   const Icon = ICON[task.status];
   const blockedFor = task.blocker ? diffDays(task.blocker.since.slice(0, 10), today) : 0;
-  const sub = task.blocker
-    ? `${BLOCKER_LABELS[task.blocker.reason]}${task.blocker.note ? `: ${task.blocker.note}` : ''} · ${blockedFor > 0 ? `${blockedFor} ${plural(blockedFor, ['день', 'дня', 'дней'])}` : 'сегодня'}`
-    : [task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · ');
+  const request = task.kind === 'request';
+  const cps = checkpointProgress(task.checkpoints ?? []);
+  const sub =
+    meta ??
+    (task.blocker
+      ? `${BLOCKER_LABELS[task.blocker.reason]}${task.blocker.note ? `: ${task.blocker.note}` : ''} · ${blockedFor > 0 ? `${blockedFor} ${plural(blockedFor, ['день', 'дня', 'дней'])}` : 'сегодня'}`
+      : [request && task.created_by_name && `от ${task.created_by_name}`, task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
       <Icon size={20} color={task.status === 'done' ? p.good : task.status === 'blocked' ? p.bad : p.ink3} />
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: 3 }}>
+        {request && <RequestBadge />}
         <Text numberOfLines={2} style={{ fontFamily: font.medium, textDecorationLine: task.status === 'done' ? 'line-through' : 'none', color: task.status === 'done' ? p.ink3 : p.ink }}>
           {task.title}
         </Text>
-        {!!sub && (
-          <Text variant="caption" tone="faint" numberOfLines={1}>
-            {sub}
-          </Text>
+        {(!!sub || cps.total > 0) && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {!!sub && (
+              <Text variant="caption" tone="faint" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {sub}
+              </Text>
+            )}
+            {cps.total > 0 && (
+              <View accessible accessibilityLabel={`Контрольные точки: ${cps.done} из ${cps.total}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Flag size={11} color={p.ink3} />
+                <Text variant="caption" tone="faint">
+                  {cps.done}/{cps.total}
+                </Text>
+              </View>
+            )}
+          </View>
         )}
       </View>
+      {meta === undefined && <LightDot view={lightOf(task, today)} />}
       <TaskStatusPill task={task} today={today} />
       {showAssignee && task.assignee && <Avatar name={task.assignee.display_name} id={task.assignee.id} size={26} />}
     </Pressable>
