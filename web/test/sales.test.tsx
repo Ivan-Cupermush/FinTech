@@ -505,6 +505,8 @@ describe('продажи: руководитель', () => {
     const links = screen.getByRole('region', { name: 'KPI целей из продаж' });
     expect(await within(links).findByText('Выручка центра ДПО')).toBeInTheDocument();
     expect(within(links).getByText(/Сентябрь 2026: 1 456 000 ₽/)).toBeInTheDocument();
+    // KPI «Выручка за месяц» — мера не повторяется.
+    expect(within(links).getByText(/^Выручка за месяц · Центр ДПО · /)).toBeInTheDocument();
     fireEvent.change(within(links).getByLabelText('KPI цели'), { target: { value: 'm2' } });
     // Для KPI в штуках — штуки или клиенты; без «всей компании» нужно подразделение.
     expect([...(within(links).getByLabelText('Что считать') as HTMLSelectElement).options].map((o) => o.value)).toEqual(['quantity', 'clients']);

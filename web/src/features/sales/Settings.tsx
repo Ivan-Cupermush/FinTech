@@ -1,7 +1,7 @@
 import { Link2, Search, Unlink, UserCheck, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatDate, formatNumber, formatRub, GOAL_LINK_MEASURE_LABELS, monthTitle, type SalesGoalLink } from '@offix/core';
+import { formatDate, formatRub, GOAL_LINK_MEASURE_LABELS, goalLinkLine, monthTitle, type SalesGoalLink } from '@offix/core';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Skeleton } from '../../ui/Misc';
@@ -273,8 +273,7 @@ function GoalLinks({ can }: { can: boolean }) {
                   {l.goal_title}
                 </Link>
                 <div className="faint" style={{ fontSize: 12.5 }}>
-                  {l.metric_name} · {GOAL_LINK_MEASURE_LABELS[l.measure].toLowerCase()} · {l.unit_name ?? 'вся компания'}
-                  {l.last_month && ` · ${monthTitle(l.last_month)}: ${l.metric_unit === 'rub' ? formatRub(l.last_value ?? 0) : formatNumber(l.last_value ?? 0, 0)}`}
+                  {goalLinkLine(l)}
                 </div>
               </div>
               {l.can_edit && <Button variant="ghost" size="sm" icon={<Unlink size={14} />} aria-label={`Отвязать «${l.metric_name}»`} onClick={() => unlink.mutate(l.metric_id, { onError: (e) => toast(errorText(e), 'error') })} />}

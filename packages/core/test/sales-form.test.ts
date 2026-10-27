@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   emptyPlanForm,
   entryPlans,
+  goalLinkLine,
   parseFactInput,
   PLAN_SOURCE_LABELS,
   planForecastText,
@@ -264,5 +265,16 @@ describe('факт вручную', () => {
     for (const t of ['', '  ', 'много', '-5', '1e13']) expect(parseFactInput(t).value).toBeNull();
     expect(parseFactInput('-5').error).toBe('Факт — число не меньше нуля');
     expect(parseFactInput('1e13').error).toBe('Слишком большое число');
+  });
+});
+
+describe('связь KPI цели с продажами', () => {
+  const link = { metric_name: 'Выручка центра ДПО', metric_unit: 'rub', measure: 'revenue' as const, unit_name: 'Центр ДПО', last_month: '2026-09', last_value: 1_064_000 };
+  it('что считаем, где и последний замер', () => {
+    expect(goalLinkLine(link).replace(/\u00a0/g, ' ')).toBe('Выручка центра ДПО · выручка за месяц · Центр ДПО · Сентябрь 2026: 1 064 000 ₽');
+  });
+  it('KPI называется как сама мера — не повторяем; без подразделения — вся компания; штуки без ₽', () => {
+    expect(goalLinkLine({ ...link, metric_name: 'Выручка за месяц', unit_name: null, last_month: null })).toBe('Выручка за месяц · вся компания');
+    expect(goalLinkLine({ ...link, metric_name: 'Клиенты', metric_unit: 'count', measure: 'clients', last_value: 14 })).toBe('Клиенты · клиенты с продажами за месяц · Центр ДПО · Сентябрь 2026: 14');
   });
 });

@@ -1,7 +1,8 @@
 import { formatNumber } from './format';
-import { addMonths } from './my-notes';
+import { addMonths, monthTitle } from './my-notes';
 import {
   formatRub,
+  GOAL_LINK_MEASURE_LABELS,
   salesPeriodText,
   SALES_LIMITS,
   salesValueText,
@@ -10,6 +11,7 @@ import {
   type PayoutRule,
   type PlanCalc,
   type ReportPersonStatus,
+  type SalesGoalLink,
   type SalesMonth,
   type SalesPlanRow,
   type SalesReportImport,
@@ -374,4 +376,20 @@ export function reportImportSummary(r: SalesReportImport): { title: string; line
   if (r.key_list_empty) lines.push('Список ключевых клиентов пуст — продажи «без ключевых» сейчас равны всем продажам');
   lines.push(...r.warnings);
   return { title, lines, needsMatching: lost.length > 0 };
+}
+
+// ---------------------------------------------------------------- KPI целей из продаж
+
+/**
+ * Строка связи KPI цели с продажами: «Выручка центра · клиенты с продажами за месяц ·
+ * Центр ДПО · Октябрь 2026: 1 064 000 ₽». Если KPI называется так же, как то, что
+ * считаем («Выручка за месяц»), второй раз не повторяем.
+ */
+export function goalLinkLine(l: Pick<SalesGoalLink, 'metric_name' | 'metric_unit' | 'measure' | 'unit_name' | 'last_month' | 'last_value'>): string {
+  const measure = GOAL_LINK_MEASURE_LABELS[l.measure].toLowerCase();
+  const parts = [l.metric_name.trim()];
+  if (parts[0]!.toLowerCase() !== measure) parts.push(measure);
+  parts.push(l.unit_name ?? 'вся компания');
+  if (l.last_month) parts.push(`${monthTitle(l.last_month)}: ${l.metric_unit === 'rub' ? formatRub(l.last_value ?? 0) : formatNumber(l.last_value ?? 0, 0)}`);
+  return parts.join(' · ');
 }
