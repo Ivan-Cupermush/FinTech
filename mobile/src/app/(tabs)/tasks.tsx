@@ -36,7 +36,7 @@ export default function Tasks() {
         variant="tasks"
         icon={ListTodo}
         title="Задачи"
-        subtitle="Сначала — то, где нужна помощь."
+        subtitle={archive ? 'Закрытые задачи уходят сюда сами через 3 дня. Автор или руководитель может вернуть задачу.' : 'Сначала — то, где нужна помощь.'}
         stats={q.data && !archive ? tasksStats(tasks, today) : undefined}
         right={
           <Pressable accessibilityRole="button" accessibilityLabel="Попросить коллегу" onPress={() => router.push('/request')} hitSlop={8}>

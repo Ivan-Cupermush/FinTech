@@ -32,11 +32,26 @@ import { ChatAvatar } from './parts';
 const errText = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз');
 
 /** Выбор людей из компании: поиск, отметки, уже добавленные — неактивны. */
-export function PeopleList({ selected, onToggle, exclude = [], excludeNote = 'уже в чате', single }: { selected: string[]; onToggle: (id: string) => void; exclude?: string[]; excludeNote?: string; single?: boolean }) {
+export function PeopleList({
+  selected,
+  onToggle,
+  exclude = [],
+  excludeNote = 'уже в чате',
+  single,
+  noObservers,
+}: {
+  selected: string[];
+  onToggle: (id: string) => void;
+  exclude?: string[];
+  excludeNote?: string;
+  single?: boolean;
+  /** Без наблюдателей — им нельзя поручить работу. */
+  noObservers?: boolean;
+}) {
   const [q, setQ] = useState('');
   const users = useUsers();
   const me = useMe();
-  const people = (users.data ?? []).filter((u) => u.active && u.id !== me.data?.id && matchesQuery([u.display_name, u.position], q));
+  const people = (users.data ?? []).filter((u) => u.active && u.id !== me.data?.id && !(noObservers && u.role === 'observer') && matchesQuery([u.display_name, u.position], q));
   return (
     <div className="people">
       <input className="input" type="search" placeholder="Имя или должность" aria-label="Поиск сотрудника" value={q} onChange={(e) => setQ(e.target.value)} />

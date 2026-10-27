@@ -54,7 +54,7 @@ export function TaskRow({
               <HandHelping size={12} aria-hidden /> Просьба
             </span>
           )}
-          <span className="clip" style={{ fontWeight: 540, textDecoration: task.status === 'done' ? 'line-through' : undefined, color: task.status === 'done' ? 'var(--ink-3)' : undefined }}>
+          <span className="clip task-title" style={{ fontWeight: 540, textDecoration: task.status === 'done' ? 'line-through' : undefined, color: task.status === 'done' ? 'var(--ink-3)' : undefined }}>
             {task.title}
           </span>
         </span>

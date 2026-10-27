@@ -299,3 +299,16 @@
   color: var(--bg);
   border-color: var(--ink);
 }
+
+/* На телефоне название важнее подписи статуса: статус и так виден по значку слева и светофору. */
+@media (max-width: 520px) {
+  .task-row > .pill {
+    display: none;
+  }
+  .task-row .task-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}

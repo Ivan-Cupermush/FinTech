@@ -6,7 +6,7 @@ import { dueText, taskActions } from '../../lib/logic';
 import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { font, usePalette } from '../../lib/theme';
 import { RequestBadge, TaskStatusPill } from '../../ui/domain';
-import { ArchiveCard, CheckpointsCard, LightLine, ThanksCard, WatchersCard } from '../../ui/task-parts';
+import { ArchiveButton, ArchiveCard, CheckpointsCard, LightLine, ThanksCard, WatchersCard } from '../../ui/task-parts';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
 import { DiscussionLink } from '../../ui/discussion';
 import { TaskFiles } from '../../ui/files';
@@ -96,6 +96,7 @@ export default function TaskScreen() {
           ))}
         </View>
       )}
+      <ArchiveButton task={t} />
 
       {blocking && (
         <Card>

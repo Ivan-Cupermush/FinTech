@@ -492,7 +492,7 @@
 
 @media (max-width: 900px) {
   .mn-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
   .mn-side {

@@ -77,8 +77,15 @@ export function ArchiveCard({ task, today }: { task: TaskDetail; today: string }
       </View>
     );
   }
-  if (!task.permissions?.edit || (task.status !== 'done' && task.status !== 'cancelled')) return null;
-  return <Button title="Убрать в архив" variant="ghost" icon={<Archive size={16} color={p.ink2} />} loading={act.isPending} onPress={() => act.mutate(false, { onError: fail })} />;
+  return null;
+}
+
+/** «Убрать в архив» — под кнопками статуса, когда задача закрыта. */
+export function ArchiveButton({ task }: { task: TaskDetail }) {
+  const p = usePalette();
+  const act = useTaskAction(() => tasksApi.archive(task.id));
+  if (task.archived || !task.permissions?.edit || (task.status !== 'done' && task.status !== 'cancelled')) return null;
+  return <Button title="Убрать в архив" variant="ghost" icon={<Archive size={16} color={p.ink2} />} loading={act.isPending} onPress={() => act.mutate(undefined, { onError: fail })} />;
 }
 
 /**
@@ -164,7 +171,7 @@ export function CheckpointsCard({ task, today }: { task: TaskDetail; today: stri
         <View style={{ gap: 8, paddingTop: list.length ? 6 : 0 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 3 }}>
-              <Input label="Новая точка" value={title} onChangeText={setTitle} placeholder="Что должно быть готово" maxLength={200} error={touched ? (errors.title ?? null) : null} />
+              <Input label="Новая точка" value={title} onChangeText={setTitle} placeholder="Что будет готово" maxLength={200} error={touched ? (errors.title ?? null) : null} />
             </View>
             <View style={{ flex: 2 }}>
               <Input label="Срок" value={due} onChangeText={setDue} placeholder="ГГГГ-ММ-ДД" error={touched ? (errors.due_at ?? null) : null} />

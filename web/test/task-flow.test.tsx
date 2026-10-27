@@ -110,7 +110,7 @@ describe('просьба коллеге', () => {
       ...base,
       'GET /tasks?mine=1': [],
       'GET /tasks?created=1&kind=request': [],
-      'GET /users': members,
+      'GET /users': [...members, { id: 'u-rector', display_name: 'Ректорат', position: 'Наблюдатель', email: 'rector@offix.demo', active: true, role: 'observer', units: [] }],
       'POST /tasks': (c: { body: unknown }) => task('n', { ...(c.body as Partial<Task>), kind: 'request' }),
     });
     renderApp('/app/tasks');
@@ -121,6 +121,10 @@ describe('просьба коллеге', () => {
     expect(within(dialog).getByText('Напишите, о чём просите')).toBeInTheDocument();
     expect(within(dialog).queryByRole('option', { name: /Ольга Смирнова/ })).not.toBeInTheDocument();
     await userEvent.click(await within(dialog).findByRole('option', { name: /Игорь Лебедев/ }));
+    // Наблюдателю работу не поручить — в списке его нет.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Изменить' }));
+    expect(within(dialog).queryByRole('option', { name: /Ректорат/ })).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('option', { name: /Игорь Лебедев/ }));
     await userEvent.type(within(dialog).getByLabelText(/О чём просите/), 'Выдать доступ к справочнику');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Добавить' }));
     await userEvent.type(within(dialog).getByLabelText('Контрольная точка 1'), 'Заявка в IT');

@@ -83,7 +83,8 @@ export default function RequestScreen() {
           <>
             <Input label="Поиск" value={search} onChangeText={setSearch} placeholder="Имя или должность" autoCorrect={false} />
             <PeoplePicker
-              people={people.data ?? []}
+              // Наблюдателю просьбу не отправить — он только смотрит.
+              people={(people.data ?? []).filter((u) => u.role !== 'observer')}
               single
               selected={assignee ? [assignee] : []}
               meId={me.data?.id}
@@ -144,7 +145,7 @@ export default function RequestScreen() {
           <View key={i} style={{ gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
               <View style={{ flex: 3 }}>
-                <Input label={`Точка ${i + 1}`} value={c.title} placeholder="Что должно быть готово" onChangeText={(v) => setCps((l) => l.map((x, j) => (j === i ? { ...x, title: v } : x)))} />
+                <Input label={`Точка ${i + 1}`} value={c.title} placeholder="Что будет готово" onChangeText={(v) => setCps((l) => l.map((x, j) => (j === i ? { ...x, title: v } : x)))} />
               </View>
               <View style={{ flex: 2 }}>
                 <Input label="Срок" value={c.due_at} placeholder="ГГГГ-ММ-ДД" onChangeText={(v) => setCps((l) => l.map((x, j) => (j === i ? { ...x, due_at: v } : x)))} />

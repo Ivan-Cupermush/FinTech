@@ -89,6 +89,7 @@ export function RequestDialog({ onClose, onCreated, to }: { onClose: () => void;
         ) : (
           <PeopleList
             single
+            noObservers
             selected={assignee ? [assignee] : []}
             onToggle={(id) => {
               setAssignee(id);
@@ -132,7 +133,7 @@ export function RequestDialog({ onClose, onCreated, to }: { onClose: () => void;
         {cps.map((c, i) => (
           <div key={i}>
             <div className="row" style={{ gap: 8 }}>
-              <input className="input grow" aria-label={`Контрольная точка ${i + 1}`} value={c.title} placeholder="Что должно быть готово" onChange={(e) => setCps((l) => l.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
+              <input className="input grow" aria-label={`Контрольная точка ${i + 1}`} value={c.title} placeholder="Что будет готово" onChange={(e) => setCps((l) => l.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
               <input className="input" type="date" style={{ width: 150 }} aria-label={`Срок точки ${i + 1}`} value={c.due_at} onChange={(e) => setCps((l) => l.map((x, j) => (j === i ? { ...x, due_at: e.target.value } : x)))} />
               <Button variant="ghost" size="sm" icon={<Trash2 size={15} />} aria-label={`Убрать точку ${i + 1}`} onClick={() => setCps((l) => l.filter((_, j) => j !== i))} />
             </div>

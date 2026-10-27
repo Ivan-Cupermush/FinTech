@@ -175,7 +175,7 @@ export default function GoalScreen() {
               )}
             </View>
             {grp.tasks.map((t) => (
-              <TaskRow key={t!.id} task={t!} today={today} onPress={() => router.push(`/task/${t!.id}`)} />
+              <TaskRow key={t!.id} task={t!} today={today} critical={r.critical_path.includes(t!.id)} onPress={() => router.push(`/task/${t!.id}`)} />
             ))}
           </Card>
         ))

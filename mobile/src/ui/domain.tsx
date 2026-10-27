@@ -177,7 +177,23 @@ export function RequestBadge({ text = 'Просьба' }: { text?: string }) {
   );
 }
 
-export function TaskRow({ task, today, onPress, showAssignee = true, meta }: { task: Task; today: string; onPress: () => void; showAssignee?: boolean; /** Своя вторая строка — например, про архив. */ meta?: string | null }) {
+export function TaskRow({
+  task,
+  today,
+  onPress,
+  showAssignee = true,
+  meta,
+  critical,
+}: {
+  task: Task;
+  today: string;
+  onPress: () => void;
+  showAssignee?: boolean;
+  /** Своя вторая строка — например, про архив. */
+  meta?: string | null;
+  /** На критическом пути цели: блокировка и просрочка здесь — красный. */
+  critical?: boolean;
+}) {
   const p = usePalette();
   const Icon = ICON[task.status];
   const blockedFor = task.blocker ? diffDays(task.blocker.since.slice(0, 10), today) : 0;
@@ -190,7 +206,8 @@ export function TaskRow({ task, today, onPress, showAssignee = true, meta }: { t
       ? `${BLOCKER_LABELS[task.blocker.reason]}${task.blocker.note ? `: ${task.blocker.note}` : ''} · ${blockedFor > 0 ? `${blockedFor} ${plural(blockedFor, ['день', 'дня', 'дней'])}` : 'сегодня'}`
       : [request && requestFrom(task, me.data?.id ?? ''), task.team?.name ?? task.unit?.name, task.due_at && `до ${formatDate(task.due_at, { short: true, today })}`].filter(Boolean).join(' · '));
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
+    // Статус не дублируем подписью: списки и так разбиты по статусу, а значок слева и светофор его показывают — места остаётся названию.
+    <Pressable accessibilityRole="button" accessibilityHint={TASK_STATUS_LABELS[task.status]} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
       <Icon size={20} color={task.status === 'done' ? p.good : task.status === 'blocked' ? p.bad : p.ink3} />
       <View style={{ flex: 1, gap: 3 }}>
         {request && <RequestBadge />}
@@ -215,8 +232,7 @@ export function TaskRow({ task, today, onPress, showAssignee = true, meta }: { t
           </View>
         )}
       </View>
-      {meta === undefined && <LightDot view={lightOf(task, today)} />}
-      <TaskStatusPill task={task} today={today} />
+      {meta === undefined && <LightDot view={lightOf(task, today, { critical })} />}
       {showAssignee && task.assignee && <Avatar name={task.assignee.display_name} id={task.assignee.id} size={26} />}
     </Pressable>
   );
