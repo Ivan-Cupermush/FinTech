@@ -1,6 +1,6 @@
 import { addDays, todayIso } from '@offix/core';
 import type { Db } from '../db/db';
-import { notify } from '../services/notify';
+import { notify, type NewNotification } from '../services/notify';
 import type { DemoIds } from './demo';
 
 /**
@@ -41,7 +41,7 @@ export async function seedDemoTaskFlow(db: Db, demo: DemoIds, now = new Date()):
         done?.by ?? null,
         by,
       ]);
-    const inbox = async (userId: string, actor: string, n: { kind: string; title: string; body?: string | null; task_id?: string }, min: number) => {
+    const inbox = async (userId: string, actor: string, n: Omit<NewNotification, 'company_id' | 'user_id'>, min: number) => {
       await notify(q, { company_id: demo.companyId, user_id: userId, ...n }, actor);
       await q.query(`UPDATE notifications SET created_at = $2 WHERE id = (SELECT id FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1)`, [userId, ago(min)]);
     };
