@@ -277,6 +277,11 @@ describe('образцы файлов', () => {
       [600000, null, null],
       [10, null, null],
     ]);
+    // «Если выполнен» — 100 %, но факта нет: выполнение 0, а не 100.
+    expect(f.metrics.map((m) => [m.file_percent, kpiMetricPercent(m)])).toEqual([
+      [null, 0],
+      [null, 0],
+    ]);
   });
 
   it('отчёт 1С из образца разбирается с теми же суммами', () => {

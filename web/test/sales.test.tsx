@@ -445,6 +445,9 @@ describe('продажи: руководитель', () => {
     expect(uploads[0]!.fields).toEqual({ dry_run: '1' });
     expect(screen.getByText('Строка «Итого» не найдена')).toBeInTheDocument();
     expect(screen.getByText('600 000 ₽')).toBeInTheDocument();
+    // Файл на начало месяца: факта нет — и выполнения нет, а не «0 %».
+    expect(screen.getByRole('columnheader', { name: 'Выполнение' })).toBeInTheDocument();
+    expect(screen.queryByText('0 %')).toBeNull();
     const save = screen.getByRole('button', { name: 'Загрузить показатели' });
     expect(save).toBeDisabled();
     expect((screen.getByLabelText('Месяц', { selector: 'input' }) as HTMLInputElement).value).toBe('2026-11');

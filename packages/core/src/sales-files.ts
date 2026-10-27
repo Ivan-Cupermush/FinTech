@@ -441,8 +441,10 @@ export function parseKpiSheet(rows: readonly unknown[][]): KpiFile {
         m.fact = d.n;
       } else m.fact = d.n;
     } else if (type === 'percent') {
-      m.percent = d.n ?? c.n;
+      // «% выполнения» в колонке C — цель («если выполнен»), а не факт: без колонки D
+      // выполнения ещё нет. Голый «%» в C — ставка («3,5 % от продаж»), её берём.
       m.percentBare = !/выполн/i.test(cellText(row[1]));
+      m.percent = d.n ?? (m.percentBare ? c.n : null);
     } else if (type === 'bonus') m.bonus = c.n ?? d.n;
     else if (type === 'payment') m.payment = d.n;
     m.last = type;

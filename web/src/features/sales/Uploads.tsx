@@ -319,7 +319,7 @@ export function KpiFlow({ user, month, onDone }: { user?: SalesPerson; month?: s
                         <td className="num">{x.plan ? salesValueText(x.plan, x.unit) : '—'}</td>
                         <td className="num">{x.fact != null ? salesValueText(x.fact, x.unit) : '—'}</td>
                         <td className="num">{x.bonus ? formatRub(x.bonus) : '—'}</td>
-                        <td className="num">{s.has_results ? formatRub(x.payment ?? 0) : `${formatNumber(x.percent, 0)} %`}</td>
+                        <td className="num">{s.has_results ? formatRub(x.payment ?? 0) : x.fact == null ? '—' : `${formatNumber(x.percent, 0)} %`}</td>
                       </tr>
                     ))}
                   </tbody>
