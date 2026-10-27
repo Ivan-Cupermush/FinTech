@@ -92,6 +92,32 @@ export function validateCheckpoint(cp: { title?: string; due_at?: string }, task
   return errors;
 }
 
+/**
+ * Форма просьбы: кого просим, что сделать и (по желанию) к какому дню.
+ * Те же правила, что на сервере, — ошибку видно до отправки.
+ */
+export function validateRequest(
+  v: { title: string; assignee_id: string | null; due_at?: string | null; checkpoints?: readonly { title: string; due_at: string }[] },
+  actorId: string,
+  today: string,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const t = v.title.trim();
+  if (!t) errors.title = 'Напишите, о чём просите';
+  else if (t.length > 200) errors.title = 'Коротко — до 200 символов, подробности ниже';
+  if (!v.assignee_id) errors.assignee_id = 'Выберите, кого просите';
+  else if (v.assignee_id === actorId) errors.assignee_id = 'Просьбу отправляют коллеге, а не себе';
+  if (v.due_at) {
+    if (!isValidIsoDate(v.due_at)) errors.due_at = 'Укажите дату в формате ГГГГ-ММ-ДД';
+    else if (v.due_at < today) errors.due_at = 'Срок уже прошёл — выберите сегодня или позже';
+  }
+  (v.checkpoints ?? []).forEach((cp, i) => {
+    const e = validateCheckpoint(cp, v.due_at && isValidIsoDate(v.due_at) ? v.due_at : null);
+    if (Object.keys(e).length) errors[`checkpoints.${i}`] = Object.values(e)[0]!;
+  });
+  return errors;
+}
+
 // ------------------------------------------------------------ архив
 
 /** Через сколько дней закрытая задача уходит в архив сама. */

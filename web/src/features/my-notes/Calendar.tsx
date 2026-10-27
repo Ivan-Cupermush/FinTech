@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, plural, type MyNoteDay } from '@offix/core';
+import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, plural, type CalendarCell, type MyNoteDay } from '@offix/core';
 
 const DAY_LABEL = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -22,8 +22,47 @@ export function NoteCalendar({
   onMonth: (month: string) => void;
   onSelect: (date: string | null) => void;
 }) {
-  const weeks = monthGrid(month, { today, selected, counts: days });
   const total = days.reduce((s, d) => s + d.count, 0);
+  return (
+    <MonthCalendar
+      label="Календарь заметок"
+      month={month}
+      today={today}
+      selected={selected}
+      weeks={monthGrid(month, { today, selected, counts: days })}
+      summary={total ? `${total} ${plural(total, ['заметка', 'заметки', 'заметок'])}` : 'нет заметок'}
+      cellLabel={(c) => (c.count ? `, заметок: ${c.count}` : '')}
+      onMonth={onMonth}
+      onSelect={onSelect}
+    />
+  );
+}
+
+/**
+ * Месяц на градиенте: общий для заметок и задач. Под днём — до трёх точек по
+ * числу записей; `late` — сколько из них просрочено, такие точки красные.
+ */
+export function MonthCalendar({
+  label,
+  month,
+  today,
+  selected,
+  weeks,
+  summary,
+  cellLabel,
+  onMonth,
+  onSelect,
+}: {
+  label: string;
+  month: string;
+  today: string;
+  selected: string | null;
+  weeks: (CalendarCell & { late?: number })[][];
+  summary: string;
+  cellLabel: (c: CalendarCell & { late?: number }) => string;
+  onMonth: (month: string) => void;
+  onSelect: (date: string | null) => void;
+}) {
   const move = (date: string, by: number) => {
     const next = new Date(Date.parse(`${date}T00:00:00Z`) + by * 86_400_000).toISOString().slice(0, 10);
     if (next.slice(0, 7) !== month) onMonth(next.slice(0, 7));
@@ -31,14 +70,14 @@ export function NoteCalendar({
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`[data-day="${next}"]`)?.focus());
   };
   return (
-    <section className="mn-cal" aria-label="Календарь заметок">
+    <section className="mn-cal" aria-label={label}>
       <div className="mn-cal-head">
         <button type="button" className="mn-cal-nav" onClick={() => onMonth(addMonths(month, -1))} aria-label="Предыдущий месяц">
           <ChevronLeft size={18} />
         </button>
         <div className="mn-cal-title">
           <b>{monthTitle(month)}</b>
-          <span className="faint">{total ? `${total} ${plural(total, ['заметка', 'заметки', 'заметок'])}` : 'нет заметок'}</span>
+          <span className="faint">{summary}</span>
         </div>
         <button type="button" className="mn-cal-nav" onClick={() => onMonth(addMonths(month, 1))} aria-label="Следующий месяц">
           <ChevronRight size={18} />
@@ -63,7 +102,7 @@ export function NoteCalendar({
                 tabIndex={c.selected || (!selected && c.today) ? 0 : -1}
                 aria-selected={c.selected}
                 aria-current={c.today ? 'date' : undefined}
-                aria-label={`${DAY_LABEL.format(new Date(`${c.date}T00:00:00Z`))}${c.count ? `, заметок: ${c.count}` : ''}`}
+                aria-label={`${DAY_LABEL.format(new Date(`${c.date}T00:00:00Z`))}${cellLabel(c)}`}
                 className={['mn-day', c.outside && 'is-outside', c.today && 'is-today', c.selected && 'is-selected', c.weekend && 'is-weekend', c.count && 'has-notes'].filter(Boolean).join(' ')}
                 onClick={() => onSelect(c.selected ? null : c.date)}
                 onKeyDown={(e) => {
@@ -78,7 +117,7 @@ export function NoteCalendar({
                 {c.count > 0 && (
                   <span className="mn-day-dots" aria-hidden>
                     {Array.from({ length: Math.min(3, c.count) }, (_, i) => (
-                      <i key={i} />
+                      <i key={i} className={i < (c.late ?? 0) ? 'is-late' : undefined} />
                     ))}
                   </span>
                 )}

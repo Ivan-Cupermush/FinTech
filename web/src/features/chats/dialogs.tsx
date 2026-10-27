@@ -32,7 +32,7 @@ import { ChatAvatar } from './parts';
 const errText = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз');
 
 /** Выбор людей из компании: поиск, отметки, уже добавленные — неактивны. */
-function PeopleList({ selected, onToggle, exclude = [], single }: { selected: string[]; onToggle: (id: string) => void; exclude?: string[]; single?: boolean }) {
+export function PeopleList({ selected, onToggle, exclude = [], excludeNote = 'уже в чате', single }: { selected: string[]; onToggle: (id: string) => void; exclude?: string[]; excludeNote?: string; single?: boolean }) {
   const [q, setQ] = useState('');
   const users = useUsers();
   const me = useMe();
@@ -49,7 +49,7 @@ function PeopleList({ selected, onToggle, exclude = [], single }: { selected: st
               <Avatar name={u.display_name} size={36} id={u.id} />
               <span className="grow">
                 <span className="clip people-name">{u.display_name}</span>
-                <span className="clip faint">{off ? 'уже в чате' : (u.position ?? '')}</span>
+                <span className="clip faint">{off ? excludeNote : (u.position ?? '')}</span>
               </span>
               {!single && <span className={`people-check ${on ? 'on' : ''}`}>{on && <Check size={14} />}</span>}
             </button>

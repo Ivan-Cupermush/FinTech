@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { contactBook, type AccountProfile, type ContactName, type PersonCard, type PersonGroup, type QrLoginInfo } from '@offix/core';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { contactBook, type AccountProfile, type FunctionDetail, type ContactName, type PersonCard, type PersonGroup, type QrLoginInfo } from '@offix/core';
 import { api } from '../../lib/api';
 
 export const ak = {
@@ -32,3 +32,26 @@ export const accountApi = {
   qrDecline: (token: string) => api<QrLoginInfo>(`/account/qr/${token}/decline`, { body: {} }),
   resetPassword: (userId: string, password?: string) => api<{ password: string | null }>(`/users/${userId}/reset-password`, { body: password ? { password } : {} }),
 };
+
+/** Функции сотрудника: что включил или отключил руководитель. */
+export interface FunctionsView {
+  functions: FunctionDetail[];
+  can_change: boolean;
+  reason: string | null;
+}
+
+export const fk = {
+  me: ['functions', 'me'] as const,
+  user: (id: string) => ['functions', id] as const,
+};
+
+export const useMyFunctions = () => useQuery({ queryKey: fk.me, queryFn: () => api<FunctionsView>('/functions/me') });
+export const useUserFunctions = (id: string, enabled = true) => useQuery({ queryKey: fk.user(id), queryFn: () => api<FunctionsView>(`/functions/users/${id}`), enabled, retry: false });
+
+export function useSetFunctions(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (changes: Record<string, boolean | null>) => api<FunctionsView>(`/functions/users/${id}`, { method: 'PUT', body: { changes } }),
+    onSuccess: (data) => qc.setQueryData(fk.user(id), data),
+  });
+}

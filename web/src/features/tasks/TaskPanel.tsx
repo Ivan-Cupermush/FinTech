@@ -1,8 +1,8 @@
-import { Ban, Check, CircleDot, Eye, Flag, Link2, RotateCcw } from 'lucide-react';
+import { Archive, ArchiveRestore, Ban, Check, CircleDot, Eye, Flag, HandHeart, HandHelping, Link2, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { BLOCKER_LABELS, BLOCKER_REASONS, canTransitionTask, formatDate, isOverdue, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole, type TaskStatus } from '@offix/core';
+import { BLOCKER_LABELS, BLOCKER_REASONS, TASK_LIGHT_LABELS, archiveNote, canArchive, canThank, canTransitionKind, formatDate, isOverdue, lightOf, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole, type TaskStatus } from '@offix/core';
 import { ApiError } from '../../lib/api';
-import { useTask, useTaskStatus } from '../../lib/queries';
+import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
@@ -11,6 +11,10 @@ import { TaskStatusPill } from '../../ui/Pill';
 import { useToast } from '../../ui/Toast';
 import { Discussion } from '../discussion/Discussion';
 import { TaskFiles } from '../files/TaskFiles';
+import { tasksApi, useTaskAction } from './data';
+import { LightDot } from './parts';
+import { CheckpointsSection, WatchersSection } from './sections';
+import './tasks.css';
 
 const ACTIONS: { to: TaskStatus; label: string; icon: React.ReactNode; variant: 'primary' | 'secondary' | 'danger' }[] = [
   { to: 'in_progress', label: 'Взять в работу', icon: <CircleDot size={16} />, variant: 'primary' },
@@ -72,12 +76,19 @@ export function BlockDialog({ onClose, onSubmit, busy, error }: { onClose: () =>
 
 export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const q = useTask(id);
+  const me = useMe();
   const status = useTaskStatus();
   const toast = useToast();
   const [blocking, setBlocking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const archive = useTaskAction((v: { id: string; back: boolean }) => (v.back ? tasksApi.unarchive(v.id) : tasksApi.archive(v.id)));
+  const thank = useTaskAction((v: string) => tasksApi.thanks(v));
   const t = q.data;
   const today = todayIso();
+  const light = t ? lightOf(t, today) : null;
+  const request = t?.kind === 'request';
+  const myId = me.data?.id ?? '';
+  const failed = (e: unknown) => toast(e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз', 'error');
 
   const change = (to: TaskStatus, extra: { blocked_reason?: string; blocked_note?: string; next_step?: string } = {}) =>
     status.mutate(
@@ -97,7 +108,7 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
     );
 
   return (
-    <Panel title={t?.title ?? 'Задача'} subtitle="Задача" onClose={onClose}>
+    <Panel title={t?.title ?? 'Задача'} subtitle={request ? 'Просьба' : 'Задача'} onClose={onClose}>
       {!t ? (
         <div className="stack">
           <Skeleton h={18} w="50%" />
@@ -106,9 +117,53 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
       ) : (
         <div className="stack" style={{ '--gap': '22px' } as React.CSSProperties}>
           <div className="row wrap" style={{ gap: 8 }}>
+            {request && (
+              <span className="task-kind">
+                <HandHelping size={12} aria-hidden /> {t.created_by === myId ? 'Ваша просьба' : `Просьба от ${t.created_by_name ?? 'коллеги'}`}
+              </span>
+            )}
             <TaskStatusPill status={t.status} overdue={isOverdue(t, today)} />
             {t.due_at && <span className="faint" style={{ fontSize: 13.5 }}>Срок {formatDate(t.due_at, { today })}</span>}
           </div>
+
+          {t.archived && (
+            <div className="archive-banner">
+              <Archive size={18} className="faint" aria-hidden />
+              <span className="grow">{archiveNote({ archived_at: t.archived.at, archived_by_name: t.archived.by_name }, today)}</span>
+              {t.permissions?.edit && (
+                <Button size="sm" icon={<ArchiveRestore size={15} />} loading={archive.isPending} onClick={() => archive.mutate({ id: t.id, back: true }, { onSuccess: () => toast('Задача вернулась в список'), onError: failed })}>
+                  Вернуть
+                </Button>
+              )}
+            </div>
+          )}
+
+          {light && !t.archived && (
+            <div className={`light-line is-${light.light}`}>
+              <LightDot view={light} />
+              <span>
+                <b>{TASK_LIGHT_LABELS[light.light]}</b> · {light.reason}
+              </span>
+            </div>
+          )}
+
+          {request && t.status === 'done' && (t.created_by === myId || t.thanked_at) && (
+            <div className="thanks-card">
+              <HandHeart size={20} style={{ color: 'var(--good)', flex: 'none' }} aria-hidden />
+              <span className="grow">
+                {t.thanked_at
+                  ? t.created_by === myId
+                    ? `Вы поблагодарили ${formatDate(t.thanked_at, { short: true, today })}`
+                    : `${t.created_by_name ?? 'Автор'} благодарит вас`
+                  : `${t.assignee?.display_name ?? 'Коллега'} выполнил(а) вашу просьбу`}
+              </span>
+              {canThank(t, myId) && (
+                <Button variant="primary" size="sm" loading={thank.isPending} onClick={() => thank.mutate(t.id, { onSuccess: () => toast('Спасибо отправлено'), onError: failed })}>
+                  Спасибо
+                </Button>
+              )}
+            </div>
+          )}
 
           {t.blocker && (
             <div className="card card-tight" style={{ background: 'var(--bad-soft)', borderColor: 'transparent' }}>
@@ -125,14 +180,14 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
             </div>
           )}
 
-          {t.permissions?.status && t.status !== 'cancelled' && (
+          {t.permissions?.status && t.status !== 'cancelled' && !t.archived && (
             <div className="row wrap" style={{ gap: 8 }}>
               {t.status === 'blocked' ? (
                 <Button variant="primary" icon={<RotateCcw size={16} />} loading={status.isPending} onClick={() => change('in_progress')}>
                   Блокировка снята
                 </Button>
               ) : (
-                ACTIONS.filter((a) => canTransitionTask(t.status, a.to)).map((a) => (
+                ACTIONS.filter((a) => canTransitionKind(t.kind, t.status, a.to)).map((a) => (
                   <Button key={a.to} variant={a.variant} icon={a.icon} loading={status.isPending && status.variables?.status === a.to} onClick={() => (a.to === 'blocked' ? setBlocking(true) : change(a.to))}>
                     {a.label}
                   </Button>
@@ -141,11 +196,24 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
             </div>
           )}
 
+          {t.permissions?.edit && !canArchive({ status: t.status, archived_at: t.archived?.at ?? null }) && (
+            <div>
+              <Button variant="ghost" size="sm" icon={<Archive size={15} />} loading={archive.isPending} onClick={() => archive.mutate({ id: t.id, back: false }, { onSuccess: () => toast('Задача в архиве'), onError: failed })}>
+                Убрать в архив
+              </Button>
+            </div>
+          )}
+
           <dl className="stack" style={{ '--gap': '12px', margin: 0 } as React.CSSProperties}>
             {[
+              ...(request ? [['Просит', t.created_by_name ?? '—']] : []),
               ['Исполнитель', t.assignee ? <span className="row" style={{ gap: 8 }}><Avatar name={t.assignee.display_name} size={22} id={t.assignee.id} />{t.assignee.display_name}</span> : '—'],
-              ['Команда', t.team?.name ?? '—'],
-              ['Подразделение', t.unit?.name ?? '—'],
+              ...(request
+                ? []
+                : [
+                    ['Команда', t.team?.name ?? '—'],
+                    ['Подразделение', t.unit?.name ?? '—'],
+                  ]),
               ['Период', t.start_at || t.due_at ? `${t.start_at ? formatDate(t.start_at, { short: true, today }) : '…'} — ${t.due_at ? formatDate(t.due_at, { short: true, today }) : '…'}` : '—'],
             ].map(([k, v]) => (
               <div key={k as string} className="spread" style={{ fontSize: 14 }}>
@@ -162,12 +230,16 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
             </div>
           )}
 
+          <CheckpointsSection key={t.id} task={t} today={today} />
+
           <TaskFiles task={t} />
 
-          {t.participants.length > 0 && (
+          <WatchersSection task={t} />
+
+          {t.participants.some((p) => p.role !== 'watcher') && (
             <div>
               <div className="eyebrow" style={{ marginBottom: 6 }}>Участники</div>
-              {t.participants.map((p) => (
+              {t.participants.filter((p) => p.role !== 'watcher').map((p) => (
                 <div key={p.user_id + p.role} className="row" style={{ gap: 8, padding: '4px 0', fontSize: 14 }}>
                   <Avatar name={p.display_name} size={22} id={p.user_id} /> {p.display_name}
                   <span className="faint">· {TASK_ROLE_LABELS[p.role as TaskRole] ?? p.role}</span>

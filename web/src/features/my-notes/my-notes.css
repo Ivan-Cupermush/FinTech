@@ -150,9 +150,16 @@
   background: #d6ff9c;
   box-shadow: 0 0 6px rgba(214, 255, 156, 0.8);
 }
+.mn-day-dots i.is-late {
+  background: #ffb4a8;
+  box-shadow: 0 0 6px rgba(255, 120, 100, 0.9);
+}
 .mn-day.is-selected .mn-day-dots i {
   background: var(--accent);
   box-shadow: none;
+}
+.mn-day.is-selected .mn-day-dots i.is-late {
+  background: var(--bad);
 }
 .mn-side-foot {
   display: flex;

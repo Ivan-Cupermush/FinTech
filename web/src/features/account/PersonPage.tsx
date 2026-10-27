@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Check, Mail, MessageCircle, Pencil, Plus, UserRound, Users } from 'lucide-react';
+import { ArrowLeft, Building2, Check, HandHelping, Mail, MessageCircle, Pencil, Plus, UserRound, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS, CONTACT_NAME_MAX, contactNameError, lastSeenText, plural } from '@offix/core';
@@ -11,6 +11,8 @@ import { Dialog, Empty, Skeleton } from '../../ui/Misc';
 import { useToast } from '../../ui/Toast';
 import { PageHero } from '../../ui/fx/PageHero';
 import { chatApi, ck } from '../chats/data';
+import { RequestDialog } from '../tasks/RequestDialog';
+import { PersonFunctions } from './Functions';
 import { accountApi, ak, usePerson, usePersonGroups } from './data';
 import './account.css';
 
@@ -74,6 +76,7 @@ export function PersonPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [rename, setRename] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
   const p = q.data;
 
@@ -137,6 +140,11 @@ export function PersonPage() {
               {p.active && (
                 <Button variant="primary" icon={<MessageCircle size={15} />} onClick={() => void write()}>
                   Написать
+                </Button>
+              )}
+              {p.active && (
+                <Button icon={<HandHelping size={15} />} onClick={() => setAsking(true)}>
+                  Попросить
                 </Button>
               )}
               <Button icon={<Pencil size={14} />} onClick={() => setRename(true)}>
@@ -217,7 +225,9 @@ export function PersonPage() {
             )}
           </section>
         )}
+        {!p.is_me && p.active && <PersonFunctions userId={p.id} name={shown} />}
       </div>
+      {asking && <RequestDialog to={p.id} onClose={() => setAsking(false)} />}
       {rename && <ContactNameDialog userId={p.id} realName={p.display_name} current={p.my_name} onClose={() => setRename(false)} />}
     </div>
   );

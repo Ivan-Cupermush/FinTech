@@ -8,6 +8,7 @@ import {
   canTransitionKind,
   checkpointProgress,
   checkpointState,
+  lightOf,
   lightsFromRisks,
   nextCheckpoint,
   shouldAutoArchive,
@@ -17,6 +18,7 @@ import {
   tasksForDay,
   TASK_ROLE_LABELS,
   validateCheckpoint,
+  validateRequest,
   type Risk,
 } from '../src';
 
@@ -160,6 +162,12 @@ describe('светофор задачи — это риск', () => {
     expect(taskLight(base, today)).toEqual({ light: 'green', reason: 'Идёт по плану, срок 30 ноября' });
   });
 
+  it('задача из API: блокировка объектом blocker даёт тот же цвет', () => {
+    const t = { id: '1', title: 'x', status: 'blocked' as const, blocker: { reason: 'technical' as const, since: '2026-11-05T10:00:00Z' } };
+    expect(lightOf(t, today)).toEqual({ light: 'red', reason: 'Заблокирована 5 дней: техническая проблема' });
+    expect(lightOf({ id: '2', title: 'y', status: 'in_progress', due_at: '2026-11-30', blocker: null }, today)?.light).toBe('green');
+  });
+
   it('сортировка: красные, жёлтые, зелёные, закрытые', () => {
     const list = [
       { id: 'g', title: 'x', status: 'in_progress' as const, due_at: '2026-11-30' },
@@ -200,5 +208,19 @@ describe('кнопки во «Входящих»', () => {
   it('за задачу и без состояния — кнопок нет', () => {
     expect(inboxTaskAction({ kind: 'task_done', task_state: { ...state, kind: 'task', status: 'done', mine: true } }).action).toBeNull();
     expect(inboxTaskAction({ kind: 'comment' })).toEqual({ action: null, note: null });
+  });
+});
+
+describe('форма просьбы', () => {
+  const ok = { title: 'Подпишите приказ', assignee_id: 'u2', due_at: '2026-11-12' };
+  it('кого и о чём — обязательно; себе нельзя', () => {
+    expect(validateRequest(ok, 'u1', today)).toEqual({});
+    expect(validateRequest({ ...ok, title: ' ', assignee_id: null }, 'u1', today)).toEqual({ title: 'Напишите, о чём просите', assignee_id: 'Выберите, кого просите' });
+    expect(validateRequest({ ...ok, assignee_id: 'u1' }, 'u1', today).assignee_id).toBe('Просьбу отправляют коллеге, а не себе');
+  });
+  it('срок — не в прошлом, точки — не позже срока', () => {
+    expect(validateRequest({ ...ok, due_at: '2026-11-09' }, 'u1', today).due_at).toBe('Срок уже прошёл — выберите сегодня или позже');
+    expect(validateRequest({ ...ok, due_at: null }, 'u1', today)).toEqual({});
+    expect(validateRequest({ ...ok, checkpoints: [{ title: 'Черновик', due_at: '2026-11-11' }, { title: 'Итог', due_at: '2026-11-20' }] }, 'u1', today)).toEqual({ 'checkpoints.1': 'Контрольная точка — не позже срока задачи' });
   });
 });

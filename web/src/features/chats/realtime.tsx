@@ -4,6 +4,7 @@ import { messagePreview, type ChatMessage, type ChatPoll, type ChatReaction, typ
 import { connectChatSocket, type ChatSocket } from '../../lib/socket';
 import { useAuth } from '../../lib/auth';
 import { avatarsKey } from '../../lib/avatars';
+import { useToast } from '../../ui/Toast';
 import { addMessages, chatApi, ck, patchMessage, removeMessages, setOthersRead } from './data';
 
 export interface Typist {
@@ -40,6 +41,9 @@ export const typingKey = (chatId: string, topicId: string | null) => `${chatId}:
 
 const TYPING_TTL = 6000;
 
+/** О чём сразу говорим всплывашкой: просьбу ждут, «спасибо» приятно увидеть сразу. */
+const LIVE_TOASTS = new Set(['task_request', 'task_done', 'task_thanks', 'function_granted']);
+
 /**
  * Связь с сервером в реальном времени: одно соединение на вкладку. События
  * сразу правят кэш — открытая лента, список чатов и значки обновляются без
@@ -48,6 +52,10 @@ const TYPING_TTL = 6000;
 export function ChatRealtimeProvider({ meId, children }: { meId: string | undefined; children: ReactNode }) {
   const { token } = useAuth();
   const qc = useQueryClient();
+  const toast = useToast();
+  // Тост — через ссылку: соединение не пересоздаём, когда меняется функция.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [connected, setConnected] = useState(false);
   const [online, setOnline] = useState<ReadonlySet<string>>(new Set());
   const [lastSeen, setLastSeen] = useState<ReadonlyMap<string, string>>(new Map());
@@ -157,10 +165,16 @@ export function ChatRealtimeProvider({ meId, children }: { meId: string | undefi
         void qc.invalidateQueries({ queryKey: avatarsKey });
         if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
       },
-      // Новое во «Входящих»: запрос заметки и ответ на него.
-      notification: () => {
+      // Новое во «Входящих»: запрос заметки, просьба коллеги, «спасибо», новая функция.
+      notification: (p: { kind?: string; title?: string }) => {
         void qc.invalidateQueries({ queryKey: ['notifications'] });
         void qc.invalidateQueries({ queryKey: ['dashboard'] });
+        if (p.kind?.startsWith('task_')) {
+          void qc.invalidateQueries({ queryKey: ['tasks'] });
+          void qc.invalidateQueries({ queryKey: ['task'] });
+        }
+        if (p.kind === 'function_granted') void qc.invalidateQueries({ queryKey: ['functions'] });
+        if (p.title && LIVE_TOASTS.has(p.kind ?? '')) toastRef.current(p.title);
       },
       contact_names_changed: () => {
         void qc.invalidateQueries({ queryKey: ['contact-names'] });

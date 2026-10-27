@@ -20,6 +20,7 @@ import { PageHero } from '../../ui/fx/PageHero';
 import { gradientCss, gradientLook } from '../../ui/fx/gradients';
 import { useDarkTheme } from '../../ui/fx/support';
 import { accountApi, ak, useProfile } from './data';
+import { MyFunctions } from './Functions';
 import './account.css';
 
 const errFields = (e: unknown) => (e instanceof ApiError ? e.fields : {});
@@ -330,6 +331,8 @@ export function AccountPage() {
           </h2>
           <ProfileQr id={p.id} name={p.display_name} />
         </section>
+
+        <MyFunctions />
 
         <section className="card acc-card" aria-labelledby="acc-sec">
           <h2 id="acc-sec" className="acc-h">

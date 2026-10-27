@@ -1,8 +1,8 @@
-import { Bell, CalendarClock, CheckCheck, MessageSquare, NotebookPen, OctagonAlert, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CalendarClock, CheckCheck, CircleCheck, CircleDot, HandHeart, HandHelping, MessageSquare, NotebookPen, OctagonAlert, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { formatDate, todayIso } from '@offix/core';
+import { formatDate, inboxTaskAction, todayIso } from '@offix/core';
 import { api } from '../../lib/api';
 import { inboxHeroStats } from '../../lib/hero-stats';
 import { PageHero } from '../../ui/fx/PageHero';
@@ -14,6 +14,7 @@ import { useToast } from '../../ui/Toast';
 import { NoteRequestDialog, SharedNoteDialog } from '../my-notes/NoteDialogs';
 import { myNotesApi } from '../my-notes/data';
 import { TaskPanel } from '../tasks/TaskPanel';
+import { tasksApi } from '../tasks/data';
 import { PushSettings } from './PushSettings';
 
 const ICONS: Record<string, typeof Bell> = {
@@ -25,6 +26,10 @@ const ICONS: Record<string, typeof Bell> = {
   note_request: NotebookPen,
   note_request_approved: NotebookPen,
   note_request_declined: NotebookPen,
+  task_request: HandHelping,
+  task_done: CircleCheck,
+  task_thanks: HandHeart,
+  function_granted: ShieldCheck,
 };
 
 const PAGE = 50;
@@ -85,6 +90,22 @@ export function NotificationsPage() {
     else if (n.task_id) setOpen({ kind: 'task', id: n.task_id });
     else if (n.goal_id) navigate(`/app/goals/${n.goal_id}`);
   };
+  /** «Взять в работу» и «Спасибо» прямо из ленты — задачу открывать не нужно. */
+  const act = async (n: Notification, action: 'start' | 'thank') => {
+    if (!n.task_id) return;
+    setAnswering(`${n.id}:${action}`);
+    try {
+      if (action === 'start') await api(`/tasks/${n.task_id}/status`, { body: { status: 'in_progress' } });
+      else await tasksApi.thanks(n.task_id);
+      if (!n.read_at) await api('/notifications/read', { body: { ids: [n.id] } });
+      toast(action === 'start' ? 'Взяли в работу — автор увидит' : 'Спасибо отправлено');
+      await Promise.all([refresh(), qc.invalidateQueries({ queryKey: ['tasks'] }), qc.invalidateQueries({ queryKey: ['task'] })]);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setAnswering(null);
+    }
+  };
   const answer = async (n: Notification, how: 'approve' | 'decline') => {
     const id = n.data?.request_id;
     if (!id) return;
@@ -135,6 +156,7 @@ export function NotificationsPage() {
                 {g.items.map((n) => {
                   const Icon = ICONS[n.kind] ?? Bell;
                   const pending = n.kind === 'note_request' && n.request_status === 'pending';
+                  const task = inboxTaskAction(n);
                   return (
                     <div key={n.id} className="inbox-row">
                       <button type="button" className="list-row inbox-main" onClick={() => go(n)} style={{ alignItems: 'flex-start' }}>
@@ -149,6 +171,11 @@ export function NotificationsPage() {
                         <span className="grow stack" style={{ '--gap': '2px' } as React.CSSProperties}>
                           <span style={{ fontWeight: n.read_at ? 450 : 620 }}>{n.title}</span>
                           {n.body && <span className="faint" style={{ fontSize: 13 }}>{n.body}</span>}
+                          {task.note && (
+                            <span className="faint" style={{ fontSize: 12.5 }}>
+                              {task.note}
+                            </span>
+                          )}
                           {n.kind === 'note_request' && n.request_status && n.request_status !== 'pending' && (
                             <span className="faint" style={{ fontSize: 12.5 }}>
                               {n.request_status === 'approved' ? 'Вы поделились' : 'Вы отказали'}
@@ -160,6 +187,19 @@ export function NotificationsPage() {
                         </span>
                         {!n.read_at && <span aria-label="Не прочитано" style={{ width: 8, height: 8, borderRadius: 8, background: 'var(--accent)', flex: 'none', marginTop: 7 }} />}
                       </button>
+                      {task.action && (
+                        <div className="inbox-actions">
+                          {task.action === 'start' ? (
+                            <Button size="sm" variant="primary" icon={<CircleDot size={15} />} loading={answering === `${n.id}:start`} disabled={!!answering} onClick={() => void act(n, 'start')}>
+                              Взять в работу
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="primary" icon={<HandHeart size={15} />} loading={answering === `${n.id}:thank`} disabled={!!answering} onClick={() => void act(n, 'thank')}>
+                              Спасибо
+                            </Button>
+                          )}
+                        </div>
+                      )}
                       {pending && (
                         <div className="inbox-actions">
                           <Button size="sm" variant="ghost" loading={answering === `${n.id}:decline`} disabled={!!answering} onClick={() => void answer(n, 'decline')}>
@@ -187,7 +227,7 @@ export function NotificationsPage() {
       ) : (
         <div className="card">
           <Empty icon={<Bell size={22} />} title="Уведомлений нет">
-            Здесь появятся блокеры в вашей зоне, новые задачи, переносы сроков, комментарии к вашим целям и запросы ваших заметок.
+            Здесь появятся блокеры в вашей зоне, новые задачи и просьбы коллег, переносы сроков, комментарии к вашим целям и запросы ваших заметок.
           </Empty>
         </div>
       )}

@@ -225,6 +225,15 @@ export function taskLight(t: LightTask, today: string, opts: { critical?: boolea
   return { light: 'green', reason: t.due_at ? `Идёт по плану, срок ${formatDate(t.due_at, { today })}` : 'Идёт по плану' };
 }
 
+/** Светофор задачи в том виде, как её отдаёт API: блокировка — объектом `blocker`. */
+export function lightOf(
+  t: TaskLike & { title: string; blocker?: { reason: BlockerReason; since: string } | null; checkpoints?: LightTask['checkpoints'] },
+  today: string,
+  opts: { critical?: boolean } = {},
+): TaskLightView | null {
+  return taskLight({ ...t, blocked_reason: t.blocker?.reason ?? null, blocked_since: t.blocker?.since ?? null }, today, opts);
+}
+
 const LIGHT_RANK: Record<TaskLight, number> = { red: 0, yellow: 1, green: 2 };
 
 /** Сначала красные, потом жёлтые; внутри — по сроку. Закрытые — в конце. */
