@@ -1,5 +1,4 @@
 import { Users } from 'lucide-react';
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatNumber, formatRub, teamMemberLine } from '@offix/core';
 import { Avatar } from '../../ui/Avatar';
@@ -11,8 +10,7 @@ import { useSalesPeople, useSalesTeam } from './data';
 export function TeamView({ month }: { month: string }) {
   const team = useSalesTeam(month, true);
   const navigate = useNavigate();
-  const [picking, setPicking] = useState(false);
-  const people = useSalesPeople('sales_assign', picking || !!team.data?.can.assign);
+  const people = useSalesPeople('sales_assign', !!team.data?.can.assign);
   if (team.isLoading) return <Skeleton h={180} r={20} />;
   if (!team.data) return null;
   const t = team.data;
@@ -29,7 +27,7 @@ export function TeamView({ month }: { month: string }) {
             </div>
           </div>
           {t.can.assign && outside.length > 0 && (
-            <select className="select" style={{ maxWidth: 240 }} aria-label="Поставить план сотруднику" value="" onFocus={() => setPicking(true)} onChange={(e) => e.target.value && navigate(link(e.target.value))}>
+            <select className="select" style={{ maxWidth: 240 }} aria-label="Поставить план сотруднику" value="" onChange={(e) => e.target.value && navigate(link(e.target.value))}>
               <option value="">Поставить план…</option>
               {outside.map((p) => (
                 <option key={p.id} value={p.id}>
