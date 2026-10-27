@@ -118,7 +118,7 @@ export default function QrConfirmScreen() {
                 </Text>
                 <View style={{ alignSelf: 'stretch', gap: 8 }}>
                   <Button title="Подтвердить вход" variant="accent" icon={<CheckCircle2 size={18} color="#fff" />} loading={busy === 'approve'} disabled={!!busy} onPress={() => void answer('approve')} />
-                  <Button title="Отклонить" variant="ghost" loading={busy === 'decline'} disabled={!!busy} onPress={() => void answer('decline')} style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                  <Button title="Отклонить" variant="ghost" color="#fff" icon={<XCircle size={17} color="#fff" />} loading={busy === 'decline'} disabled={!!busy} onPress={() => void answer('decline')} style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }} />
                 </View>
               </>
             )}

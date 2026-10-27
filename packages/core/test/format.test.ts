@@ -80,4 +80,9 @@ describe('formatDuration', () => {
 describe('initials', () => {
   it('две буквы', () => expect(initials('анна королёва')).toBe('АК'));
   it('пустое имя', () => expect(initials('  ')).toBe('?'));
+  it('знаки между словами не попадают в инициалы', () => {
+    expect(initials('Мария (качество)')).toBe('МК');
+    expect(initials('Университет · общий')).toBe('УО');
+    expect(initials('— ·')).toBe('?');
+  });
 });

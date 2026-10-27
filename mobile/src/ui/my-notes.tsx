@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, NotebookPen, Paperclip, Star } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
-import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, noteDayLabel, noteTitle, plural, type MyNoteDay, type MyNoteSummary, type NoteShareCard } from '@offix/core';
+import { WEEKDAYS_SHORT, addMonths, monthGrid, monthTitle, noteBadge, noteDayLabel, noteTitle, plural, type MyNoteDay, type MyNoteSummary, type NoteShareCard } from '@offix/core';
 import { font, usePalette } from '../lib/theme';
 import { Glass } from './fx/Glass';
 import { GradientBackdrop } from './fx/GradientBackdrop';
@@ -96,9 +96,9 @@ export function NoteRow({ n, today, onPress, onFavorite }: { n: MyNoteSummary; t
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20, backgroundColor: p.surface, borderWidth: 1, borderColor: p.line }}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${noteTitle(n.title)}, ${label}`} onPress={onPress} style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.7 : 1 })}>
         <View style={{ width: 46, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: p.accentSoft }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 18, lineHeight: 20, color: p.accent }}>{Number(n.note_date.slice(8))}</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 18, lineHeight: 20, color: p.accent }}>{noteBadge(n.note_date).day}</Text>
           <Text variant="caption" style={{ color: p.accent }}>
-            {label.replace(/^\d+ /, '').slice(0, 3)}
+            {noteBadge(n.note_date).month}
           </Text>
         </View>
         <View style={{ flex: 1, gap: 2 }}>

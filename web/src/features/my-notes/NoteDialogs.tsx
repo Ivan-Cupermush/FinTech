@@ -237,7 +237,7 @@ export function SharedNoteDialog({ shareId, onClose }: { shareId: string; onClos
       {v && (
         <>
           <div className="faint mn-shared-meta">
-            {v.is_owner ? 'Вы отправили' : `${v.sender_name ?? 'Удалённый аккаунт'} отправил(а)`} · {formatDate(v.created_at.slice(0, 10), { today: todayIso() })}
+            {v.is_owner ? 'Вы' : (v.sender_name ?? 'Удалённый аккаунт')} · снимок от {formatDate(v.created_at.slice(0, 10), { today: todayIso() })}
             {!v.original_exists && ' · автор удалил оригинал'}
           </div>
           <div className="mn-shared-body">{v.body.trim() ? <Markdown source={v.body} /> : <p className="faint">Без текста — только файлы.</p>}</div>

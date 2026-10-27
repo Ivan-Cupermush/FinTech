@@ -350,7 +350,9 @@
 
 /* Заметка в ленте чата */
 .note-card {
-  min-width: min(260px, 64vw);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: min(240px, 100%);
   max-width: 320px;
   display: flex;
   gap: 11px;

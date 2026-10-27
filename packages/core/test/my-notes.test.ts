@@ -11,6 +11,7 @@ import {
   monthGrid,
   monthTitle,
   myNoteSummary,
+  noteBadge,
   noteDayLabel,
   notePdfName,
   noteTitle,
@@ -117,6 +118,11 @@ describe('календарь', () => {
     expect(noteDayLabel('2026-10-27', '2026-10-26')).toBe('Завтра');
     expect(noteDayLabel('2026-10-12', '2026-10-26')).toBe('12 октября');
     expect(noteDayLabel('2025-03-01', '2026-10-26')).toBe('1 марта 2025');
+  });
+
+  it('плитка даты: число и короткий месяц', () => {
+    expect(noteBadge('2026-10-27')).toEqual({ day: 27, month: 'окт' });
+    expect(noteBadge('2026-05-01')).toEqual({ day: 1, month: 'мая' });
   });
 });
 

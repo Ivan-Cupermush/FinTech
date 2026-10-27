@@ -107,7 +107,7 @@ export function QrConfirmPage() {
                 </dl>
                 <p className="qr-confirm-warn">Подтверждайте, только если сами открыли страницу входа на этом компьютере. Никому не пересылайте эту ссылку.</p>
                 <div className="qr-confirm-actions">
-                  <Button variant="ghost" loading={busy === 'decline'} disabled={!!busy} icon={<XCircle size={16} />} onClick={() => void answer('decline')}>
+                  <Button variant="ghost" size="lg" loading={busy === 'decline'} disabled={!!busy} icon={<XCircle size={16} />} onClick={() => void answer('decline')}>
                     Отклонить
                   </Button>
                   <Button variant="primary" size="lg" loading={busy === 'approve'} disabled={!!busy} icon={<CheckCircle2 size={18} />} onClick={() => void answer('approve')}>

@@ -214,6 +214,12 @@ export function noteDayLabel(date: string, today: string): string {
   return `${d} ${MONTHS[m! - 1]}${String(y) === today.slice(0, 4) ? '' : ` ${y}`}`;
 }
 
+/** Плитка даты в списке: число и короткий месяц — «27 окт». */
+export function noteBadge(date: string): { day: number; month: string } {
+  const SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  return { day: Number(date.slice(8, 10)), month: SHORT[Number(date.slice(5, 7)) - 1] ?? '' };
+}
+
 /** Имя PDF-файла из заголовка: без символов, которые не любят файловые системы. */
 export function notePdfName(title: string): string {
   const base = noteTitle(title).replace(/[\\/:*?"<>|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);

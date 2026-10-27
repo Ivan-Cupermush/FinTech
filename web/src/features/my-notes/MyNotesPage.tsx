@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, CalendarDays, Copy, Download, Eye, FileText, MoreHorizontal, NotebookPen, Paperclip, Pencil, Plus, Search, Send, Star, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { MY_NOTE_LIMITS, isBlankNote, monthOf, noteDayLabel, noteTitle, plural, todayIso, validateMyNote, type Attachment, type MyNoteSummary } from '@offix/core';
+import { MY_NOTE_LIMITS, isBlankNote, monthOf, noteBadge, noteDayLabel, noteTitle, plural, todayIso, validateMyNote, type Attachment, type MyNoteSummary } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { dropDraft } from '../../lib/files';
 import { useUploads } from '../../lib/useUploads';
@@ -47,8 +47,8 @@ export function MyNoteRow({ n, today, onFavorite }: { n: MyNoteSummary; today: s
     <div className="mn-row">
       <Link to={`/app/my-notes/${n.id}`} className="mn-row-link">
         <span className="mn-row-date" aria-hidden>
-          <b>{Number(n.note_date.slice(8))}</b>
-          <span>{noteDayLabel(n.note_date, today).replace(/^\d+ /, '').slice(0, 3)}</span>
+          <b>{noteBadge(n.note_date).day}</b>
+          <span>{noteBadge(n.note_date).month}</span>
         </span>
         <span className="mn-row-text">
           <span className="mn-row-title clip">{noteTitle(n.title)}</span>

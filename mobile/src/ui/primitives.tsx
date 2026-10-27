@@ -58,10 +58,10 @@ export function Card({ children, style, onPress }: { children: ReactNode; style?
   );
 }
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled, icon, style }: { title: string; onPress: () => void; variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger'; loading?: boolean; disabled?: boolean; icon?: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Button({ title, onPress, variant = 'primary', loading, disabled, icon, style, color }: { title: string; onPress: () => void; variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger'; loading?: boolean; disabled?: boolean; icon?: ReactNode; style?: StyleProp<ViewStyle>; /** Цвет текста поверх своей подложки, например белый на градиенте. */ color?: string }) {
   const p = usePalette();
   const bg = { primary: p.ink, accent: p.accent, secondary: p.surface, ghost: 'transparent', danger: p.badSoft }[variant];
-  const fg = { primary: p.bg, accent: p.accentInk, secondary: p.ink, ghost: p.ink2, danger: p.bad }[variant];
+  const fg = color ?? { primary: p.bg, accent: p.accentInk, secondary: p.ink, ghost: p.ink2, danger: p.bad }[variant];
   return (
     <Pressable
       accessibilityRole="button"

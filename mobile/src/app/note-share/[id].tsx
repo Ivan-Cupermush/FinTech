@@ -70,7 +70,7 @@ export default function SharedNoteScreen() {
             variant="notes"
             icon={NotebookPen}
             compact
-            eyebrow={v.is_owner ? 'Вы отправили эту заметку' : `Заметка от ${v.sender_name ?? 'удалённого аккаунта'}`}
+            eyebrow={v.is_owner ? 'Ваша заметка' : `Заметка · ${v.sender_name ?? 'удалённый аккаунт'}`}
             title={noteTitle(v.title)}
             subtitle={`Снимок от ${new Date(v.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}`}
           />

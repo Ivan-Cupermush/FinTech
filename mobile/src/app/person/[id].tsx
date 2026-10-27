@@ -91,7 +91,7 @@ export default function PersonScreen() {
       ) : (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {person.active && <Button title="Написать" variant="accent" style={{ flex: 1 }} icon={<MessageCircle size={17} color={p.accentInk} />} loading={busy === 'write'} onPress={() => void write()} />}
-          <Button title="Изменить контакт" variant="secondary" style={{ flex: 1 }} icon={<Pencil size={16} color={p.ink} />} onPress={() => setRename(person.my_name ?? '')} />
+          <Button title="Переименовать" variant="secondary" style={{ flex: 1 }} icon={<Pencil size={16} color={p.ink} />} onPress={() => setRename(person.my_name ?? '')} />
         </View>
       )}
       {rename !== null && (
