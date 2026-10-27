@@ -33,3 +33,4 @@ export * from './knowledge';
 export * from './sales-text';
 export * from './sales';
 export * from './sales-files';
+export * from './sales-form';

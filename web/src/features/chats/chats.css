@@ -1820,7 +1820,7 @@
 }
 
 /* ───────── Карточка чата ───────── */
-.info {
+.chat-info {
   display: flex;
   flex-direction: column;
   gap: 18px;

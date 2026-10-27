@@ -1,4 +1,5 @@
-import { addDays, isOverdue, plural } from '@offix/core';
+import { createElement } from 'react';
+import { addDays, averagePercent, formatNumber, isOverdue, plural, rubShortParts, type SalesMonth } from '@offix/core';
 import type { HeroStat } from '../ui/fx/PageHero';
 import type { Notification, Task } from './types';
 
@@ -82,5 +83,22 @@ export function reportHeroStats(h: { goals: number; health: Record<string, numbe
     { label: 'целей в отчёте', value: h.goals },
     { label: 'под угрозой', value: critical, tone: attention(critical, 'bad') },
     { label: 'задач закрыто', value: h.tasks_done },
+  ];
+}
+
+/** Сумма для плитки: «563» крупно и «тыс. ₽» мельче — длинные суммы не ломают плитку. */
+export function heroMoney(n: number) {
+  const p = rubShortParts(n);
+  return createElement('span', { className: 'hero-money' }, p.value, createElement('small', null, ` ${p.unit}`));
+}
+
+/** Продажи: выручка и клиенты по отчётам 1С, среднее выполнение плана; выплата — на панели под шапкой. */
+export function salesHeroStats(m: Pick<SalesMonth, 'plans' | 'stats' | 'entries'>): HeroStat[] {
+  const avg = averagePercent(m.plans);
+  const revenue = m.stats ? m.stats.revenue : m.entries.amount;
+  return [
+    { label: m.stats || !m.entries.count ? 'выручка за месяц' : 'продажи вручную', value: m.stats || m.entries.count ? heroMoney(revenue) : '—' },
+    { label: 'клиентов с продажами', value: m.stats ? m.stats.clients : '—' },
+    { label: 'выполнение плана', value: avg == null ? '—' : `${formatNumber(avg, 0)}\u00a0%`, tone: avg == null ? undefined : avg >= 100 ? 'good' : avg < 70 ? 'warn' : undefined },
   ];
 }

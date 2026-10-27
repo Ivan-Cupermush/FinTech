@@ -21,6 +21,7 @@ import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
 import { PulsePage } from './features/pulse/PulsePage';
 import { ReportPage } from './features/report/ReportPage';
+import { SalesEmployeePage, SalesPage } from './features/sales/SalesPage';
 import { TasksPage } from './features/tasks/TasksPage';
 import { ApiError } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -70,6 +71,8 @@ export function AppRoutes() {
         <Route path="chats/:id" element={<ChatsPage />} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="report" element={<ReportPage />} />
+        <Route path="sales" element={<SalesPage />} />
+        <Route path="sales/people/:id" element={<SalesEmployeePage />} />
         <Route path="org" element={<OrgPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="integrations/:id" element={<IntegrationPage />} />

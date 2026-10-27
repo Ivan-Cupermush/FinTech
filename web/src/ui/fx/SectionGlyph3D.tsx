@@ -61,7 +61,7 @@ export function SectionGlyph3D({ kind, animate }: { kind: SectionVariant; animat
  * там почти пропадает, поэтому оно слегка молочное и с радужной плёнкой:
  * края ловят свет даже на чёрном.
  */
-function Glass({ tint = '#f2f4ff' }: { tint?: string }) {
+function Glass({ tint = '#f2f4ff', attenuation = '#dfe4ff' }: { tint?: string; attenuation?: string }) {
   return (
     <meshPhysicalMaterial
       transmission={0.9}
@@ -69,7 +69,7 @@ function Glass({ tint = '#f2f4ff' }: { tint?: string }) {
       roughness={0.12}
       ior={1.4}
       color={tint}
-      attenuationColor="#dfe4ff"
+      attenuationColor={attenuation}
       attenuationDistance={1.2}
       clearcoat={1}
       clearcoatRoughness={0.04}
@@ -337,6 +337,31 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
           ) : null,
         ),
       )}
+    </group>
+  ),
+  // Продажи: стопка стеклянных монет с золотым отливом и белая стрелка роста.
+  sales: () => (
+    <group rotation={[0.3, -0.42, 0.05]}>
+      {[0, 1, 2, 3].map((i) => (
+        <mesh key={i} position={[-0.32 + (i % 2) * 0.04, -0.62 + i * 0.2, 0]}>
+          <cylinderGeometry args={[0.5, 0.5, 0.16, 48]} />
+          <Glass tint="#fff1c2" attenuation="#ffd84a" />
+        </mesh>
+      ))}
+      <mesh position={[-0.28, 0.06, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.3, 0.035, 12, 48]} />
+        <Solid />
+      </mesh>
+      <group position={[0.5, 0.05, 0.3]} rotation={[0, 0, -Math.PI / 5]}>
+        <mesh>
+          <capsuleGeometry args={[0.07, 0.95, 8, 16]} />
+          <Solid />
+        </mesh>
+        <mesh position={[0, 0.66, 0]}>
+          <coneGeometry args={[0.2, 0.32, 32]} />
+          <Solid />
+        </mesh>
+      </group>
     </group>
   ),
   // Новая цель: стеклянный кристалл и белая искра рядом.

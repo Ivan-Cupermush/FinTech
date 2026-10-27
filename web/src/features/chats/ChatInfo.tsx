@@ -62,7 +62,7 @@ export function ChatInfo({ chat, onClose, onJump }: { chat: ChatDetail; onClose:
 
   return (
     <Panel title="Информация" subtitle={group ? (chat.is_supergroup ? 'Группа с темами' : 'Группа') : 'Личный чат'} onClose={onClose}>
-      <div className="info">
+      <div className="chat-info">
         <div className="info-hero">
           <ChatAvatar title={chat.title} group={group} size={88} userId={chat.peer?.id} />
           {renaming ? (

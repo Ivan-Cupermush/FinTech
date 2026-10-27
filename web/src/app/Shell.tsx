@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, Sun, Target, TrendingUp } from 'lucide-react';
+import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, Sun, Target, TrendingUp, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS } from '@offix/core';
@@ -22,6 +22,7 @@ const NAV = [
   // На телефоне вкладок шесть: «Эффект» открывается из сводки на Пульсе, отчёт — с экрана «Эффект».
   { to: '/app/metrics', label: 'Эффект', icon: TrendingUp, tab: false },
   { to: '/app/report', label: 'Отчёт', icon: FileText, tab: false },
+  { to: '/app/sales', label: 'Продажи', icon: Wallet, tab: false },
   { to: '/app/notes', label: 'База знаний', icon: BookOpen, tab: false },
   { to: '/app/my-notes', label: 'Мои заметки', icon: NotebookPen, tab: false },
   { to: '/app/org', label: 'Организация', icon: Building2 },

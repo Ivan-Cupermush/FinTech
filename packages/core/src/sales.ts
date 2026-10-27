@@ -406,6 +406,21 @@ const NBSP = ' ';
 export const formatRub = (n: number) => `${formatNumber(Math.round(n), 0)}${NBSP}₽`;
 const pct = (n: number) => `${formatNumber(n, 2)}${NBSP}%`;
 
+/** Коротко для плиток: число и единица отдельно — «563» и «тыс. ₽», чтобы единицу набрать мельче. */
+export function rubShortParts(n: number): { value: string; unit: string } {
+  const a = Math.abs(n);
+  if (a >= 1e9) return { value: formatNumber(n / 1e9, 2), unit: `млрд${NBSP}₽` };
+  if (a >= 1e6) return { value: formatNumber(n / 1e6, a >= 1e8 ? 0 : a >= 1e7 ? 1 : 2), unit: `млн${NBSP}₽` };
+  if (a >= 1e5) return { value: formatNumber(Math.round(n / 1e3), 0), unit: `тыс.${NBSP}₽` };
+  return { value: formatNumber(Math.round(n), 0), unit: '₽' };
+}
+
+/** «86 862 ₽», «562 тыс. ₽», «1,06 млн ₽». */
+export const formatRubShort = (n: number) => {
+  const p = rubShortParts(n);
+  return `${p.value}${NBSP}${p.unit}`;
+};
+
 /** Значение показателя с единицей: «1 200 000 ₽», «44 ТТ», «3 поз.», «95 %». */
 export function salesValueText(value: number, unit: SalesUnit): string {
   if (unit === 'rub') return formatRub(value);
