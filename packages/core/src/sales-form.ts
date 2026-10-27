@@ -1,14 +1,18 @@
 import { formatNumber } from './format';
+import { addMonths } from './my-notes';
 import {
   formatRub,
+  salesPeriodText,
   SALES_LIMITS,
   salesValueText,
   validatePlanInput,
   type FactRule,
   type PayoutRule,
   type PlanCalc,
+  type ReportPersonStatus,
   type SalesMonth,
   type SalesPlanRow,
+  type SalesReportImport,
   type SalesTeamMember,
   type SalesUnit,
 } from './sales';
@@ -301,3 +305,73 @@ export function teamMemberLine(x: Pick<SalesTeamMember, 'plans' | 'percent' | 's
 /** «351 500 ₽ из 400 000 ₽» — факт и план показателя. */
 export const factOfPlan = (p: Pick<SalesPlanRow, 'fact' | 'plan' | 'unit'>) =>
   p.plan > 0 ? `${salesValueText(p.fact, p.unit)} из ${salesValueText(p.plan, p.unit)}` : salesValueText(p.fact, p.unit);
+
+// ---------------------------------------------------------------- карточка показателя
+
+export const PLAN_SOURCE_LABELS: Record<PlanCalc['source'], string> = { file: 'Файл KPI', report: 'Отчёты 1С', manual: 'Вручную' };
+
+/** «По темпу к концу месяца: 690 341 ₽ · 106 % плана» — для показателей с планом и прогнозом. */
+export function planForecastText(p: Pick<SalesPlanRow, 'plan' | 'unit' | 'payout_rule'> & { calc: Pick<PlanCalc, 'forecast_value' | 'forecast_percent'> }): string | null {
+  const c = p.calc;
+  if (c.forecast_value == null || !(p.plan > 0) || p.payout_rule.type === 'fixed') return null;
+  const value = p.unit === 'rub' ? c.forecast_value : Math.round(c.forecast_value);
+  return `По темпу к концу месяца: ${salesValueText(value, p.unit)} · ${formatNumber(c.forecast_percent ?? 0, 0)}\u00a0% плана`;
+}
+
+/** Выплата по показателю: «К выплате» по файлу KPI или «Сейчас / Прогноз / Максимум». */
+export function planPayParts(p: Pick<SalesPlanRow, 'source' | 'payment' | 'payout_rule'> & { calc: Pick<PlanCalc, 'now' | 'forecast' | 'max'> }): { label: string; value: string }[] {
+  const c = p.calc;
+  if (c.now == null || p.payout_rule.type === 'fixed') return [];
+  if (p.source === 'file' && p.payment != null) return [{ label: 'К выплате', value: formatRub(p.payment) }];
+  const parts = [{ label: 'Сейчас', value: formatRub(c.now) }];
+  if (c.forecast != null && c.forecast !== c.now) parts.push({ label: 'Прогноз', value: formatRub(c.forecast) });
+  if (c.max != null) parts.push({ label: 'Максимум', value: formatRub(c.max) });
+  return parts;
+}
+
+/**
+ * Показатели, к факту которых можно прибавить записанную продажу: факт ведётся
+ * вручную, считается в рублях, штуках или клиентах и выплата не фиксированная.
+ */
+export const entryPlans = <T extends Pick<SalesPlanRow, 'source' | 'fact_rule' | 'unit' | 'payout_rule'>>(plans: readonly T[]): T[] =>
+  plans.filter((p) => p.source === 'manual' && p.fact_rule.type === 'manual' && p.unit !== 'percent' && p.unit !== 'items' && p.payout_rule.type !== 'fixed');
+
+/** Факт, введённый вручную: «12 500,5» → 12500.5; пусто, текст и минус — ошибка. */
+export function parseFactInput(text: string): { value: number | null; error: string | null } {
+  const raw = text.replace(/[\s\u00a0]/g, '').replace(',', '.');
+  const n = raw ? Number(raw) : NaN;
+  if (!Number.isFinite(n) || n < 0) return { value: null, error: 'Факт — число не меньше нуля' };
+  if (n > 1e12) return { value: null, error: 'Слишком большое число' };
+  return { value: Math.round(n * 100) / 100, error: null };
+}
+
+/** Соседние месяцы для переключателя: вперёд — не дальше следующего за текущим (план ставят заранее). */
+export function salesMonthNav(month: string, current: string): { prev: string; next: string | null } {
+  const next = addMonths(month, 1);
+  return { prev: addMonths(month, -1), next: next > addMonths(current, 1) ? null : next };
+}
+
+// ---------------------------------------------------------------- итог загрузки отчёта
+
+export const REPORT_PERSON_STATUS_LABELS: Record<ReportPersonStatus, string> = {
+  ok: 'Загружено',
+  unmatched: 'Не нашли сотрудника',
+  ambiguous: 'Несколько похожих',
+  forbidden: 'Не ваш сотрудник',
+  no_manager: 'Без менеджера',
+};
+
+/** Итог загрузки отчёта 1С одним абзацем — для телефона и уведомления. */
+export function reportImportSummary(r: SalesReportImport): { title: string; lines: string[]; needsMatching: boolean } {
+  const title = r.report ? `Отчёт ${salesPeriodText(r.report.period_start, r.report.period_end)}: ${formatRub(r.report.total)}` : 'Ничего не сохранено';
+  const lines: string[] = [];
+  if (r.replaced > 0) lines.push(`Заменил прежний: ${r.replaced}`);
+  const ok = r.people.filter((x) => x.status === 'ok');
+  if (ok.length) lines.push(`Сотрудников с продажами: ${ok.length}, показателей пересчитано: ${ok.reduce((n, x) => n + x.plans_updated, 0)}`);
+  const lost = r.people.filter((x) => x.status === 'unmatched' || x.status === 'ambiguous');
+  if (lost.length) lines.push(`Не сопоставлены: ${lost.map((x) => x.manager).join(', ')} — сопоставьте на сайте, в «Продажи → Настройки»`);
+  if (r.goals_updated > 0) lines.push(`KPI целей обновлено: ${r.goals_updated}`);
+  if (r.key_list_empty) lines.push('Список ключевых клиентов пуст — продажи «без ключевых» сейчас равны всем продажам');
+  lines.push(...r.warnings);
+  return { title, lines, needsMatching: lost.length > 0 };
+}

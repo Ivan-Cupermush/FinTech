@@ -1,14 +1,17 @@
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Pencil } from 'lucide-react';
 import { useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  addMonths,
   coverageText,
   formatDate,
   formatNumber,
   formatRub,
   monthTitle,
+  PLAN_SOURCE_LABELS,
   planBar,
+  planForecastText,
+  planPayParts,
   planTone,
+  salesMonthNav,
   salesValueText,
   type SalesMonth,
   type SalesPlan,
@@ -30,14 +33,14 @@ export function errorText(e: unknown): string {
 
 /** ‹ Октябрь 2026 › — вперёд не дальше следующего месяца: план ставят заранее. */
 export function MonthSwitcher({ month, current, onChange }: { month: string; current: string; onChange: (m: string) => void }) {
-  const next = addMonths(month, 1);
+  const nav = salesMonthNav(month, current);
   return (
     <div className="sl-month" role="group" aria-label="Месяц">
-      <Button variant="ghost" size="sm" icon={<ChevronLeft size={16} />} onClick={() => onChange(addMonths(month, -1))} aria-label="Предыдущий месяц" />
+      <Button variant="ghost" size="sm" icon={<ChevronLeft size={16} />} onClick={() => onChange(nav.prev)} aria-label="Предыдущий месяц" />
       <span className="sl-month-title" aria-live="polite">
         {monthTitle(month)}
       </span>
-      <Button variant="ghost" size="sm" icon={<ChevronRight size={16} />} onClick={() => onChange(next)} disabled={next > addMonths(current, 1)} aria-label="Следующий месяц" />
+      <Button variant="ghost" size="sm" icon={<ChevronRight size={16} />} onClick={() => nav.next && onChange(nav.next)} disabled={!nav.next} aria-label="Следующий месяц" />
     </div>
   );
 }
@@ -83,7 +86,6 @@ export function PayoutPanel({ m }: { m: SalesMonth }) {
   );
 }
 
-const SOURCE: Record<SalesPlan['calc']['source'], string> = { file: 'Файл KPI', report: 'Отчёты 1С', manual: 'Вручную' };
 
 /** Карточка показателя: факт и план, полоса с порогами и прогнозом, выплата сейчас / прогноз / максимум, подсказка. */
 export function PlanCard({ p, today, actions }: { p: SalesPlan; today: string; actions?: ReactNode }) {
@@ -91,7 +93,8 @@ export function PlanCard({ p, today, actions }: { p: SalesPlan; today: string; a
   const fixed = p.payout_rule.type === 'fixed';
   const bar = planBar(p, c);
   const tone = planTone(p);
-  const paidByFile = p.source === 'file' && p.payment != null;
+  const forecast = planForecastText(p);
+  const pay = planPayParts(p);
   return (
     <article className="card sl-plan" data-tone={tone} data-fixed={fixed} aria-label={p.name}>
       <div className="sl-plan-head">
@@ -100,7 +103,7 @@ export function PlanCard({ p, today, actions }: { p: SalesPlan; today: string; a
           {c.condition && <div className="faint sl-plan-cond">{c.condition}</div>}
         </div>
         <Pill tone={c.source === 'file' ? 'info' : c.source === 'report' ? 'accent' : 'neutral'} plain>
-          {SOURCE[c.source]}
+          {PLAN_SOURCE_LABELS[c.source]}
         </Pill>
         {actions}
       </div>
@@ -126,9 +129,9 @@ export function PlanCard({ p, today, actions }: { p: SalesPlan; today: string; a
               ))}
             </div>
           )}
-          {c.forecast_value != null && p.plan > 0 && (
+          {forecast && (
             <div className="faint" style={{ fontSize: 13 }}>
-              По темпу к концу месяца: {salesValueText(p.unit === 'rub' ? c.forecast_value : Math.round(c.forecast_value), p.unit)} · {formatNumber(c.forecast_percent ?? 0, 0)}&nbsp;% плана
+              {forecast}
             </div>
           )}
         </>
@@ -146,29 +149,13 @@ export function PlanCard({ p, today, actions }: { p: SalesPlan; today: string; a
           ))}
         </ul>
       )}
-      {c.now != null && !fixed && (
+      {pay.length > 0 && (
         <div className="sl-plan-pay">
-          {paidByFile ? (
-            <span>
-              К выплате <b>{formatRub(p.payment!)}</b>
+          {pay.map((x) => (
+            <span key={x.label}>
+              {x.label} <b>{x.value}</b>
             </span>
-          ) : (
-            <>
-              <span>
-                Сейчас <b>{formatRub(c.now)}</b>
-              </span>
-              {c.forecast != null && c.forecast !== c.now && (
-                <span>
-                  Прогноз <b>{formatRub(c.forecast)}</b>
-                </span>
-              )}
-              {c.max != null && (
-                <span>
-                  Максимум <b>{formatRub(c.max)}</b>
-                </span>
-              )}
-            </>
-          )}
+          ))}
         </div>
       )}
       {c.rule && !fixed && <div className="faint sl-plan-rule">Выплата: {c.rule}</div>}

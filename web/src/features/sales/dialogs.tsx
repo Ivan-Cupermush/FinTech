@@ -2,11 +2,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   emptyPlanForm,
+  entryPlans,
   ENTRY_FIELD_LABELS,
   ENTRY_FIELDS,
   FACT_RULE_LABELS,
   formatNumber,
   formatRub,
+  parseFactInput,
   PAYOUT_RULE_LABELS,
   planFormBody,
   planFormOf,
@@ -304,9 +306,9 @@ export function FactDialog({ plan, onClose }: { plan: SalesPlan; onClose: () => 
   const [error, setError] = useState<string | null>(null);
   const save = useSalesMutation((fact: number) => salesApi.updatePlan(plan.id, { fact }));
   const submit = () => {
-    const n = Number(value.replace(/\s/g, '').replace(',', '.'));
-    if (!Number.isFinite(n) || n < 0) return setError('Факт — число не меньше нуля');
-    save.mutate(n, {
+    const parsed = parseFactInput(value);
+    if (parsed.value == null) return setError(parsed.error);
+    save.mutate(parsed.value, {
       onSuccess: () => {
         toast('Факт обновлён');
         onClose();
@@ -336,9 +338,6 @@ export function FactDialog({ plan, onClose }: { plan: SalesPlan; onClose: () => 
     </Dialog>
   );
 }
-
-/** Показатели, к факту которых прибавляются продажи: «вручную», в рублях, штуках или клиентах. */
-export const entryPlans = (plans: SalesPlan[]) => plans.filter((p) => p.source === 'manual' && p.fact_rule.type === 'manual' && p.unit !== 'percent' && p.unit !== 'items' && p.payout_rule.type !== 'fixed');
 
 function PlanSelect({ plans, value, onChange }: { plans: SalesPlan[]; value: string; onChange: (v: string) => void }) {
   if (!plans.length) return null;

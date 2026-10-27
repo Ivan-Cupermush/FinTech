@@ -50,6 +50,10 @@ export default function RootLayout() {
               <Stack.Screen name="request" options={{ title: 'Новая просьба', presentation: 'modal' }} />
               <Stack.Screen name="effect" options={{ title: 'Эффект' }} />
               <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
+              <Stack.Screen name="sales/index" options={{ title: 'Продажи' }} />
+              <Stack.Screen name="sales/person/[id]" options={{ title: 'Сотрудник' }} />
+              <Stack.Screen name="sales/entry" options={{ title: 'Записать продажу', presentation: 'modal' }} />
+              <Stack.Screen name="sales/fact/[id]" options={{ title: 'Отметить факт', presentation: 'modal' }} />
               <Stack.Screen name="push-settings" options={{ title: 'Уведомления' }} />
               <Stack.Screen name="discussion/[type]/[id]" options={{ title: 'Обсуждение', headerShown: false }} />
               <Stack.Screen name="notes/index" options={{ title: 'База знаний' }} />

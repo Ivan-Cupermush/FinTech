@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptyPlanForm,
+  entryPlans,
+  parseFactInput,
+  PLAN_SOURCE_LABELS,
+  planForecastText,
+  planPayParts,
+  reportImportSummary,
+  salesMonthNav,
   formatRubShort,
   rubShortParts,
   factOfPlan,
@@ -183,5 +190,79 @@ describe('короткие суммы для плиток', () => {
   it('число и единица отдельно', () => {
     expect(rubShortParts(562500)).toEqual({ value: '563', unit: 'тыс.\u00a0₽' });
     expect(rubShortParts(9999.6)).toEqual({ value: '10\u00a0000', unit: '₽' });
+  });
+});
+
+describe('карточка показателя: прогноз и выплата', () => {
+  const calc = { now: 0, forecast: 31862, max: 30000, forecast_value: 690341.4, forecast_percent: 106.2 };
+  const rub = { plan: 650000, unit: 'rub' as const, source: 'manual' as const, payment: null, payout_rule: { type: 'threshold' as const, steps: [{ from: 100, k: 1 }], over: 'cap' as const } };
+  it('прогноз по темпу: рубли как есть, штуки — целыми; без плана и у оклада — нет', () => {
+    expect(plain(planForecastText({ ...rub, calc })!)).toBe('По темпу к концу месяца: 690 341 ₽ · 106 % плана');
+    expect(plain(planForecastText({ ...rub, unit: 'count', plan: 40, calc: { ...calc, forecast_value: 41.6 } })!)).toBe('По темпу к концу месяца: 42 шт · 106 % плана');
+    expect(planForecastText({ ...rub, plan: 0, calc })).toBeNull();
+    expect(planForecastText({ ...rub, payout_rule: { type: 'fixed' }, calc })).toBeNull();
+    expect(planForecastText({ ...rub, calc: { ...calc, forecast_value: null } })).toBeNull();
+  });
+  it('выплата: сейчас, прогноз и максимум; по файлу — одна сумма к выплате', () => {
+    expect(planPayParts({ ...rub, calc }).map((x) => `${x.label} ${plain(x.value)}`)).toEqual(['Сейчас 0 ₽', 'Прогноз 31 862 ₽', 'Максимум 30 000 ₽']);
+    expect(planPayParts({ ...rub, calc: { ...calc, forecast: 0 } }).map((x) => x.label)).toEqual(['Сейчас', 'Максимум']);
+    expect(planPayParts({ ...rub, source: 'file', payment: 27000, calc }).map((x) => `${x.label} ${plain(x.value)}`)).toEqual(['К выплате 27 000 ₽']);
+    expect(planPayParts({ ...rub, payout_rule: { type: 'fixed' }, calc })).toEqual([]);
+    expect(planPayParts({ ...rub, calc: { ...calc, now: null } })).toEqual([]);
+    expect(PLAN_SOURCE_LABELS.report).toBe('Отчёты 1С');
+  });
+  it('к каким показателям прибавляется записанная продажа', () => {
+    const p = (id: string, over: object) => ({ id, source: 'manual' as const, fact_rule: { type: 'manual' as const }, unit: 'rub' as const, payout_rule: { type: 'threshold' as const, steps: [], over: 'cap' as const }, ...over });
+    const plans = [p('rub', {}), p('count', { unit: 'count' }), p('pct', { unit: 'percent' }), p('items', { unit: 'items' }), p('fixed', { payout_rule: { type: 'fixed' } }), p('report', { fact_rule: { type: 'revenue', groups: [], clients: 'all', measure: 'revenue' } }), p('file', { source: 'file' })];
+    expect(entryPlans(plans as never[]).map((x: { id: string }) => x.id)).toEqual(['rub', 'count']);
+  });
+});
+
+describe('переключатель месяцев', () => {
+  it('назад — всегда, вперёд — не дальше следующего за текущим', () => {
+    expect(salesMonthNav('2026-10', '2026-10')).toEqual({ prev: '2026-09', next: '2026-11' });
+    expect(salesMonthNav('2026-11', '2026-10')).toEqual({ prev: '2026-10', next: null });
+    expect(salesMonthNav('2026-01', '2026-10')).toEqual({ prev: '2025-12', next: '2026-02' });
+  });
+});
+
+describe('итог загрузки отчёта 1С', () => {
+  const person = (manager: string, status: 'ok' | 'unmatched' | 'ambiguous' | 'forbidden', plans_updated = 0) => ({ manager, user: null, status, total: 0, key: 0, non_key: 0, clients: 0, plans_updated, error: null });
+  it('период и сумма, заменённые, пересчёт, кого не нашли, KPI целей и замечания', () => {
+    const r = reportImportSummary({
+      report: { id: 'r', file_name: 'x.xlsx', period_start: '2026-10-01', period_end: '2026-10-18', month: '2026-10', total: 130500, warnings: [], uploaded_by_name: null, created_at: '', people: 3, unmatched: 1, can_delete: true },
+      replaced: 1,
+      people: [person('Соколов Павел', 'ok', 2), person('Морозова Ксения', 'ok', 1), person('Гусев Олег', 'unmatched'), person('Чужой', 'forbidden')],
+      key_list_empty: true,
+      warnings: ['Сумма по строкам расходится с «Итого» на 10 ₽'],
+      goals_updated: 1,
+    });
+    expect(plain(r.title)).toBe('Отчёт 01.10–18.10: 130 500 ₽');
+    expect(r.needsMatching).toBe(true);
+    expect(r.lines).toEqual([
+      'Заменил прежний: 1',
+      'Сотрудников с продажами: 2, показателей пересчитано: 3',
+      'Не сопоставлены: Гусев Олег — сопоставьте на сайте, в «Продажи → Настройки»',
+      'KPI целей обновлено: 1',
+      'Список ключевых клиентов пуст — продажи «без ключевых» сейчас равны всем продажам',
+      'Сумма по строкам расходится с «Итого» на 10 ₽',
+    ]);
+  });
+  it('ничего не сохранено', () => {
+    expect(reportImportSummary({ report: null, replaced: 0, people: [], key_list_empty: false, warnings: [], goals_updated: 0 })).toEqual({ title: 'Ничего не сохранено', lines: [], needsMatching: false });
+  });
+});
+
+describe('факт вручную', () => {
+  it('пробелы, неразрывные пробелы и запятая', () => {
+    expect(parseFactInput('12 500,5')).toEqual({ value: 12500.5, error: null });
+    expect(parseFactInput('12\u00a0500')).toEqual({ value: 12500, error: null });
+    expect(parseFactInput('0')).toEqual({ value: 0, error: null });
+    expect(parseFactInput('3,333')).toEqual({ value: 3.33, error: null });
+  });
+  it('пусто, текст, минус и слишком большое — ошибка', () => {
+    for (const t of ['', '  ', 'много', '-5', '1e13']) expect(parseFactInput(t).value).toBeNull();
+    expect(parseFactInput('-5').error).toBe('Факт — число не меньше нуля');
+    expect(parseFactInput('1e13').error).toBe('Слишком большое число');
   });
 });

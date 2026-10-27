@@ -76,7 +76,7 @@ export function tabBarSpace(bottomInset: number): number {
  * Остальные — разделы: у каждого свой третий цвет, те же, что в шапках сайта,
  * чтобы раздел узнавался на любом устройстве.
  */
-export const SECTION_VARIANTS = ['inbox', 'knowledge', 'assistant', 'discussion', 'create', 'settings', 'chats', 'notes', 'profile', 'tasks'] as const;
+export const SECTION_VARIANTS = ['inbox', 'knowledge', 'assistant', 'discussion', 'create', 'settings', 'chats', 'notes', 'profile', 'tasks', 'sales'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 export type HeroVariant = 'hero' | 'good' | 'bad' | SectionVariant;
 
@@ -94,6 +94,7 @@ const PALETTES: Record<HeroVariant, readonly [string, string, string]> = {
   notes: ['#3352ff', '#08162a', '#a8e05f'],
   profile: ['#2e4cff', '#0a0c2e', '#b9c6ff'],
   tasks: ['#2c58ff', '#06162b', '#4fd1c5'],
+  sales: ['#2f4bff', '#071c18', '#ffd84a'],
 };
 
 export function heroColors(variant: HeroVariant): readonly [string, string, string] {
@@ -107,11 +108,12 @@ export function heroVariantForKpi(state: string | null | undefined): HeroVariant
   return 'hero';
 }
 
-export type HeroStat = { label: string; value: number; tone?: 'bad' | 'warn' };
+export type HeroStat = { label: string; value: number | string; tone?: 'bad' | 'warn' | 'good' };
 
 /** Цифра на стекле градиента: тревожные — тёплым светлым, чтобы читались на синем. */
 export function heroStatColor(tone: HeroStat['tone']): string {
   if (tone === 'bad') return '#ffb3c1';
   if (tone === 'warn') return '#ffd88a';
+  if (tone === 'good') return '#b4f5d6';
   return '#ffffff';
 }

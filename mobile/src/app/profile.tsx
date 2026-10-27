@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
-import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, Sparkles, UserRound } from 'lucide-react-native';
+import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, Sparkles, UserRound, Wallet } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, Share, View } from 'react-native';
 import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, passwordError, passwordStrength, profileUrl } from '@offix/core';
@@ -220,6 +220,7 @@ export default function ProfileScreen() {
         <MenuRow icon={<BookOpen size={18} color={p.ink2} />} label="База знаний" onPress={() => router.push('/notes')} />
         <MenuRow icon={<Sparkles size={18} color={p.ink2} />} label="Эффект" onPress={() => router.push('/effect')} />
         <MenuRow icon={<BarChart3 size={18} color={p.ink2} />} label="Отчёт" onPress={() => router.push('/report')} />
+        <MenuRow icon={<Wallet size={18} color={p.ink2} />} label="Продажи и KPI" onPress={() => router.push('/sales')} />
         <MenuRow icon={<BellRing size={18} color={p.ink2} />} label="Push-уведомления" onPress={() => router.push('/push-settings')} />
         <MenuRow icon={<LogOut size={18} color={p.bad} />} label="Выйти" danger onPress={signOut} />
       </Card>
