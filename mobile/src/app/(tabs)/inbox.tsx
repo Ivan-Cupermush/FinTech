@@ -1,10 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Linking, Pressable, View } from 'react-native';
-import type { Notification } from '@offix/core';
-import { Bell, CheckCheck } from 'lucide-react-native';
+import { Alert, AppState, Linking, Pressable, View } from 'react-native';
+import { inboxTaskAction, type Notification } from '@offix/core';
+import { Bell, CheckCheck, CircleCheck, HandHeart, HandHelping, NotebookPen, ShieldCheck, Trash2 } from 'lucide-react-native';
 import { inboxStats, pushCard, type PushPermission } from '../../lib/logic';
+import { inboxTarget, requestOutcome } from '../../lib/personal';
+import { myNotesApi } from '../../lib/personal-api';
+import { tasksApi } from '../../lib/tasks-api';
 import { enablePush, pushPermission } from '../../lib/push';
 import { useNotifications } from '../../lib/queries';
 import { api } from '../../lib/session';
@@ -12,7 +15,18 @@ import { font, usePalette } from '../../lib/theme';
 import { Glass } from '../../ui/fx/Glass';
 import { PageHero } from '../../ui/fx/PageHero';
 import { KnowledgeLink } from '../../ui/notes';
-import { Button, Card, Empty, Screen, Text } from '../../ui/primitives';
+import { Avatar, Button, Card, Empty, Screen, Text } from '../../ui/primitives';
+
+/** Значок поверх аватара: о чём уведомление. */
+const BADGES: Record<string, typeof Bell> = {
+  note_request: NotebookPen,
+  note_request_approved: NotebookPen,
+  note_request_declined: NotebookPen,
+  task_request: HandHelping,
+  task_done: CircleCheck,
+  task_thanks: HandHeart,
+  function_granted: ShieldCheck,
+};
 
 export default function Inbox() {
   const p = usePalette();
@@ -23,11 +37,49 @@ export default function Inbox() {
     await api('/notifications/read', { body: ids ? { ids } : {} });
     await Promise.all([qc.invalidateQueries({ queryKey: ['notifications'] }), qc.invalidateQueries({ queryKey: ['dashboard'] })]);
   };
+  const [answering, setAnswering] = useState<string | null>(null);
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ['notifications'] }), qc.invalidateQueries({ queryKey: ['dashboard'] })]);
   const open = (n: Notification) => {
     if (!n.read_at) void read([n.id]);
-    if (n.task_id) router.push(`/task/${n.task_id}`);
-    else if (n.goal_id) router.push(`/goal/${n.goal_id}`);
+    const t = inboxTarget(n);
+    if (t?.kind === 'route') router.push(t.path as never);
+    else if (t?.kind === 'request') router.push(`/note-request/${t.id}`);
+    else if (t?.kind === 'share') router.push(`/note-share/${t.id}`);
   };
+  // Запрос заметки — ответить прямо из ленты, не открывая заметку.
+  const answer = async (n: Notification, how: 'approve' | 'decline') => {
+    const id = n.data?.request_id;
+    if (!id) return;
+    setAnswering(`${n.id}:${how}`);
+    try {
+      await (how === 'approve' ? myNotesApi.approve(id) : myNotesApi.decline(id));
+      if (!n.read_at) await api('/notifications/read', { body: { ids: [n.id] } });
+      await refresh();
+    } catch (e) {
+      Alert.alert('Не получилось', e instanceof Error ? e.message : '');
+    } finally {
+      setAnswering(null);
+    }
+  };
+  // Просьба — взять в работу или поблагодарить прямо из ленты.
+  const act = async (n: Notification, action: 'start' | 'thank') => {
+    if (!n.task_id) return;
+    setAnswering(`${n.id}:${action}`);
+    try {
+      await (action === 'start' ? tasksApi.start(n.task_id) : tasksApi.thanks(n.task_id));
+      if (!n.read_at) await api('/notifications/read', { body: { ids: [n.id] } });
+      await Promise.all([refresh(), qc.invalidateQueries({ queryKey: ['tasks'] }), qc.invalidateQueries({ queryKey: ['task'] })]);
+    } catch (e) {
+      Alert.alert('Не получилось', e instanceof Error ? e.message : '');
+    } finally {
+      setAnswering(null);
+    }
+  };
+  const clearRead = () =>
+    Alert.alert('Убрать прочитанные?', 'Непрочитанные останутся в ленте.', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Убрать', style: 'destructive', onPress: () => void api('/notifications?read=1', { method: 'DELETE' }).then(refresh) },
+    ]);
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <PageHero
@@ -51,29 +103,79 @@ export default function Inbox() {
       />
       <PushCard />
       <KnowledgeLink />
+      {(q.data ?? []).some((n) => n.read_at) && (
+        <Pressable accessibilityRole="button" onPress={clearRead} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end' }} hitSlop={8}>
+          <Trash2 size={14} color={p.ink3} />
+          <Text variant="small" tone="faint">
+            Убрать прочитанные
+          </Text>
+        </Pressable>
+      )}
       {q.data?.length ? (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
-          {q.data.map((n, i) => (
-            <Pressable key={n.id} accessibilityRole="button" onPress={() => open(n)} style={({ pressed }) => ({ flexDirection: 'row', gap: 10, paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: p.line, opacity: pressed ? 0.6 : 1 })}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, marginTop: 7, backgroundColor: n.read_at ? 'transparent' : p.accent }} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontFamily: n.read_at ? font.regular : font.semibold }}>{n.title}</Text>
-                {n.body && (
-                  <Text variant="small" tone="faint">
-                    {n.body}
-                  </Text>
+          {q.data.map((n, i) => {
+            const pending = n.kind === 'note_request' && n.request_status === 'pending';
+            const task = inboxTaskAction(n);
+            const outcome = n.kind === 'note_request' ? requestOutcome(n.request_status) : task.note;
+            const Badge = BADGES[n.kind];
+            return (
+              <View key={n.id} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: p.line }}>
+                <Pressable accessibilityRole="button" onPress={() => open(n)} style={({ pressed }) => ({ flexDirection: 'row', gap: 10, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
+                  {n.actor_id && n.actor_name ? (
+                    <View style={{ width: 32, height: 32 }}>
+                      <Avatar name={n.actor_name} id={n.actor_id} size={32} />
+                      {Badge && (
+                        <View style={{ position: 'absolute', right: -4, bottom: -4, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: p.surface, borderWidth: 1, borderColor: p.line }}>
+                          <Badge size={10} color={n.kind === 'task_thanks' || n.kind === 'task_done' ? p.good : p.accent} />
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, marginTop: 7, backgroundColor: n.read_at ? 'transparent' : p.accent }} />
+                  )}
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontFamily: n.read_at ? font.regular : font.semibold }}>{n.title}</Text>
+                    {n.body && (
+                      <Text variant="small" tone="faint">
+                        {n.body}
+                      </Text>
+                    )}
+                    {outcome && (
+                      <Text variant="caption" tone="faint">
+                        {outcome}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text variant="caption" tone="faint">
+                      {new Date(n.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    {n.actor_id && !n.read_at && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.accent }} />}
+                  </View>
+                </Pressable>
+                {task.action && (
+                  <View style={{ flexDirection: 'row', gap: 8, paddingBottom: 12, paddingLeft: 42 }}>
+                    {task.action === 'start' ? (
+                      <Button title="Взять в работу" variant="accent" style={{ flex: 1, minHeight: 38 }} loading={answering === `${n.id}:start`} disabled={!!answering} onPress={() => void act(n, 'start')} />
+                    ) : (
+                      <Button title="Спасибо" variant="accent" icon={<HandHeart size={15} color={p.accentInk} />} style={{ flex: 1, minHeight: 38 }} loading={answering === `${n.id}:thank`} disabled={!!answering} onPress={() => void act(n, 'thank')} />
+                    )}
+                  </View>
+                )}
+                {pending && (
+                  <View style={{ flexDirection: 'row', gap: 8, paddingBottom: 12, paddingLeft: 42 }}>
+                    <Button title="Отказать" variant="secondary" style={{ flex: 1, minHeight: 38 }} loading={answering === `${n.id}:decline`} disabled={!!answering} onPress={() => void answer(n, 'decline')} />
+                    <Button title="Поделиться" variant="accent" style={{ flex: 1, minHeight: 38 }} loading={answering === `${n.id}:approve`} disabled={!!answering} onPress={() => void answer(n, 'approve')} />
+                  </View>
                 )}
               </View>
-              <Text variant="caption" tone="faint">
-                {new Date(n.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </Pressable>
-          ))}
+            );
+          })}
         </Card>
       ) : (
         !q.isLoading && (
           <Card>
-            <Empty title="Уведомлений нет" text="Здесь появятся блокеры в вашей зоне, новые задачи и переносы сроков." />
+            <Empty title="Уведомлений нет" text="Здесь появятся блокеры в вашей зоне, новые задачи и просьбы коллег, переносы сроков и запросы ваших заметок." />
           </Card>
         )
       )}

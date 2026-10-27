@@ -38,7 +38,7 @@ describe('вход и регистрация', () => {
     const bad = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: '', display_name: '', email: 'x', password: '123' });
     expect(bad.status).toBe(422);
     expect(Object.keys(bad.body.error.fields).sort()).toEqual(['company_name', 'display_name', 'email', 'password']);
-    const dup = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'X', display_name: 'Y', email: 'olga@offix.demo', password: '12345678' });
+    const dup = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'X', display_name: 'Y', email: 'olga@offix.demo', password: 'sunny-orbit-42' });
     expect(dup.body.error.fields.email).toMatch(/уже зарегистрирована/);
   });
 
@@ -51,7 +51,10 @@ describe('вход и регистрация', () => {
   });
 
   it('health', async () => {
-    expect((await request(ctx.app).get('/api/health')).body).toEqual({ ok: true });
+    const body = (await request(ctx.app).get('/api/health')).body;
+    expect(body.ok).toBe(true);
+    expect(typeof body.media.ffmpeg).toBe('boolean');
+    expect(body.media.max_upload_bytes).toBe(200 * 1024 * 1024);
   });
 
   it('неизвестный метод API — 404 в общем формате', async () => {

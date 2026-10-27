@@ -1,8 +1,9 @@
 import * as Haptics from 'expo-haptics';
-import type { ReactNode } from 'react';
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { initials } from '@offix/core';
+import { useAvatarUri } from '../lib/avatars';
 import { font, radius, toneColors, usePalette, type Tone } from '../lib/theme';
 import { AmbientGlow } from './fx/AmbientGlow';
 import { useTabBarSpace } from './fx/TabBarSpace';
@@ -57,10 +58,10 @@ export function Card({ children, style, onPress }: { children: ReactNode; style?
   );
 }
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled, icon, style }: { title: string; onPress: () => void; variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger'; loading?: boolean; disabled?: boolean; icon?: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Button({ title, onPress, variant = 'primary', loading, disabled, icon, style, color }: { title: string; onPress: () => void; variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger'; loading?: boolean; disabled?: boolean; icon?: ReactNode; style?: StyleProp<ViewStyle>; /** Цвет текста поверх своей подложки, например белый на градиенте. */ color?: string }) {
   const p = usePalette();
   const bg = { primary: p.ink, accent: p.accent, secondary: p.surface, ghost: 'transparent', danger: p.badSoft }[variant];
-  const fg = { primary: p.bg, accent: p.accentInk, secondary: p.ink, ghost: p.ink2, danger: p.bad }[variant];
+  const fg = color ?? { primary: p.bg, accent: p.accentInk, secondary: p.ink, ghost: p.ink2, danger: p.bad }[variant];
   return (
     <Pressable
       accessibilityRole="button"
@@ -96,12 +97,21 @@ export function Pill({ children, tone = 'neutral', dot }: { children: ReactNode;
 }
 
 const HUES = [228, 160, 28, 280, 340, 200, 100];
-export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+/** Аватар: фото, если человек его поставил, иначе инициалы на своём цвете. */
+export function Avatar({ name, size = 28, id, uri }: { name: string; size?: number; id?: string | null; uri?: string | null }) {
   const hue = HUES[[...name].reduce((s, ch) => s + ch.charCodeAt(0), 0) % HUES.length]!;
   const scheme = usePalette().bg === '#0B0B0F';
+  const found = useAvatarUri(id, name);
+  const photo = uri ?? found;
+  const [broken, setBroken] = useState<string | null>(null);
+  const showPhoto = !!photo && broken !== photo;
   return (
-    <View accessibilityLabel={name} style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: `hsl(${hue}, ${scheme ? '30%' : '70%'}, ${scheme ? '22%' : '92%'})` }}>
-      <Text style={{ fontSize: size * 0.38, fontFamily: font.semibold, color: `hsl(${hue}, 55%, ${scheme ? '75%' : '32%'})` }}>{initials(name)}</Text>
+    <View accessibilityLabel={name} style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: `hsl(${hue}, ${scheme ? '30%' : '70%'}, ${scheme ? '22%' : '92%'})` }}>
+      {showPhoto ? (
+        <Image source={{ uri: photo }} style={{ width: size, height: size }} onError={() => setBroken(photo)} accessibilityIgnoresInvertColors />
+      ) : (
+        <Text style={{ fontSize: size * 0.38, fontFamily: font.semibold, color: `hsl(${hue}, 55%, ${scheme ? '75%' : '32%'})` }}>{initials(name)}</Text>
+      )}
     </View>
   );
 }

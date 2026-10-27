@@ -116,6 +116,98 @@
   background: var(--surface);
   border: 1px solid var(--line);
 }
+.me-link {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.me-link:hover .clip:first-child {
+  color: var(--accent);
+}
+.me-photo {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.me-photo-cam {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(150deg, #6a80ff, #2c45dc);
+  box-shadow: 0 0 0 2px var(--surface);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+.me-photo:hover .me-photo-cam,
+.me-photo:focus-visible .me-photo-cam {
+  opacity: 1;
+  transform: none;
+}
+/* Фото профиля: кольцо из живого градиента, при загрузке — прогресс. */
+.profile-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.profile-photo-ring {
+  --p: 0;
+  position: relative;
+  padding: 5px;
+  border-radius: 50%;
+  background: conic-gradient(from 200deg, #7b8cff, #c46bff, #ff8ab3, #ffc36b, #6be3ff, #7b8cff);
+  box-shadow: 0 18px 44px -18px rgba(70, 60, 220, 0.7);
+}
+.profile-photo-ring::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.profile-photo-ring[data-busy]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 255, 255, 0.85) calc(var(--p) * 360deg), transparent 0);
+  mask: radial-gradient(circle, transparent 64%, #000 65%);
+}
+.profile-photo-ring .avatar {
+  position: relative;
+  font-size: 44px;
+}
+.profile-photo-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-photo-who b {
+  font-size: 17px;
+}
+.profile-photo-note {
+  max-width: 340px;
+  font-size: 13.5px;
+}
+.profile-photo-actions {
+  justify-content: center;
+  gap: 8px;
+}
 .main {
   min-width: 0;
   padding: 28px clamp(16px, 4vw, 44px) 60px;
@@ -185,7 +277,7 @@
   }
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     height: var(--tabbar-h);
     padding: 0 6px;
   }
@@ -195,8 +287,9 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 560;
+    letter-spacing: -0.01em;
     color: var(--ink-2);
     position: relative;
   }
@@ -220,9 +313,36 @@
     border-radius: 50%;
     background: var(--bad);
   }
+  .tabbar .tab-count {
+    position: absolute;
+    top: 7px;
+    left: calc(50% + 5px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg) 80%, transparent);
+  }
+  /* Открытый чат на телефоне — во весь экран, без нижней панели. */
+  .shell.is-in-chat .glass-slot.tabbar-glass {
+    display: none;
+  }
+  .shell.is-in-chat .main {
+    padding: 0;
+  }
   .page-head {
     margin-bottom: 18px;
   }
+}
+.nav-link .badge.is-chat {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* Дублирующее действие: на десктопе есть кнопка в сайдбаре */
@@ -233,6 +353,18 @@
 }
 
 /* ——— Шапка экрана на живом градиенте (Пульс) ——— */
+/* На телефоне профиль и разделы без вкладки — за аватаром в углу Пульса. */
+.pulse-me {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  padding: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
 .app-hero {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { checkPassword, hashPassword, signToken } from '../auth/auth';
+import { passwordError } from '@offix/core';
+import { checkPassword, hashPassword, issueToken } from '../auth/auth';
 import type { Db } from '../db/db';
 import { ApiError, invalid } from '../http/errors';
 import { parseBody } from '../http/validate';
@@ -34,9 +35,10 @@ export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean }
     const user = rows[0];
     // Одинаковый ответ для «нет такого» и «не тот пароль».
     if (!user || !(await checkPassword(password, user.password_hash))) throw new ApiError('UNAUTHORIZED', 'Неверная почта или пароль');
+    await db.query(`UPDATE users SET last_login_at = NOW() WHERE id = $1`, [user.id]);
     res.json({
       data: {
-        token: signToken(secret, user.id, user.company_id),
+        token: await issueToken(db, secret, user.id, user.company_id),
         user: { id: user.id, display_name: user.display_name, role: user.role },
         company: { id: user.company_id, name: user.company_name },
       },
@@ -61,7 +63,10 @@ export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean }
     if (!body.display_name.trim()) errors.display_name = 'Как вас зовут?';
     else if (body.display_name.trim().length > 120) errors.display_name = 'Имя — не длиннее 120 символов';
     if (!EMAIL.test(body.email.trim())) errors.email = 'Введите корректную почту';
-    if (body.password.length < 8) errors.password = 'Пароль — не короче 8 символов';
+    {
+      const pe = passwordError(body.password, { email: body.email.trim() });
+      if (pe) errors.password = pe;
+    }
     if (Object.keys(errors).length) throw invalid('Не удалось создать компанию', errors);
     const hash = await hashPassword(body.password);
     const out = await db.tx(async (q) => {
@@ -81,7 +86,7 @@ export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean }
     });
     res.status(201).json({
       data: {
-        token: signToken(secret, out.userId, out.companyId),
+        token: await issueToken(db, secret, out.userId, out.companyId),
         user: { id: out.userId, display_name: body.display_name.trim(), role: 'owner' },
         company: { id: out.companyId, name: body.company_name.trim() },
       },

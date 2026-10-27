@@ -1,0 +1,504 @@
+/* Мои заметки: календарь на градиенте под жидким стеклом, рядом — список. */
+.mn-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.mn-side {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2);
+  isolation: isolate;
+  overflow: hidden;
+}
+/* Мягкий блик сверху: градиент читается как обложка блокнота. */
+.mn-side::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(90% 60% at 20% 0%, rgba(255, 255, 255, 0.22), transparent 60%);
+  pointer-events: none;
+}
+.mn-cal-glass .glass-body {
+  color: #fff;
+}
+.mn-cal {
+  padding: 14px 12px 12px;
+  color: #fff;
+}
+.mn-cal-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.mn-cal-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+.mn-cal-title b {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.mn-cal-title .faint {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+.mn-cal-nav {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  transition: background var(--dur);
+}
+.mn-cal-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.mn-cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mn-cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.mn-cal-row.is-head span {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 2px 0 6px;
+}
+.mn-cal-row.is-head span.is-weekend {
+  color: rgba(255, 255, 255, 0.5);
+}
+.mn-day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background var(--dur),
+    transform var(--dur) var(--ease);
+}
+.mn-day:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.mn-day:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.mn-day.is-weekend .mn-day-num {
+  opacity: 0.78;
+}
+.mn-day.is-outside {
+  opacity: 0.38;
+}
+.mn-day.is-today {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+  font-weight: 650;
+}
+.mn-day.is-selected {
+  background: #fff;
+  color: #1b2370;
+  font-weight: 700;
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.45);
+  transform: scale(1.04);
+}
+.mn-day.is-selected .mn-day-num {
+  opacity: 1;
+}
+.mn-day-dots {
+  display: flex;
+  gap: 3px;
+  height: 4px;
+}
+.mn-day-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 4px;
+  background: #d6ff9c;
+  box-shadow: 0 0 6px rgba(214, 255, 156, 0.8);
+}
+.mn-day-dots i.is-late {
+  background: #ffb4a8;
+  box-shadow: 0 0 6px rgba(255, 120, 100, 0.9);
+}
+.mn-day.is-selected .mn-day-dots i {
+  background: var(--accent);
+  box-shadow: none;
+}
+.mn-day.is-selected .mn-day-dots i.is-late {
+  background: var(--bad);
+}
+.mn-side-foot {
+  display: flex;
+  gap: 8px;
+}
+.mn-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.mn-today:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.mn-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.mn-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.mn-tools .note-search {
+  max-width: none;
+}
+.mn-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mn-heading h2 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.mn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mn-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 40%),
+    var(--surface);
+  transition:
+    border-color var(--dur),
+    box-shadow var(--dur),
+    transform var(--dur) var(--ease);
+}
+.mn-row:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+.mn-row-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+  padding: 14px 6px 14px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+.mn-row-date {
+  flex: none;
+  width: 48px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #3352ff, #1a1f6b);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 6px 16px -8px rgba(51, 82, 255, 0.8);
+}
+.mn-row-date b {
+  font-size: 19px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.mn-row-date span {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 3px;
+}
+.mn-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mn-row-title {
+  font-weight: 620;
+  font-size: 15.5px;
+}
+.mn-row-excerpt {
+  font-size: 13.5px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mn-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.mn-star {
+  flex: none;
+  align-self: flex-start;
+  margin: 10px 10px 0 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    color var(--dur),
+    background var(--dur),
+    transform var(--dur) var(--ease);
+}
+.mn-star:hover {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.mn-star.is-on {
+  color: #f2b200;
+}
+.mn-star.is-on:active {
+  transform: scale(0.9);
+}
+.mn-star.is-hero {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.mn-star.is-hero.is-on {
+  color: #ffd34d;
+}
+
+/* Одна заметка */
+.mn-sheet-wrap {
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--dur);
+}
+.mn-sheet-wrap.is-over {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.mn-editor-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 14px;
+}
+.mn-files {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.mn-files-empty {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+/* Заметка в ленте чата */
+.note-card {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: min(240px, 100%);
+  max-width: 320px;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background var(--dur);
+}
+.note-card:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.note-card-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(150deg, #3352ff, #6b8f2e 140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.note-card-icon.is-sm {
+  width: 36px;
+  height: 36px;
+}
+.note-card-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.note-card-eyebrow {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.note-card-text b {
+  font-size: 15px;
+}
+.note-card-excerpt {
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note-card-files {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Диалоги заметок */
+.mn-chat-list {
+  max-height: 300px;
+}
+.mn-shared-meta {
+  font-size: 13px;
+  margin-top: -8px;
+}
+.mn-shared-body {
+  max-height: 46vh;
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.mn-request-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+.mn-request-line.is-pending {
+  background: var(--accent-soft);
+}
+.mn-request-line.is-approved {
+  background: var(--good-soft);
+}
+.mn-request-line.is-declined {
+  background: var(--warn-soft);
+}
+.mn-request-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.mn-request-text {
+  margin: 0;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: hidden;
+}
+.mn-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 620;
+  cursor: pointer;
+}
+.mn-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .mn-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .mn-side {
+    position: static;
+  }
+  .mn-editor-top {
+    grid-template-columns: 1fr;
+  }
+}

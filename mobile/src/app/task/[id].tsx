@@ -1,19 +1,22 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { BLOCKER_LABELS, BLOCKER_REASONS, diffDays, formatDate, plural, TASK_STATUS_LABELS, todayIso, type BlockerReason } from '@offix/core';
+import { BLOCKER_LABELS, BLOCKER_REASONS, diffDays, formatDate, lightOf, plural, requestBadge, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole } from '@offix/core';
 import { dueText, taskActions } from '../../lib/logic';
-import { useTask, useTaskStatus } from '../../lib/queries';
+import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { font, usePalette } from '../../lib/theme';
-import { TaskStatusPill } from '../../ui/domain';
+import { RequestBadge, TaskStatusPill } from '../../ui/domain';
+import { ArchiveButton, ArchiveCard, CheckpointsCard, LightLine, ThanksCard, WatchersCard } from '../../ui/task-parts';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
 import { DiscussionLink } from '../../ui/discussion';
+import { TaskFiles } from '../../ui/files';
 
 /** Задача: главный вопрос — что мешает и что делать дальше. Блокер без причины поставить нельзя. */
 export default function TaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const q = useTask(id);
+  const me = useMe();
   const status = useTaskStatus();
   const [blocking, setBlocking] = useState(false);
   const [reason, setReason] = useState<BlockerReason | null>(null);
@@ -24,6 +27,9 @@ export default function TaskScreen() {
   const today = todayIso();
   if (!t) return <Screen>{q.isError ? <Empty title="Задача не найдена" text="Возможно, у вас нет к ней доступа." /> : <Text tone="faint">Загружаем…</Text>}</Screen>;
   const due = dueText(t.due_at, today);
+  const light = t.archived ? null : lightOf(t, today);
+  const meId = me.data?.id ?? '';
+  const request = t.kind === 'request';
 
   const change = async (to: string) => {
     if (to === 'blocked') return setBlocking(true);
@@ -47,12 +53,15 @@ export default function TaskScreen() {
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <View style={{ gap: 10 }}>
-        <TaskStatusPill task={t} today={today} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {request && <RequestBadge text={requestBadge(t, meId)} />}
+          <TaskStatusPill task={t} today={today} />
+        </View>
         <Text variant="h2">{t.title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {t.assignee && (
             <>
-              <Avatar name={t.assignee.display_name} size={22} />
+              <Avatar name={t.assignee.display_name} id={t.assignee.id} size={22} />
               <Text variant="small">{t.assignee.display_name}</Text>
             </>
           )}
@@ -61,6 +70,10 @@ export default function TaskScreen() {
           </Text>
         </View>
       </View>
+
+      <ArchiveCard task={t} today={today} />
+      {light && <LightLine view={light} />}
+      <ThanksCard task={t} meId={meId} today={today} />
 
       {t.blocker && (
         <Card style={{ backgroundColor: p.badSoft, borderColor: p.badSoft }}>
@@ -76,13 +89,14 @@ export default function TaskScreen() {
         </Card>
       )}
 
-      {t.permissions?.status && !blocking && (
+      {t.permissions?.status && !blocking && !t.archived && (
         <View style={{ gap: 8 }}>
           {taskActions(t).map((a) => (
             <Button key={a.status} title={a.label} variant={a.primary ? 'primary' : a.status === 'blocked' ? 'danger' : 'secondary'} loading={status.isPending && status.variables?.status === a.status} onPress={() => change(a.status)} />
           ))}
         </View>
       )}
+      <ArchiveButton task={t} />
 
       {blocking && (
         <Card>
@@ -140,6 +154,33 @@ export default function TaskScreen() {
               </Text>
             </View>
           ))}
+        </Card>
+      )}
+
+      <CheckpointsCard key={t.id} task={t} today={today} />
+
+      <TaskFiles task={t} />
+
+      <WatchersCard task={t} />
+
+      {t.participants.some((x) => x.role !== 'watcher') && (
+        <Card style={{ gap: 8 }}>
+          <Text variant="eyebrow" tone="faint">
+            Участники
+          </Text>
+          {t.participants
+            .filter((x) => x.role !== 'watcher')
+            .map((x) => (
+              <View key={x.user_id + x.role} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Avatar name={x.display_name} id={x.user_id} size={22} />
+                <Text variant="small" style={{ flex: 1 }}>
+                  {x.display_name}
+                </Text>
+                <Text variant="caption" tone="faint">
+                  {TASK_ROLE_LABELS[x.role as TaskRole] ?? x.role}
+                </Text>
+              </View>
+            ))}
         </Card>
       )}
 

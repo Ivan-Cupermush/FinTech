@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { commentPreview, extractMentions, isDiscussionEntity, unreadCount, validateComment, type CompanyRole, type Discussion, type DiscussionComment, type DiscussionEntity } from '@offix/core';
+import { COMMENT_FILES_MAX, COMMENT_MAX, commentPreview, extractMentions, isDiscussionEntity, unreadCount, validateComment, type CompanyRole, type Discussion, type DiscussionComment, type DiscussionEntity } from '@offix/core';
 import { actorOf, type AuthedActor } from '../auth/auth';
 import type { Queryable, Db } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
@@ -9,6 +9,7 @@ import { getVisibleGoal } from '../services/goals';
 import { notify } from '../services/notify';
 import { loadOrg } from '../services/org';
 import { getVisibleTask } from '../services/tasks';
+import { claimDrafts, loadAttachments, serializeAll, type MediaCtx } from '../services/attachments';
 
 interface Entity {
   type: DiscussionEntity;
@@ -49,9 +50,14 @@ async function canSee(q: Queryable, companyId: string, userId: string, type: Dis
 const SELECT = `SELECT c.id, c.parent_id, c.body, c.author_id, u.display_name AS author_name, c.mention_ids, c.created_at
                   FROM comments c JOIN users u ON u.id = c.author_id`;
 
-async function loadComments(q: Queryable, companyId: string, type: DiscussionEntity, id: string): Promise<DiscussionComment[]> {
-  const { rows } = await q.query<DiscussionComment>(`${SELECT} WHERE c.company_id = $1 AND c.entity_type = $2 AND c.entity_id = $3 ORDER BY c.created_at, c.id`, [companyId, type, id]);
-  return rows.map((r) => ({ ...r, mention_ids: r.mention_ids ?? [] }));
+async function loadComments(q: Queryable, companyId: string, type: DiscussionEntity, id: string, media: MediaCtx, viewerId: string): Promise<DiscussionComment[]> {
+  const { rows } = await q.query<Omit<DiscussionComment, 'attachments'>>(`${SELECT} WHERE c.company_id = $1 AND c.entity_type = $2 AND c.entity_id = $3 ORDER BY c.created_at, c.id`, [companyId, type, id]);
+  const files = await loadAttachments(
+    q,
+    'comment',
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => ({ ...r, mention_ids: r.mention_ids ?? [], attachments: serializeAll(media, files.get(r.id), viewerId) }));
 }
 
 async function lastRead(q: Queryable, userId: string, type: DiscussionEntity, id: string): Promise<string | null> {
@@ -73,7 +79,11 @@ const params = (req: { params: Record<string, string | undefined> }): { type: Di
   return { type, id: idParam(req.params.id) };
 };
 
-const postSchema = z.object({ body: z.string().max(10_000), parent_id: z.string().nullable().optional() });
+const postSchema = z.object({
+  body: z.string().max(10_000).default(''),
+  parent_id: z.string().nullable().optional(),
+  attachment_ids: z.array(z.string().refine(isUuid)).max(COMMENT_FILES_MAX).optional(),
+});
 
 /**
  * Обсуждение цели или задачи: `/discussions/goal/:id`, `/discussions/task/:id`.
@@ -81,14 +91,14 @@ const postSchema = z.object({ body: z.string().max(10_000), parent_id: z.string(
  * Упомянутые, автор комментария, на который ответили, и «хозяева» объекта
  * получают уведомление типа comment — его подхватывают «Входящие» и push.
  */
-export function discussionsRouter(db: Db): Router {
+export function discussionsRouter(db: Db, media: MediaCtx): Router {
   const r = Router();
 
   r.get('/:type/:id', async (req, res) => {
     const actor = actorOf(req);
     const { type, id } = params(req);
     await openEntity(db, actor, type, id);
-    const comments = await loadComments(db, actor.company_id, type, id);
+    const comments = await loadComments(db, actor.company_id, type, id, media, actor.id);
     const read = await lastRead(db, actor.id, type, id);
     const ids = [...new Set(comments.flatMap((c) => c.mention_ids))];
     const people = ids.length ? (await db.query<{ id: string; display_name: string }>(`SELECT id, display_name FROM users WHERE id = ANY($1::uuid[])`, [ids])).rows : [];
@@ -100,7 +110,7 @@ export function discussionsRouter(db: Db): Router {
     const actor = actorOf(req);
     const { type, id } = params(req);
     await openEntity(db, actor, type, id);
-    const comments = await loadComments(db, actor.company_id, type, id);
+    const comments = await loadComments(db, actor.company_id, type, id, media, actor.id);
     res.json({ data: { total: comments.length, unread: unreadCount(comments, actor.id, await lastRead(db, actor.id, type, id)) } });
   });
 
@@ -116,7 +126,9 @@ export function discussionsRouter(db: Db): Router {
     const actor = actorOf(req);
     const { type, id } = params(req);
     const body = parseBody(postSchema, req.body);
-    const err = validateComment(body.body);
+    const files = body.attachment_ids ?? [];
+    // С файлами текст можно не писать.
+    const err = files.length ? (body.body.trim().length > COMMENT_MAX ? `Комментарий — не длиннее ${COMMENT_MAX} символов` : null) : validateComment(body.body);
     if (err) throw invalid('Не удалось отправить комментарий', { body: err });
     if (body.parent_id && !isUuid(body.parent_id)) throw invalid('Не удалось отправить комментарий', { parent_id: 'Комментарий, на который вы отвечаете, не найден' });
     const text = body.body.trim();
@@ -147,9 +159,10 @@ export function discussionsRouter(db: Db): Router {
         [actor.company_id, type, id, actor.id, text, body.parent_id ?? null, mentioned],
       );
       const created = rows[0]!;
+      const attached = await claimDrafts(q, actor, files, { type: 'comment', id: created.id }, { message: 'Не удалось отправить комментарий' });
 
       // Каждому — одно уведомление, самое точное: упоминание, затем ответ, затем «новый комментарий».
-      const preview = `${actor.display_name}: ${commentPreview(text)}`;
+      const preview = `${actor.display_name}: ${text ? commentPreview(text) : `📎 ${attached.map((a) => a.name).join(', ')}`}`;
       const where = `«${entity.title}»`;
       const sent = new Set<string>([actor.id]);
       const send = async (userId: string, title: string) => {
@@ -171,6 +184,7 @@ export function discussionsRouter(db: Db): Router {
         author_name: actor.display_name,
         mention_ids: mentioned,
         created_at: created.created_at,
+        attachments: serializeAll(media, attached, actor.id),
       };
       return comment;
     });

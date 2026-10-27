@@ -18,9 +18,10 @@ import {
   validateMetric,
   type GoalField,
   type GoalStatus,
+  type OrgContext,
 } from '@offix/core';
-import { actorOf } from '../auth/auth';
-import type { Db } from '../db/db';
+import { actorOf, type AuthedActor } from '../auth/auth';
+import type { Db, Queryable } from '../db/db';
 import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit, diff } from '../services/audit';
@@ -35,7 +36,9 @@ import {
   loadGoals,
   loadMetrics,
   serializeMetric,
+  type LoadedGoal,
 } from '../services/goals';
+import { allowedByFunction } from '../services/functions';
 import { withIdempotency } from '../services/idempotency';
 import { notify } from '../services/notify';
 import { addObservations } from '../services/observations';
@@ -75,6 +78,22 @@ const patchSchema = z.object({
 });
 
 const VALIDATION_MESSAGE = 'Не удалось сохранить цель';
+
+/**
+ * Менять KPI цели — по роли (как canEditGoal) или с функцией «Менять KPI
+ * целей» там, где она действует. Отключённая функция снимает и право по роли.
+ */
+async function canAssignKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
+  const access = await effectiveAccess(q, actor.company_id, goal);
+  return allowedByFunction(q, actor, 'kpi_assign', { byRole: canEditGoal(actor, access, 'metrics', org), unitIds: access.unit_ids, org });
+}
+
+/** Вносить факт KPI: владелец цели — всегда, остальные — по роли или с функцией «Вносить измерения KPI». */
+async function canRecordKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
+  const access = await effectiveAccess(q, actor.company_id, goal);
+  if (actor.role !== 'observer' && access.owner_id === actor.id) return true;
+  return allowedByFunction(q, actor, 'kpi_record', { byRole: canRecordObservation(actor, access, org), unitIds: access.unit_ids, org });
+}
 
 export function goalsRouter(db: Db, now: () => Date): Router {
   const r = Router();
@@ -368,7 +387,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
     const body = parseBody(metricSchema, req.body);
     const data = await db.tx(async (q) => {
       const { goal, org } = await getVisibleGoal(q, actor, id);
-      if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'metrics', org)) throw forbidden('Недостаточно прав для изменения KPI');
+      if (!(await canAssignKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для изменения KPI');
       const errors = validateMetric(body);
       if (Object.keys(errors).length) throw invalid('Не удалось сохранить KPI', errors);
       const existing = await loadMetrics(q, [id]);
@@ -387,7 +406,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
     const body = parseBody(metricSchema.partial(), req.body);
     const data = await db.tx(async (q) => {
       const { goal, org } = await getVisibleGoal(q, actor, id);
-      if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'metrics', org)) throw forbidden('Недостаточно прав для изменения KPI');
+      if (!(await canAssignKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для изменения KPI');
       const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
       if (!m) throw notFound('KPI не найден');
       const before: Record<string, unknown> & { name: string } = { name: m.name, unit: m.unit, baseline: m.baseline, target: m.target_value, direction: m.direction, range_min: m.range_min, range_max: m.range_max };
@@ -414,7 +433,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
     const body = parseBody(z.object({ value: z.number(), observed_at: z.string().max(40).optional(), note: z.string().max(1000).nullable().optional() }), req.body);
     const data = await db.tx(async (q) => {
       const { goal, org } = await getVisibleGoal(q, actor, id);
-      if (!canRecordObservation(actor, await effectiveAccess(q, actor.company_id, goal), org)) throw forbidden('Недостаточно прав для внесения измерений');
+      if (!(await canRecordKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для внесения измерений');
       if (goal.row.status === 'cancelled') throw conflict('В отменённую цель нельзя вносить измерения');
       const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
       if (!m) throw notFound('KPI не найден');
@@ -467,7 +486,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
     const out = await db.tx((q) =>
       withIdempotency(q, { userId: actor.id, scope: 'metrics.import', key: req.header('Idempotency-Key'), body: { id, mid, ...body } }, async () => {
         const { goal, org } = await getVisibleGoal(q, actor, id);
-        if (!canRecordObservation(actor, await effectiveAccess(q, actor.company_id, goal), org)) throw forbidden('Недостаточно прав для внесения измерений');
+        if (!(await canRecordKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для внесения измерений');
         if (goal.row.status === 'cancelled') throw conflict('В отменённую цель нельзя вносить измерения');
         const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
         if (!m) throw notFound('KPI не найден');

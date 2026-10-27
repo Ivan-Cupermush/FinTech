@@ -1,5 +1,5 @@
 import type { HeroStat } from './fx';
-import { PUSH_TOPICS, diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type Dashboard, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Notification, type Task } from '@offix/core';
+import { PUSH_TOPICS, canTransitionKind, lightOf, diffDays, duePresets, formatDate, formatNumber, isOverdue, plural, templateDueDate, UNITS, type Dashboard, type DiscussionSummary, type EffectTarget, type GoalTemplate, type Notification, type Task } from '@offix/core';
 
 /** Короткая подпись срока для строк списка: «через 3 дня», «просрочено на 2 дня». */
 export function dueText(due: string | null, today: string): { text: string; overdue: boolean } {
@@ -11,33 +11,65 @@ export function dueText(due: string | null, today: string): { text: string; over
   return { text: `до ${formatDate(due, { short: true, today })} · через ${left} ${plural(left, ['день', 'дня', 'дней'])}`, overdue: false };
 }
 
-/** Действия над задачей, доступные исполнителю в текущем статусе — по одному главному. */
-export function taskActions(t: Pick<Task, 'status'>): { status: Task['status']; label: string; primary: boolean }[] {
-  switch (t.status) {
-    case 'todo':
-      return [
-        { status: 'in_progress', label: 'Взять в работу', primary: true },
-        { status: 'blocked', label: 'Есть блокер', primary: false },
-      ];
-    case 'in_progress':
-      return [
-        { status: 'review', label: 'На проверку', primary: true },
-        { status: 'done', label: 'Готово', primary: false },
-        { status: 'blocked', label: 'Есть блокер', primary: false },
-      ];
-    case 'blocked':
-      return [{ status: 'in_progress', label: 'Блокер снят', primary: true }];
-    case 'review':
-      return [
-        { status: 'done', label: 'Принять', primary: true },
-        { status: 'in_progress', label: 'Вернуть в работу', primary: false },
-      ];
-    case 'done':
-      return [{ status: 'in_progress', label: 'Открыть снова', primary: false }];
-    default:
-      return [];
-  }
+/**
+ * Действия над задачей, доступные исполнителю в текущем статусе — по одному главному.
+ * У просьбы нет приёмки: из работы — сразу «Выполнено».
+ */
+export function taskActions(t: Pick<Task, 'status'> & { kind?: Task['kind'] }): { status: Task['status']; label: string; primary: boolean }[] {
+  const kind = t.kind ?? 'task';
+  const all = ((): { status: Task['status']; label: string; primary: boolean }[] => {
+    switch (t.status) {
+      case 'todo':
+        return [
+          { status: 'in_progress', label: 'Взять в работу', primary: true },
+          { status: 'blocked', label: 'Есть блокер', primary: false },
+        ];
+      case 'in_progress':
+        return kind === 'request'
+          ? [
+              { status: 'done', label: 'Выполнено', primary: true },
+              { status: 'blocked', label: 'Есть блокер', primary: false },
+            ]
+          : [
+              { status: 'review', label: 'На проверку', primary: true },
+              { status: 'done', label: 'Готово', primary: false },
+              { status: 'blocked', label: 'Есть блокер', primary: false },
+            ];
+      case 'blocked':
+        return [{ status: 'in_progress', label: 'Блокер снят', primary: true }];
+      case 'review':
+        return [
+          { status: 'done', label: 'Принять', primary: true },
+          { status: 'in_progress', label: 'Вернуть в работу', primary: false },
+        ];
+      case 'done':
+        return [{ status: 'in_progress', label: 'Открыть снова', primary: false }];
+      default:
+        return [];
+    }
+  })();
+  return all.filter((a) => canTransitionKind(kind, t.status, a.status));
 }
+
+/** Вкладки задач: те же запросы, что на сайте. Архив — отдельно, в остальных его нет. */
+export const TASK_SCOPES = [
+  { value: 'mine', label: 'Мои', filter: 'mine=1' },
+  { value: 'all', label: 'Все', filter: '' },
+  { value: 'requests', label: 'Мои просьбы', filter: 'created=1&kind=request' },
+  { value: 'watching', label: 'Наблюдаю', filter: 'watching=1' },
+  { value: 'archive', label: 'Архив', filter: 'archived=1' },
+] as const;
+export type TaskScope = (typeof TASK_SCOPES)[number]['value'];
+
+export const TASK_SCOPE_EMPTY: Record<TaskScope, { title: string; text: string }> = {
+  mine: { title: 'Задач нет', text: 'Задачи появляются из дорожных карт целей, а просьбы — от коллег.' },
+  all: { title: 'Задач нет', text: 'Задачи появляются из дорожных карт целей.' },
+  requests: { title: 'Вы ещё ни о чём не просили', text: 'Нужна помощь коллеги из другого отдела? Отправьте просьбу — он отметит «Выполнено», а вы поблагодарите.' },
+  watching: { title: 'Вы ни за чем не наблюдаете', text: 'Наблюдателя добавляет автор задачи: вы видите ход работы и отмечаете контрольные точки.' },
+  archive: { title: 'Архив пуст', text: 'Выполненные и отменённые задачи уходят сюда сами через три дня.' },
+};
+
+const LIGHT_RANK = { red: 0, yellow: 1, green: 2 } as const;
 
 /** Секции списка задач на телефоне: блокеры и просрочка сверху. */
 export function taskSections(tasks: Task[], today: string) {
@@ -49,8 +81,13 @@ export function taskSections(tasks: Task[], today: string) {
     { key: 'todo', title: 'К выполнению', data: open.filter((t) => t.status === 'todo' && !isOverdue(t, today)) },
     { key: 'done', title: 'Готово', data: open.filter((t) => t.status === 'done') },
   ];
-  const byDue = (a: Task, b: Task) => (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999');
-  return sections.filter((s) => s.data.length).map((s) => ({ ...s, data: [...s.data].sort(byDue) }));
+  // Внутри секции — по светофору: красные, потом жёлтые, дальше по сроку.
+  const rank = (t: Task) => {
+    const l = lightOf(t, today);
+    return l ? LIGHT_RANK[l.light] : 3;
+  };
+  const order = (a: Task, b: Task) => rank(a) - rank(b) || (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999');
+  return sections.filter((s) => s.data.length).map((s) => ({ ...s, data: [...s.data].sort(order) }));
 }
 
 /** «Доброе утро» — по локальному времени устройства. */
@@ -145,6 +182,18 @@ export function inboxStats(items: Pick<Notification, 'kind' | 'read_at'>[]): Her
     { label: 'новые', value: unread.length },
     { label: 'блокеры', value: blockers, tone: attention(blockers, 'bad') },
     { label: 'обсуждения', value: unread.filter((n) => n.kind === 'comment').length },
+  ];
+}
+
+/** Шапка задач: что в работе, что заблокировано и что просрочено. */
+export function tasksStats(tasks: Pick<Task, 'id' | 'status' | 'due_at'>[], today: string): HeroStat[] {
+  const open = tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled');
+  const blocked = open.filter((t) => t.status === 'blocked').length;
+  const overdue = open.filter((t) => t.status !== 'blocked' && isOverdue(t, today)).length;
+  return [
+    { label: 'в работе', value: open.filter((t) => t.status === 'in_progress').length },
+    { label: 'с блокером', value: blocked, tone: attention(blocked, 'bad') },
+    { label: 'просрочены', value: overdue, tone: attention(overdue, 'warn') },
   ];
 }
 

@@ -11,3 +11,4 @@ coverage/
 mobile/ios/
 mobile/android/
 *.tsbuildinfo
+server/data/

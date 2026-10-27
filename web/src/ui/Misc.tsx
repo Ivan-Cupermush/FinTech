@@ -86,7 +86,7 @@ export function Dialog({ title, onClose, children, footer, wide }: { title: stri
           {children}
         </div>
         {footer && (
-          <div className="row" style={{ justifyContent: 'flex-end', marginTop: 20 }}>
+          <div className="row" style={{ justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 20 }}>
             {footer}
           </div>
         )}

@@ -19,7 +19,14 @@ export function task(id: string, over: Partial<Task> = {}): Task {
     blocker: null,
     goal_ids: [],
     depends_on: [],
-    permissions: { view: true, edit: true, status: true },
+    kind: 'task',
+    thanked_at: null,
+    archived: null,
+    checkpoints: [],
+    watcher_ids: [],
+    created_by: 'u-director',
+    created_by_name: 'Алексей Петров',
+    permissions: { view: true, edit: true, status: true, mark: true },
     ...over,
   };
 }

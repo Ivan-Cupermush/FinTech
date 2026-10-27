@@ -146,7 +146,7 @@ describe('шапка раздела', () => {
 describe('шапки на экранах', () => {
   const ME: Me = { id: 'u1', email: 'olga@offix.demo', display_name: 'Ольга Смирнова', position: null, role: 'manager', company_id: 'c1', company_name: 'Демо', setup_mode: 'structured', units: [] };
   const DASH: Dashboard = { today: TODAY, goals: [], risks: [], my_tasks: [], help_needed: [], unread_notifications: 0, drafts: [] };
-  const note = (id: string, goal_id: string | null): NoteSummary => ({ id, title: `Заметка ${id}`, excerpt: '', goal_id, goal_title: goal_id ? 'Цель' : null, author_name: 'Ольга', updated_at: '2026-10-18T10:00:00Z' });
+  const note = (id: string, goal_id: string | null): NoteSummary => ({ id, title: `Заметка ${id}`, excerpt: '', goal_id, goal_title: goal_id ? 'Цель' : null, author_name: 'Ольга', updated_at: new Date().toISOString() });
 
   it('база знаний: шапка с цифрами по всей базе', async () => {
     mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /notes': [note('n1', null), note('n2', 'g1')] });

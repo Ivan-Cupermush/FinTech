@@ -1,6 +1,6 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, KeyRound, QrCode as QrIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { Avatar } from '../../ui/Avatar';
@@ -10,6 +10,7 @@ import { Logo } from '../../ui/Logo';
 import { Segmented } from '../../ui/Misc';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
+import { QrLogin } from './QrLogin';
 import './auth.css';
 
 /** Демо-вход: каждая роль видит свой срез — так проще показать права на питче. */
@@ -21,16 +22,24 @@ export const DEMO_PEOPLE = [
 ];
 const DEMO_PASSWORD = 'offix-demo';
 
+/** Куда вернуть после входа: только свой адрес, без «//чужой-сайт». */
+export function safeNext(next: string | null): string {
+  return next && /^\/(?!\/)[^\s]*$/.test(next) && !next.startsWith('/login') ? next : '/app';
+}
+
 export function LoginPage() {
-  const { token, login, register } = useAuth();
+  const { token, login, register, applyToken } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = safeNext(params.get('next'));
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [byQr, setByQr] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', company_name: '', display_name: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  if (token) return <Navigate to="/app" replace />;
+  if (token) return <Navigate to={next} replace />;
 
   const run = async (key: string, fn: () => Promise<void>) => {
     setBusy(key);
@@ -38,7 +47,7 @@ export function LoginPage() {
     setErrors({});
     try {
       await fn();
-      navigate('/app');
+      navigate(next);
     } catch (e) {
       if (e instanceof ApiError) {
         setErrors(e.fields);
@@ -87,6 +96,14 @@ export function LoginPage() {
             { value: 'register', label: 'Новая компания' },
           ]}
         />
+        {mode === 'login' && byQr ? (
+          <>
+            <QrLogin onToken={applyToken} />
+            <Button variant="ghost" icon={<KeyRound size={16} />} onClick={() => setByQr(false)}>
+              По паролю
+            </Button>
+          </>
+        ) : (
         <form className="stack" style={{ '--gap': '16px' } as React.CSSProperties} onSubmit={submit} noValidate>
           {mode === 'register' && (
             <>
@@ -112,8 +129,14 @@ export function LoginPage() {
           <Button variant="primary" size="lg" type="submit" loading={busy === 'form'} icon={<ArrowRight size={18} />} style={{ flexDirection: 'row-reverse' }}>
             {mode === 'login' ? 'Войти' : 'Создать и начать'}
           </Button>
+          {mode === 'login' && (
+            <Button variant="ghost" icon={<QrIcon size={16} />} onClick={() => setByQr(true)}>
+              По QR-коду с телефона
+            </Button>
+          )}
         </form>
-        {mode === 'login' && (
+        )}
+        {mode === 'login' && !byQr && (
           <div className="stack" style={{ '--gap': '10px' } as React.CSSProperties}>
             <div className="eyebrow">Демо — войти как</div>
             <div className="demo-people">

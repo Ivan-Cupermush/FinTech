@@ -3,10 +3,15 @@ import { z } from 'zod';
 import {
   BLOCKER_LABELS,
   BLOCKER_REASONS,
+  canArchive,
   canEditGoal,
-  canTransitionTask,
+  canThank,
+  canTransitionKind,
+  CHECKPOINTS_MAX,
   isValidIsoDate,
+  TASK_FILES_MAX,
   TASK_STATUS_LABELS,
+  validateCheckpoint,
   wouldCreateCycle,
   type TaskStatus,
 } from '@offix/core';
@@ -16,9 +21,11 @@ import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit, diff } from '../services/audit';
 import { effectiveAccess, getVisibleGoal } from '../services/goals';
-import { notify } from '../services/notify';
+import { inbox, notify } from '../services/notify';
+import { noRealtime, type Realtime } from '../realtime/hub';
 import { loadOrg } from '../services/org';
-import { getVisibleTask, loadTasks, serializeTask, taskPermissions } from '../services/tasks';
+import { claimDrafts, deleteAttachments, loadAttachments, serializeAll, type MediaCtx } from '../services/attachments';
+import { getVisibleTask, loadTasks, serializeTask, sweepArchive, taskPermissions, type TaskRow } from '../services/tasks';
 
 const dateField = z.string().max(30).nullable().optional();
 
@@ -33,10 +40,12 @@ const createSchema = z.object({
   definition_of_done: z.string().max(100_000).nullable().optional(),
   goal_id: z.string().nullable().optional(),
   depends_on: z.array(z.string()).max(50).optional(),
-  participants: z.array(z.object({ user_id: z.string(), role: z.enum(['owner', 'executor', 'approver', 'contributor']) })).max(50).optional(),
+  participants: z.array(z.object({ user_id: z.string(), role: z.enum(['owner', 'executor', 'approver', 'watcher', 'contributor']) })).max(50).optional(),
+  kind: z.enum(['task', 'request']).optional(),
+  checkpoints: z.array(z.object({ title: z.string().max(10_000), due_at: z.string().max(30) })).max(CHECKPOINTS_MAX).optional(),
 });
 
-const patchSchema = createSchema.omit({ goal_id: true, depends_on: true, participants: true }).partial();
+const patchSchema = createSchema.omit({ goal_id: true, depends_on: true, participants: true, kind: true, checkpoints: true }).partial();
 
 const MSG = 'Не удалось сохранить задачу';
 
@@ -86,19 +95,50 @@ async function addDependency(q: Queryable, actor: AuthedActor, fromId: string, t
   await q.query(`INSERT INTO task_dependencies (company_id, from_task_id, to_task_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [actor.company_id, fromId, toId]);
 }
 
-export function tasksRouter(db: Db, now: () => Date): Router {
+async function checkpointsOf(q: Queryable, taskId: string) {
+  const { rows } = await q.query(
+    `SELECT c.id, c.title, to_char(c.due_at, 'YYYY-MM-DD') AS due_at, c.status, c.done_at, u.display_name AS done_by_name
+       FROM task_checkpoints c LEFT JOIN users u ON u.id = c.done_by WHERE c.task_id = $1 ORDER BY c.due_at, c.created_at`,
+    [taskId],
+  );
+  return rows;
+}
+
+/** Кого известить о событии задачи: автор, исполнитель и наблюдатели — кроме того, кто сделал. */
+function audience(t: TaskRow, ...extra: (string | null)[]): string[] {
+  return [...new Set([t.created_by, t.assignee_id, ...t.watcher_ids, ...extra].filter((x): x is string => !!x))];
+}
+
+export function tasksRouter(db: Db, now: () => Date, media: MediaCtx, rt: Realtime = noRealtime): Router {
   const r = Router();
 
-  /** Мои задачи и задачи, которые я вижу. ?mine=1 — где я исполнитель. */
+  /**
+   * Мои задачи и задачи, которые я вижу. ?mine=1 — где я исполнитель,
+   * ?created=1 — что поручил или попросил я, ?watching=1 — где я наблюдаю,
+   * ?kind=request|task, ?archived=1 — архив (по умолчанию его нет в списке).
+   */
   r.get('/', async (req, res) => {
     const actor = actorOf(req);
+    await sweepArchive(db, actor.company_id, now());
     const org = await loadOrg(db, actor.company_id);
-    const { mine, status, goal } = req.query as Record<string, string | undefined>;
-    const where: string[] = ['TRUE'];
+    const { mine, created, watching, status, goal, kind, archived } = req.query as Record<string, string | undefined>;
+    const where: string[] = [archived === '1' ? 't.archived_at IS NOT NULL' : 't.archived_at IS NULL'];
     const params: unknown[] = [];
     if (mine === '1') {
       params.push(actor.id);
       where.push(`t.assignee_id = $${params.length + 1}`);
+    }
+    if (created === '1') {
+      params.push(actor.id);
+      where.push(`t.created_by = $${params.length + 1}`);
+    }
+    if (watching === '1') {
+      params.push(actor.id);
+      where.push(`t.id IN (SELECT task_id FROM task_participants WHERE role = 'watcher' AND user_id = $${params.length + 1})`);
+    }
+    if (kind === 'task' || kind === 'request') {
+      params.push(kind);
+      where.push(`t.kind = $${params.length + 1}`);
     }
     if (status) {
       params.push(status);
@@ -126,7 +166,20 @@ export function tasksRouter(db: Db, now: () => Date): Router {
     if (body.start_at && body.due_at && isValidIsoDate(body.start_at) && isValidIsoDate(body.due_at) && body.start_at > body.due_at) {
       errors.due_at = 'Срок не может быть раньше даты начала';
     }
+    const kind = body.kind ?? 'task';
+    if (kind === 'request') {
+      // Просьба — коллеге, без согласующих и цели: помочь и отметить «Готово».
+      if (!body.assignee_id) errors.assignee_id = 'Выберите, кого просите';
+      else if (body.assignee_id === actor.id) errors.assignee_id = 'Просьбу отправляют коллеге, а не себе';
+      if (body.goal_id || body.depends_on?.length) errors.goal_id = 'Просьба не входит в план цели — для этого есть задачи';
+      if (body.participants?.length) errors.participants = 'У просьбы нет согласующих и наблюдателей';
+    }
+    (body.checkpoints ?? []).forEach((cp, i) => {
+      const e = validateCheckpoint(cp, body.due_at && isValidIsoDate(body.due_at) ? body.due_at : null);
+      if (Object.keys(e).length) errors[`checkpoints.${i}`] = Object.values(e)[0]!;
+    });
     if (Object.keys(errors).length) throw invalid(MSG, errors);
+    const box = inbox();
     const data = await db.tx(async (q) => {
       const org = await loadOrg(q, actor.company_id);
       await checkRefs(q, actor.company_id, body, errors);
@@ -137,8 +190,8 @@ export function tasksRouter(db: Db, now: () => Date): Router {
         if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'metrics', org)) throw forbidden('Недостаточно прав, чтобы добавлять задачи в эту цель');
       }
       const { rows } = await q.query<{ id: string }>(
-        `INSERT INTO tasks (company_id, title, description, assignee_id, team_unit_id, unit_id, start_at, due_at, definition_of_done, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        `INSERT INTO tasks (company_id, title, description, assignee_id, team_unit_id, unit_id, start_at, due_at, definition_of_done, created_by, kind)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
         [
           actor.company_id,
           body.title.trim(),
@@ -150,9 +203,13 @@ export function tasksRouter(db: Db, now: () => Date): Router {
           body.due_at || null,
           body.definition_of_done?.trim() || null,
           actor.id,
+          kind,
         ],
       );
       const id = rows[0]!.id;
+      for (const cp of body.checkpoints ?? []) {
+        await q.query(`INSERT INTO task_checkpoints (task_id, title, due_at, created_by) VALUES ($1, $2, $3, $4)`, [id, cp.title.trim(), cp.due_at, actor.id]);
+      }
       await q.query(`INSERT INTO task_status_events (task_id, status, actor_id, at) VALUES ($1, 'todo', $2, $3)`, [id, actor.id, now().toISOString()]);
       if (body.goal_id) await q.query(`INSERT INTO goal_tasks (goal_id, task_id, linked_by) VALUES ($1, $2, $3)`, [body.goal_id, id, actor.id]);
       for (const dep of body.depends_on ?? []) {
@@ -166,11 +223,23 @@ export function tasksRouter(db: Db, now: () => Date): Router {
         if (e.assignee_id) throw invalid(MSG, { participants: 'Участник не найден' });
         await q.query(`INSERT INTO task_participants (task_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [id, p.user_id, p.role]);
       }
-      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: body.goal_id ?? null, actor_id: actor.id, event_type: 'task.created', new_values: body });
-      if (body.assignee_id) await notify(q, { company_id: actor.company_id, user_id: body.assignee_id, kind: 'task_assigned', title: `Новая задача: «${body.title.trim()}»`, task_id: id, goal_id: body.goal_id ?? null }, actor.id);
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: body.goal_id ?? null, actor_id: actor.id, event_type: kind === 'request' ? 'task.requested' : 'task.created', new_values: body });
       const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      if (body.assignee_id) {
+        await box.notify(
+          q,
+          kind === 'request'
+            ? { company_id: actor.company_id, user_id: body.assignee_id, kind: 'task_request', title: `${task.created_by_name ?? 'Коллега'} просит: «${task.title}»`, body: task.due_at ? `К ${task.due_at.split('-').reverse().join('.')}` : null, task_id: id }
+            : { company_id: actor.company_id, user_id: body.assignee_id, kind: 'task_assigned', title: `Новая задача: «${task.title}»`, task_id: id, goal_id: body.goal_id ?? null },
+          actor.id,
+        );
+      }
+      for (const w of task.watcher_ids) {
+        if (w !== body.assignee_id) await box.notify(q, { company_id: actor.company_id, user_id: w, kind: 'task_assigned', title: `Вы наблюдаете за задачей «${task.title}»`, task_id: id }, actor.id);
+      }
       return serializeTask(task, perms);
     });
+    box.flush(rt, actor.company_id);
     res.status(201).json({ data });
   });
 
@@ -194,7 +263,8 @@ export function tasksRouter(db: Db, now: () => Date): Router {
       `SELECT p.user_id, p.role, u.display_name FROM task_participants p JOIN users u ON u.id = p.user_id WHERE p.task_id = $1 ORDER BY p.role`,
       [id],
     );
-    res.json({ data: { ...serializeTask(task, perms), history: history.rows, dependencies: deps.rows, participants: participants.rows } });
+    const files = serializeAll(media, (await loadAttachments(db, 'task', [id])).get(id), actor.id);
+    res.json({ data: { ...serializeTask(task, perms), history: history.rows, dependencies: deps.rows, participants: participants.rows, files, checkpoints: await checkpointsOf(db, id) } });
   });
 
   r.patch('/:id', async (req, res) => {
@@ -255,14 +325,18 @@ export function tasksRouter(db: Db, now: () => Date): Router {
       }),
       req.body,
     );
+    const box = inbox();
     const data = await db.tx(async (q) => {
       const org = await loadOrg(q, actor.company_id);
       const { task, perms } = await getVisibleTask(q, actor, id, org);
       if (!perms.status) throw forbidden('Недостаточно прав для изменения статуса');
       const from = task.status;
       const to = body.status;
+      if (task.archived_at) throw conflict('Задача в архиве — сначала верните её');
       if (from === to && to !== 'blocked') throw conflict(`Задача уже в статусе «${TASK_STATUS_LABELS[to]}»`);
-      if (from !== to && !canTransitionTask(from, to)) throw conflict(`Нельзя перевести задачу из «${TASK_STATUS_LABELS[from]}» в «${TASK_STATUS_LABELS[to]}»`);
+      if (from !== to && !canTransitionKind(task.kind, from, to)) {
+        throw conflict(task.kind === 'request' && to === 'review' ? 'У просьбы нет приёмки: исполнитель сам отмечает «Выполнено»' : `Нельзя перевести задачу из «${TASK_STATUS_LABELS[from]}» в «${TASK_STATUS_LABELS[to]}»`);
+      }
       if ((to === 'cancelled' || (from === 'done' && to === 'in_progress')) && !perms.edit) throw forbidden('Отменить или вернуть задачу в работу может её автор или руководитель');
       const at = now().toISOString();
       if (to === 'blocked') {
@@ -275,9 +349,12 @@ export function tasksRouter(db: Db, now: () => Date): Router {
           [id, body.blocked_reason, body.blocked_note?.trim() || null, body.next_step?.trim() || null, at],
         );
       } else {
+        // Снова в работе — можно снова поблагодарить, когда выполнят.
         await q.query(
           `UPDATE tasks SET status = $2::varchar, blocked_reason = NULL, blocked_note = NULL, blocked_since = NULL, next_step = NULL,
-                  done_at = CASE WHEN $2::varchar = 'done' THEN $3::timestamptz ELSE NULL END, updated_at = NOW() WHERE id = $1`,
+                  done_at = CASE WHEN $2::varchar = 'done' THEN $3::timestamptz ELSE NULL END,
+                  closed_at = CASE WHEN $2::varchar IN ('done', 'cancelled') THEN $3::timestamptz ELSE NULL END,
+                  thanked_at = CASE WHEN $2::varchar = 'done' THEN thanked_at ELSE NULL END, updated_at = NOW() WHERE id = $1`,
           [id, to, at],
         );
       }
@@ -300,14 +377,14 @@ export function tasksRouter(db: Db, now: () => Date): Router {
         new_values: { status: to, ...(to === 'blocked' ? { blocked_reason: body.blocked_reason, blocked_note: body.blocked_note ?? null } : {}) },
       });
       if (to === 'blocked') {
-        // О блокировке узнают автор задачи и владельцы связанных целей — те, кто может помочь.
-        const recipients = new Set<string>([task.created_by]);
+        // О блокировке узнают автор задачи, наблюдатели и владельцы связанных целей — те, кто может помочь.
+        const recipients = new Set<string>([task.created_by, ...task.watcher_ids]);
         if (task.goal_ids.length) {
           const owners = await q.query<{ owner_id: string | null }>(`SELECT owner_id FROM goals WHERE id = ANY($1::uuid[])`, [task.goal_ids]);
           owners.rows.forEach((o) => o.owner_id && recipients.add(o.owner_id));
         }
         for (const uid of recipients) {
-          await notify(
+          await box.notify(
             q,
             {
               company_id: actor.company_id,
@@ -322,9 +399,22 @@ export function tasksRouter(db: Db, now: () => Date): Router {
           );
         }
       }
+      if (to === 'done') {
+        // Готово: автор и наблюдатели узнают сразу — просьбу можно поблагодарить, задачу — проверить.
+        for (const uid of audience(task)) {
+          if (uid === task.assignee_id) continue;
+          const request = task.kind === 'request' && uid === task.created_by;
+          await box.notify(
+            q,
+            { company_id: actor.company_id, user_id: uid, kind: 'task_done', title: `${task.kind === 'request' ? 'Просьба выполнена' : 'Задача выполнена'}: «${task.title}»`, body: request ? 'Поблагодарите, если всё в порядке' : null, task_id: id, goal_id: task.goal_ids[0] ?? null },
+            actor.id,
+          );
+        }
+      }
       const fresh = await getVisibleTask(q, actor, id, org);
       return serializeTask(fresh.task, fresh.perms);
     });
+    box.flush(rt, actor.company_id);
     res.json({ data });
   });
 
@@ -356,6 +446,222 @@ export function tasksRouter(db: Db, now: () => Date): Router {
       const del = await q.query(`DELETE FROM task_dependencies WHERE from_task_id = $1 AND to_task_id = $2 AND company_id = $3 RETURNING to_task_id`, [fromId, id, actor.company_id]);
       if (!del.rows.length) throw notFound('Зависимость не найдена');
       await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, actor_id: actor.id, event_type: 'task.dependency_removed', old_values: { depends_on: fromId } });
+    });
+    res.status(204).end();
+  });
+
+  // ------------------------------------------------------------ архив и «спасибо»
+
+  /** В архив руками: закрытую задачу — тот, кто может её менять. */
+  r.post('/:id/archive', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task, perms } = await getVisibleTask(q, actor, id, org);
+      if (!perms.edit) throw forbidden('Убрать в архив может автор задачи или руководитель');
+      const why = canArchive({ status: task.status, archived_at: task.archived_at });
+      if (why) throw conflict(why);
+      await q.query(`UPDATE tasks SET archived_at = $2, archived_by = $3, updated_at = NOW() WHERE id = $1`, [id, now().toISOString(), actor.id]);
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.archived' });
+      const fresh = await getVisibleTask(q, actor, id, org);
+      return serializeTask(fresh.task, fresh.perms);
+    });
+    res.json({ data });
+  });
+
+  /** Вернуть из архива: задача снова в списке и сама больше не уходит, пока её не закроют снова. */
+  r.post('/:id/unarchive', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task, perms } = await getVisibleTask(q, actor, id, org);
+      if (!perms.edit) throw forbidden('Вернуть из архива может автор задачи или руководитель');
+      if (!task.archived_at) throw conflict('Задача не в архиве');
+      await q.query(`UPDATE tasks SET archived_at = NULL, archived_by = NULL, unarchived_at = $2, updated_at = NOW() WHERE id = $1`, [id, now().toISOString()]);
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.unarchived' });
+      const fresh = await getVisibleTask(q, actor, id, org);
+      return serializeTask(fresh.task, fresh.perms);
+    });
+    res.json({ data });
+  });
+
+  /**
+   * «Спасибо» за выполненную просьбу: запись в обсуждении и уведомление
+   * исполнителю. Один раз на каждое выполнение — повторный запрос ничего не делает.
+   */
+  r.post('/:id/thanks', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const { text } = parseBody(z.object({ text: z.string().max(500).optional() }), req.body ?? {});
+    const box = inbox();
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task } = await getVisibleTask(q, actor, id, org);
+      if (task.kind !== 'request') throw conflict('Поблагодарить можно за выполненную просьбу');
+      if (task.created_by !== actor.id) throw forbidden('Поблагодарить может тот, кто просил');
+      if (task.status !== 'done') throw conflict('Просьба ещё не выполнена');
+      if (canThank(task, actor.id)) {
+        const body = text?.trim() || 'Спасибо за помощь!';
+        await q.query(`UPDATE tasks SET thanked_at = $2 WHERE id = $1`, [id, now().toISOString()]);
+        await q.query(`INSERT INTO comments (company_id, entity_type, entity_id, author_id, body, created_at) VALUES ($1, 'task', $2, $3, $4, $5)`, [actor.company_id, id, actor.id, body, now().toISOString()]);
+        await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, actor_id: actor.id, event_type: 'task.thanked' });
+        if (task.assignee_id) {
+          await box.notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'task_thanks', title: `${task.created_by_name ?? 'Коллега'} благодарит за «${task.title}»`, body, task_id: id }, actor.id);
+        }
+      }
+      const fresh = await getVisibleTask(q, actor, id, org);
+      return serializeTask(fresh.task, fresh.perms);
+    });
+    box.flush(rt, actor.company_id);
+    res.json({ data });
+  });
+
+  // ------------------------------------------------------------ контрольные точки
+
+  const checkpointPatch = z.object({ title: z.string().max(10_000).optional(), due_at: z.string().max(30).optional(), status: z.enum(['pending', 'done', 'missed']).optional() });
+
+  /** Точки ставит тот, кто может менять задачу; не больше 20 и не позже срока задачи. */
+  r.post('/:id/checkpoints', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const body = parseBody(z.object({ title: z.string().max(10_000), due_at: z.string().max(30) }), req.body);
+    const box = inbox();
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task, perms } = await getVisibleTask(q, actor, id, org);
+      if (!perms.edit) throw forbidden('Контрольные точки ставит автор задачи или руководитель');
+      const errors = validateCheckpoint(body, task.due_at);
+      if (Object.keys(errors).length) throw invalid('Не удалось добавить контрольную точку', errors);
+      if (task.checkpoints.length >= CHECKPOINTS_MAX) throw invalid('Не удалось добавить контрольную точку', { title: `В задаче — не больше ${CHECKPOINTS_MAX} контрольных точек` });
+      await q.query(`INSERT INTO task_checkpoints (task_id, title, due_at, created_by) VALUES ($1, $2, $3, $4)`, [id, body.title.trim(), body.due_at, actor.id]);
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.checkpoint_added', new_values: { title: body.title.trim(), due_at: body.due_at } });
+      if (task.assignee_id) {
+        await box.notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'reschedule', title: `Контрольная точка в «${task.title}»`, body: `${body.title.trim()} — к ${body.due_at.split('-').reverse().join('.')}`, task_id: id }, actor.id);
+      }
+      return checkpointsOf(q, id);
+    });
+    box.flush(rt, actor.company_id);
+    res.status(201).json({ data });
+  });
+
+  /**
+   * Изменить точку. Название и срок — тот, кто может менять задачу. Отметить
+   * «пройдена» или «сорвана» — автор, согласующий или наблюдатель: исполнитель
+   * задачи не принимает свою работу сам. В просьбе наблюдателей нет — отмечает исполнитель.
+   */
+  r.patch('/:id/checkpoints/:cid', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const cid = idParam(req.params.cid);
+    const body = parseBody(checkpointPatch, req.body);
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task, perms } = await getVisibleTask(q, actor, id, org);
+      const cp = task.checkpoints.find((c) => c.id === cid);
+      if (!cp) throw notFound('Контрольная точка не найдена');
+      if ((body.title !== undefined || body.due_at !== undefined) && !perms.edit) throw forbidden('Менять контрольную точку может автор задачи или руководитель');
+      if (body.status !== undefined && !perms.mark) throw forbidden('Отмечать точки может автор, согласующий или наблюдатель');
+      const errors = validateCheckpoint({ title: body.title, due_at: body.due_at }, task.due_at);
+      if (Object.keys(errors).length) throw invalid('Не удалось изменить контрольную точку', errors);
+      await q.query(
+        `UPDATE task_checkpoints SET title = COALESCE($3, title), due_at = COALESCE($4::date, due_at), status = COALESCE($5, status),
+                done_at = CASE WHEN $5::varchar IS NULL THEN done_at WHEN $5::varchar = 'pending' THEN NULL ELSE $6::timestamptz END,
+                done_by = CASE WHEN $5::varchar IS NULL THEN done_by WHEN $5::varchar = 'pending' THEN NULL ELSE $7::uuid END
+          WHERE id = $1 AND task_id = $2`,
+        [cid, id, body.title?.trim() ?? null, body.due_at ?? null, body.status ?? null, now().toISOString(), actor.id],
+      );
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.checkpoint_changed', old_values: cp, new_values: body });
+      return checkpointsOf(q, id);
+    });
+    res.json({ data });
+  });
+
+  r.delete('/:id/checkpoints/:cid', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const cid = idParam(req.params.cid);
+    await db.tx(async (q) => {
+      const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      if (!perms.edit) throw forbidden('Убрать контрольную точку может автор задачи или руководитель');
+      const del = await q.query(`DELETE FROM task_checkpoints WHERE id = $1 AND task_id = $2 RETURNING title`, [cid, id]);
+      if (!del.rows.length) throw notFound('Контрольная точка не найдена');
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.checkpoint_removed', old_values: del.rows[0] });
+    });
+    res.status(204).end();
+  });
+
+  // ------------------------------------------------------------ наблюдатели
+
+  /** Состав наблюдателей задачи целиком. Новые узнают об этом во «Входящих». У просьбы наблюдателей нет. */
+  r.put('/:id/watchers', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const { user_ids } = parseBody(z.object({ user_ids: z.array(z.string().refine(isUuid, 'Сотрудник не найден')).max(20) }), req.body);
+    const box = inbox();
+    const data = await db.tx(async (q) => {
+      const org = await loadOrg(q, actor.company_id);
+      const { task, perms } = await getVisibleTask(q, actor, id, org);
+      if (!perms.edit) throw forbidden('Наблюдателей добавляет автор задачи или руководитель');
+      if (task.kind === 'request') throw conflict('У просьбы нет наблюдателей');
+      const next = [...new Set(user_ids)];
+      for (const uid of next) {
+        const e: Record<string, string> = {};
+        await checkRefs(q, actor.company_id, { assignee_id: uid }, e);
+        if (e.assignee_id) throw invalid('Не удалось сохранить наблюдателей', { user_ids: 'Наблюдателем можно сделать активного сотрудника' });
+      }
+      await q.query(`DELETE FROM task_participants WHERE task_id = $1 AND role = 'watcher'`, [id]);
+      for (const uid of next) await q.query(`INSERT INTO task_participants (task_id, user_id, role) VALUES ($1, $2, 'watcher')`, [id, uid]);
+      const added = next.filter((u) => !task.watcher_ids.includes(u));
+      for (const uid of added) await box.notify(q, { company_id: actor.company_id, user_id: uid, kind: 'task_assigned', title: `Вы наблюдаете за задачей «${task.title}»`, task_id: id, goal_id: task.goal_ids[0] ?? null }, actor.id);
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.watchers_changed', old_values: { watchers: task.watcher_ids }, new_values: { watchers: next } });
+      const fresh = await getVisibleTask(q, actor, id, org);
+      return serializeTask(fresh.task, fresh.perms);
+    });
+    box.flush(rt, actor.company_id);
+    res.json({ data });
+  });
+
+  // ------------------------------------------------------------ файлы задачи
+
+  /** Файлы к задаче: ТЗ, сканы, результат. Прикрепляет тот, кто может менять задачу или её статус. */
+  r.post('/:id/files', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const body = parseBody(z.object({ attachment_ids: z.array(z.string().refine(isUuid)).min(1).max(TASK_FILES_MAX) }), req.body);
+    const data = await db.tx(async (q) => {
+      const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      if (actor.role === 'observer' || !(perms.edit || perms.status)) throw forbidden('Прикреплять файлы может исполнитель, автор или руководитель');
+      const had = (await q.query<{ n: number; pos: number }>(`SELECT COUNT(*)::int AS n, COALESCE(MAX(position) + 1, 0)::int AS pos FROM attachments WHERE owner_type = 'task' AND owner_id = $1`, [id])).rows[0]!;
+      if (had.n + new Set(body.attachment_ids).size > TASK_FILES_MAX) throw invalid('Не удалось прикрепить файлы', { attachment_ids: `К задаче — не больше ${TASK_FILES_MAX} файлов` });
+      const added = await claimDrafts(q, actor, body.attachment_ids, { type: 'task', id }, { message: 'Не удалось прикрепить файлы', startAt: had.pos });
+      await audit(q, {
+        company_id: actor.company_id,
+        entity_type: 'task',
+        entity_id: id,
+        goal_id: task.goal_ids[0] ?? null,
+        actor_id: actor.id,
+        event_type: 'task.files_added',
+        new_values: { files: added.map((a) => a.name) },
+      });
+      return serializeAll(media, (await loadAttachments(q, 'task', [id])).get(id), actor.id);
+    });
+    res.status(201).json({ data });
+  });
+
+  /** Убрать файл: свой — всегда, чужой — тот, кто может менять задачу. */
+  r.delete('/:id/files/:fileId', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const fileId = idParam(req.params.fileId);
+    await db.tx(async (q) => {
+      const { task, perms } = await getVisibleTask(q, actor, id, await loadOrg(q, actor.company_id));
+      const f = (await q.query<{ uploaded_by: string | null; name: string }>(`SELECT uploaded_by, name FROM attachments WHERE id = $1 AND owner_type = 'task' AND owner_id = $2`, [fileId, id])).rows[0];
+      if (!f) throw notFound('Файл не найден');
+      if (actor.role === 'observer' || !(perms.edit || (f.uploaded_by === actor.id && perms.status))) throw forbidden('Удалить чужой файл может автор задачи или руководитель');
+      await deleteAttachments(q, media.store, { attachmentIds: [fileId] });
+      await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: id, goal_id: task.goal_ids[0] ?? null, actor_id: actor.id, event_type: 'task.file_removed', old_values: { file: f.name } });
     });
     res.status(204).end();
   });

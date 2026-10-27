@@ -228,6 +228,16 @@ describe('Карточка цели', () => {
     await screen.findByRole('button', { name: 'Внести значение' });
     expect(document.querySelector('.goal-hero')).toHaveAttribute('data-variant', 'bad');
   });
+  it('на критическом пути даже свежая блокировка — красный светофор', async () => {
+    const base_ = roadmap();
+    const fresh = { reason: 'technical' as const, note: 'Нет доступа', since: '2026-10-18T09:00:00Z', next_step: null };
+    const tasks = base_.tasks.map((t) => (t.id === 't2' ? { ...t, blocker: fresh } : t));
+    mockApi({ ...base, 'GET /goals/g1/roadmap': { ...base_, tasks } });
+    renderApp('/app/goals/g1');
+    expect(await screen.findByRole('img', { name: 'Критичный риск: Заблокирована 1 день: техническая проблема' })).toBeInTheDocument();
+    // Без блокировки и просрочки критический путь цвет не меняет.
+    expect(screen.getByRole('img', { name: /^Идёт по плану: Срок / })).toBeInTheDocument();
+  });
   it('нет доступа — «Цель не найдена», без подробностей', async () => {
     mockApi({ ...base, 'GET /goals/zzz/roadmap': apiError(404, 'Цель не найдена') });
     renderApp('/app/goals/zzz');

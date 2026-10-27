@@ -1,22 +1,23 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { canManageOrg, COMPANY_ROLES } from '@offix/core';
-import { actorOf, hashPassword } from '../auth/auth';
+import { canManageOrg, COMPANY_ROLES, passwordError, tempPassword } from '@offix/core';
+import { actorOf, hashPassword, revokeSessions } from '../auth/auth';
 import type { Db } from '../db/db';
+import { noRealtime, type Realtime } from '../realtime/hub';
 import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function usersRouter(db: Db): Router {
+export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
   const r = Router();
 
   r.get('/me', async (req, res) => {
     const actor = actorOf(req);
     const { rows } = await db.query(
-      `SELECT u.id, u.email, u.display_name, u.position, m.role, c.id AS company_id, c.name AS company_name, c.setup_mode
+      `SELECT u.id, u.email, u.display_name, u.position, u.avatar_url, m.role, c.id AS company_id, c.name AS company_name, c.setup_mode
          FROM users u JOIN company_members m ON m.user_id = u.id JOIN companies c ON c.id = m.company_id
         WHERE u.id = $1 AND c.id = $2`,
       [actor.id, actor.company_id],
@@ -35,7 +36,7 @@ export function usersRouter(db: Db): Router {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
     const includeInactive = req.query.include_inactive === '1' && canManageOrg(actor);
     const { rows } = await db.query(
-      `SELECT u.id, u.display_name, u.position, u.email, u.active, m.role,
+      `SELECT u.id, u.display_name, u.position, u.email, u.active, u.avatar_url, m.role,
               COALESCE((SELECT json_agg(json_build_object('id', o.id, 'name', o.name, 'is_manager', mm.is_manager) ORDER BY mm.is_primary DESC, o.name)
                  FROM org_memberships mm JOIN org_units o ON o.id = mm.unit_id
                 WHERE mm.user_id = u.id AND mm.company_id = m.company_id AND mm.ended_at IS NULL), '[]'::json) AS units
@@ -109,11 +110,45 @@ export function usersRouter(db: Db): Router {
       if ((cur.role === 'owner' || body.role === 'owner') && actor.role !== 'owner') throw forbidden('Права владельца меняет только владелец');
       if (body.role) await q.query(`UPDATE company_members SET role = $3 WHERE company_id = $1 AND user_id = $2`, [actor.company_id, id, body.role]);
       if (body.active !== undefined) await q.query(`UPDATE users SET active = $2 WHERE id = $1`, [id, body.active]);
+      // Отключённому — сразу закрываем все сеансы; включат снова — войдёт заново.
+      if (body.active === false) await revokeSessions(q, id);
       if (body.position !== undefined) await q.query(`UPDATE users SET position = $2 WHERE id = $1`, [id, body.position?.trim() || null]);
       await audit(q, { company_id: actor.company_id, entity_type: 'member', entity_id: id, actor_id: actor.id, event_type: 'member.updated', old_values: cur, new_values: body });
       return { id, ...body };
     });
+    if (body.active === false) rt.disconnectUser(actor.company_id, id);
     res.json({ data });
+  });
+
+  /**
+   * Сброс пароля сотруднику. Пароли хранятся только хешем — показать старый
+   * нельзя: администратор задаёт новый или получает временный (один раз,
+   * чтобы передать сотруднику). Все сеансы сотрудника завершаются.
+   */
+  r.post('/:id/reset-password', async (req, res) => {
+    const actor = actorOf(req);
+    if (!canManageOrg(actor)) throw forbidden('Сбросить пароль может администратор');
+    const id = idParam(req.params.id);
+    const body = parseBody(z.object({ password: z.string().max(1000).optional() }), req.body);
+    if (id === actor.id) throw conflict('Свой пароль меняется в профиле');
+    const MSG = 'Не удалось сбросить пароль';
+    const password = body.password?.length ? body.password : tempPassword((n) => randomInt(n));
+    const target = (await db.query<{ role: string; email: string }>(`SELECT m.role, u.email FROM company_members m JOIN users u ON u.id = m.user_id WHERE m.company_id = $1 AND m.user_id = $2`, [actor.company_id, id])).rows[0];
+    if (!target) throw notFound('Сотрудник не найден');
+    if (target.role === 'owner' && actor.role !== 'owner') throw forbidden('Пароль владельца меняет только владелец');
+    // Учётная запись общая для всех компаний человека — чужую компанию пароль не касается.
+    const elsewhere = await db.query(`SELECT 1 FROM company_members WHERE user_id = $1 AND company_id <> $2 LIMIT 1`, [id, actor.company_id]);
+    if (elsewhere.rows.length) throw forbidden('Сотрудник состоит и в другой компании — пароль он меняет сам');
+    const err = body.password?.length ? passwordError(password, { email: target.email }) : null;
+    if (err) throw invalid(MSG, { password: err });
+    const hash = await hashPassword(password);
+    await db.tx(async (q) => {
+      await q.query(`UPDATE users SET password_hash = $2, password_changed_at = NOW() WHERE id = $1`, [id, hash]);
+      await revokeSessions(q, id);
+      await audit(q, { company_id: actor.company_id, entity_type: 'member', entity_id: id, actor_id: actor.id, event_type: 'member.password_reset' });
+    });
+    rt.disconnectUser(actor.company_id, id);
+    res.json({ data: { password: body.password?.length ? null : password } });
   });
 
   return r;

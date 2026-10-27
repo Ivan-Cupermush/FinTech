@@ -228,6 +228,86 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
       </group>
     );
   },
+  // Чаты: стеклянное облачко с хвостиком и белое поменьше с тремя точками «печатает».
+  chats: () => (
+    <group rotation={[0.22, -0.4, 0.04]}>
+      <group position={[-0.22, 0.2, 0]}>
+        <RoundedBox args={[1.5, 0.95, 0.3]} radius={0.3} smoothness={6}>
+          <Glass />
+        </RoundedBox>
+        <mesh position={[-0.5, -0.5, 0]} rotation={[0, 0, Math.PI / 5]}>
+          <coneGeometry args={[0.17, 0.36, 24]} />
+          <Glass />
+        </mesh>
+      </group>
+      <group position={[0.42, -0.42, 0.34]}>
+        <RoundedBox args={[0.92, 0.56, 0.22]} radius={0.22} smoothness={6}>
+          <Solid />
+        </RoundedBox>
+        {[-0.22, 0, 0.22].map((x) => (
+          <mesh key={x} position={[x, 0, 0.13]}>
+            <sphereGeometry args={[0.065, 24, 24]} />
+            <meshPhysicalMaterial color="#3050ff" roughness={0.2} clearcoat={1} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  ),
+  // Мои заметки: стеклянный блокнот на белых кольцах, строки текста и карандаш.
+  notes: () => (
+    <group rotation={[0.32, -0.42, 0.06]}>
+      <RoundedBox args={[1.3, 1.6, 0.12]} radius={0.08} smoothness={4}>
+        <Glass />
+      </RoundedBox>
+      {[-0.42, -0.14, 0.14, 0.42].map((x) => (
+        <mesh key={x} position={[x, 0.8, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.1, 0.028, 12, 40]} />
+          <Solid />
+        </mesh>
+      ))}
+      {[0.38, 0.14, -0.1, -0.34].map((y, i) => (
+        <mesh key={y} position={[-0.08 - (i === 3 ? 0.12 : 0), y, 0.08]} rotation={[0, 0, Math.PI / 2]}>
+          <capsuleGeometry args={[0.03, i === 3 ? 0.5 : 0.78, 6, 12]} />
+          <Solid />
+        </mesh>
+      ))}
+      <group position={[0.58, -0.42, 0.3]} rotation={[0, 0, -0.75]}>
+        <mesh>
+          <cylinderGeometry args={[0.07, 0.07, 0.9, 24]} />
+          <Glass tint="#e9ffd6" />
+        </mesh>
+        <mesh position={[0, -0.53, 0]} rotation={[Math.PI, 0, 0]}>
+          <coneGeometry args={[0.07, 0.16, 24]} />
+          <Solid />
+        </mesh>
+      </group>
+    </group>
+  ),
+  // Профиль: стеклянный бейдж — белый силуэт человека и точки QR-кода.
+  profile: () => (
+    <group rotation={[0.26, -0.45, 0.04]}>
+      <RoundedBox args={[1.7, 1.12, 0.12]} radius={0.14} smoothness={5}>
+        <Glass />
+      </RoundedBox>
+      <mesh position={[-0.45, 0.13, 0.1]}>
+        <sphereGeometry args={[0.16, 32, 32]} />
+        <Solid />
+      </mesh>
+      <mesh position={[-0.45, -0.24, 0.08]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.12, 0.2, 8, 16]} />
+        <Solid />
+      </mesh>
+      {[0, 1, 2].flatMap((r) =>
+        [0, 1, 2].map((c) =>
+          (r + c) % 2 === 0 || (r === 1 && c === 0) ? (
+            <RoundedBox key={`${r}${c}`} args={[0.13, 0.13, 0.06]} radius={0.03} smoothness={3} position={[0.2 + c * 0.19, 0.19 - r * 0.19, 0.09]}>
+              <Solid />
+            </RoundedBox>
+          ) : null,
+        ),
+      )}
+    </group>
+  ),
   // Новая цель: стеклянный кристалл и белая искра рядом.
   create: () => (
     <group rotation={[0.3, -0.4, 0.2]}>

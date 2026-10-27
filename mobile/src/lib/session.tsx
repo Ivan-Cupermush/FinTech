@@ -25,6 +25,9 @@ const store = {
 let current = { token: null as string | null, server: DEFAULT_SERVER };
 let onLogout: () => void = () => undefined;
 
+/** Токен и сервер прямо сейчас — для загрузки файлов, которая идёт мимо fetch-клиента. */
+export const currentSession = () => ({ token: current.token, server: current.server });
+
 export const api = createClient({ baseUrl: () => current.server, token: () => current.token, onUnauthorized: () => onLogout() });
 
 interface Session {
@@ -33,6 +36,8 @@ interface Session {
   server: string;
   login: (email: string, password: string, server?: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Новый токен после смены пароля или «выйти на остальных»: этот телефон остаётся в offix. */
+  applyToken: (token: string) => Promise<void>;
 }
 
 const Ctx = createContext<Session | null>(null);
@@ -75,7 +80,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setToken(r.token);
   }, []);
 
-  const value = useMemo(() => ({ ready, token, server, login, logout }), [ready, token, server, login, logout]);
+  const applyToken = useCallback(async (t: string) => {
+    current.token = t;
+    await store.set(TOKEN, t);
+    setToken(t);
+  }, []);
+
+  const value = useMemo(() => ({ ready, token, server, login, logout, applyToken }), [ready, token, server, login, logout, applyToken]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

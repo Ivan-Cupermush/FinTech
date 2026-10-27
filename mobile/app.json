@@ -28,7 +28,31 @@
       "expo-secure-store",
       "expo-font",
       "expo-notifications",
-      "expo-asset"
+      "expo-asset",
+      "expo-video",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "offix прикрепляет фото и видео к сообщениям, задачам и комментариям, а также ставит фото профиля.",
+          "cameraPermission": "offix снимает фото и видео, чтобы отправить их коллегам.",
+          "microphonePermission": "offix записывает звук для видео, которое вы снимаете."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "offix снимает видеосообщения-кружочки и сканирует QR-коды: вход на сайте и профили коллег.",
+          "microphonePermission": "offix записывает звук в видеосообщениях.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "offix записывает голосовые сообщения."
+        }
+      ]
     ],
     "scheme": "offix",
     "extra": {

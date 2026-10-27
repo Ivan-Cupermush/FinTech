@@ -1,4 +1,4 @@
-import { parsePushSettings, pushMessage, shouldPush, type PushMessage, type PushSettings } from '@offix/core';
+import { parsePushSettings, pushMessage, shouldPush, type ChatPushMessage, type PushMessage, type PushSettings } from '@offix/core';
 import type { Db, Queryable } from '../db/db';
 
 /** Ответ Expo на одно сообщение. */
@@ -8,8 +8,8 @@ export interface PushTicket {
   details?: { error?: string };
 }
 
-export interface PushSender {
-  send(messages: PushMessage[]): Promise<PushTicket[]>;
+export interface PushSender<M = PushMessage> {
+  send(messages: M[]): Promise<PushTicket[]>;
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -17,7 +17,7 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_CHUNK = 100;
 
 /** Отправка через Expo Push API: один сервис и для iOS (APNs), и для Android (FCM). */
-export function expoSender(opts: { accessToken?: string; fetch?: typeof fetch } = {}): PushSender {
+export function expoSender(opts: { accessToken?: string; fetch?: typeof fetch } = {}): PushSender<PushMessage | ChatPushMessage> {
   const doFetch = opts.fetch ?? fetch;
   return {
     async send(messages) {

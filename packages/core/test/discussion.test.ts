@@ -28,6 +28,7 @@ const c = (id: string, at: string, over: Partial<DiscussionComment> = {}): Discu
   author_name: 'Ольга Смирнова',
   mention_ids: [],
   created_at: at,
+  attachments: [],
   ...over,
 });
 

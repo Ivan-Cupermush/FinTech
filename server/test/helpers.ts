@@ -7,6 +7,12 @@ import { createPgliteDb } from '../src/db/pglite';
 import { DEMO_PASSWORD, seedDemo, type DemoIds } from '../src/seed/demo';
 import { fakeSystemsFetch } from '../src/seed/fake-systems';
 import type { FetchLike } from '../src/services/integrations';
+import type { Realtime } from '../src/realtime/hub';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createMediaStore, type MediaStore } from '../src/services/media';
+import type { MediaCtx } from '../src/services/attachments';
 
 /** Фиксированное «сегодня» — тесты не зависят от даты запуска. */
 export const NOW = new Date('2026-10-19T12:00:00Z');
@@ -19,6 +25,9 @@ export interface Ctx {
   demo: DemoIds;
   token: (who: keyof DemoIds['users']) => Promise<string>;
   as: (who: keyof DemoIds['users']) => Promise<Agent>;
+  /** Файлы теста — во временной папке. */
+  media: MediaCtx;
+  store: MediaStore;
 }
 
 export interface Agent {
@@ -41,11 +50,22 @@ const EMAILS: Record<keyof DemoIds['users'], string> = {
   observer: 'rector@offix.demo',
 };
 
-export async function setup(opts: { integrationFetch?: FetchLike } = {}): Promise<Ctx> {
+export async function setup(opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date } = {}): Promise<Ctx> {
   const db = await createPgliteDb();
   await migrate(db);
   const demo = await seedDemo(db, { now: NOW });
-  const app = createApp({ db, config: { jwtSecret: SECRET, corsOrigins: ['http://localhost:5173'] }, now: () => NOW, rateLimit: false, integrationFetch: opts.integrationFetch ?? fakeSystemsFetch(() => NOW) });
+  const now = opts.now ?? (() => NOW);
+  const uploads = { dir: mkdtempSync(join(tmpdir(), 'offix-test-uploads-')), maxBytes: opts.maxUploadBytes ?? 200 * 1024 * 1024, ffmpegDir: opts.ffmpeg === false ? null : undefined };
+  const store = createMediaStore(uploads, SECRET);
+  const app = createApp({
+    db,
+    config: { jwtSecret: SECRET, corsOrigins: ['http://localhost:5173'] },
+    now,
+    rateLimit: false,
+    integrationFetch: opts.integrationFetch ?? fakeSystemsFetch(() => NOW),
+    realtime: opts.realtime,
+    media: store,
+  });
   const cache = new Map<string, string>();
   const token = async (who: keyof DemoIds['users']) => {
     if (!cache.has(who)) {
@@ -66,7 +86,7 @@ export async function setup(opts: { integrationFetch?: FetchLike } = {}): Promis
       delete: (url) => auth(request(app).delete(url)),
     };
   };
-  return { db, app, demo, token, as };
+  return { db, app, demo, token, as, store, media: { store, now } };
 }
 
 export const validGoal = (ownerId: string) => ({
@@ -78,3 +98,34 @@ export const validGoal = (ownerId: string) => ({
   status: 'draft',
   metrics: [{ name: 'Среднее время ответа', unit: 'hours', baseline: 24, target: 8, direction: 'decrease' }],
 });
+
+export interface Recorded {
+  event: string;
+  users: string[];
+  payloadFor: (userId: string) => unknown;
+}
+
+/** Realtime, который просто записывает события — проверяем, кому и что ушло. */
+export function recordingRealtime(online: string[] = []) {
+  const events: Recorded[] = [];
+  const rt: Realtime & { events: Recorded[]; online: Set<string>; clear: () => void; of: (event: string) => Recorded[] } = {
+    events,
+    online: new Set(online),
+    emit(_c, users, event, payload) {
+      events.push({ event, users: [...new Set(users)], payloadFor: (u) => (typeof payload === 'function' ? (payload as (x: string) => unknown)(u) : payload) });
+    },
+    emitCompany(_c, event, payload) {
+      events.push({ event, users: ['*'], payloadFor: () => payload });
+    },
+    isOnline: (_c, u) => rt.online.has(u),
+    onlineIn: () => [...rt.online],
+    disconnectUser(_c, u) {
+      events.push({ event: 'disconnect_user', users: [u], payloadFor: () => null });
+    },
+    clear: () => {
+      events.length = 0;
+    },
+    of: (event) => events.filter((e) => e.event === event),
+  };
+  return rt;
+}

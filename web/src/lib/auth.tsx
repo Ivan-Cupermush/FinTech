@@ -7,6 +7,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (data: { company_name: string; display_name: string; email: string; password: string }) => Promise<void>;
   logout: () => void;
+  /** Вход по QR и новый токен после смены пароля: сеанс уже выдан сервером. */
+  applyToken: (token: string) => void;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apply(r.token);
       },
       logout: () => apply(null),
+      applyToken: (t) => apply(t),
     }),
     [token, apply],
   );

@@ -57,9 +57,8 @@ export function formatDuration(hours: number): string {
   return `${days}${nbsp}${plural(days, ['день', 'дня', 'дней'])}`;
 }
 
-/** Инициалы для аватара: «Анна Королёва» → «АК». */
+/** Инициалы для аватара: «Анна Королёва» → «АК». Знаки и скобки пропускаем: «Мария (качество)» → «МК», «Игорь · IT» → «ИI». */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const letters = parts.slice(0, 2).map((p) => p[0]!.toUpperCase());
-  return letters.join('') || '?';
+  const parts = name.trim().split(/\s+/).map((p) => p.match(/[\p{L}\p{N}]/u)?.[0]).filter((c): c is string => !!c);
+  return parts.slice(0, 2).join('').toUpperCase() || '?';
 }

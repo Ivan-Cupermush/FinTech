@@ -36,13 +36,19 @@ export const BLOCKER_LABELS: Record<BlockerReason, string> = {
   other: 'Другое',
 };
 
-export const TASK_ROLES = ['owner', 'executor', 'approver', 'contributor'] as const;
+/**
+ * Роли в задаче. Наблюдатель (watcher) стоит рядом с согласующим: видит
+ * задачу, получает её события и отмечает контрольные точки, но не принимает
+ * работу — принимает согласующий.
+ */
+export const TASK_ROLES = ['owner', 'executor', 'approver', 'watcher', 'contributor'] as const;
 export type TaskRole = (typeof TASK_ROLES)[number];
 
 export const TASK_ROLE_LABELS: Record<TaskRole, string> = {
   owner: 'Отвечает за итог',
   executor: 'Исполняет',
   approver: 'Согласует и принимает',
+  watcher: 'Наблюдает',
   contributor: 'Участвует',
 };
 

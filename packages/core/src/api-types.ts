@@ -1,8 +1,10 @@
+import type { Attachment } from './media';
 import type { CompanyRole } from './access';
 import type { Direction, KpiProgress } from './kpi';
 import type { GoalStatus, GoalType } from './goal';
 import type { Risk } from './risk';
 import type { BlockerReason, TaskStatus } from './task';
+import type { Checkpoint, CheckpointStatus, InboxTaskState, TaskKind } from './task-flow';
 import type { UnitId } from './units';
 import type { UnitType } from './org';
 import type { ProductMetrics } from './metrics';
@@ -83,13 +85,26 @@ export interface Task {
   blocker: { reason: BlockerReason; note: string | null; since: string; next_step: string | null } | null;
   goal_ids: string[];
   depends_on: string[];
-  permissions?: { view: boolean; edit: boolean; status: boolean };
+  /** Задача или просьба коллеге. */
+  kind: TaskKind;
+  /** Автор поблагодарил за выполненную просьбу. */
+  thanked_at: string | null;
+  archived: { at: string; by_name: string | null } | null;
+  /** Контрольные точки — для светофора и строки списка. */
+  checkpoints: { id: string; title: string; due_at: string; status: CheckpointStatus }[];
+  watcher_ids: string[];
+  created_by: string;
+  created_by_name: string | null;
+  permissions?: { view: boolean; edit: boolean; status: boolean; mark: boolean };
 }
 
-export interface TaskDetail extends Task {
+export interface TaskDetail extends Omit<Task, 'checkpoints'> {
+  checkpoints: Checkpoint[];
   history: { status: TaskStatus; blocked_reason: BlockerReason | null; note: string | null; at: string; actor_name: string | null }[];
   dependencies: { id: string; title: string; status: TaskStatus; due_at: string | null; direction: 'before' | 'after' }[];
   participants: { user_id: string; role: string; display_name: string }[];
+  /** Файлы задачи: ТЗ, сканы, результат. */
+  files: Attachment[];
 }
 
 export interface Roadmap {
@@ -144,6 +159,8 @@ export interface Me {
   email: string;
   display_name: string;
   position: string | null;
+  /** Фото профиля: /api/v1/files/avatars/…; нет — инициалы. */
+  avatar_url?: string | null;
   role: CompanyRole;
   company_id: string;
   company_name: string;
@@ -157,6 +174,7 @@ export interface Member {
   position: string | null;
   email: string;
   active: boolean;
+  avatar_url?: string | null;
   role: CompanyRole;
   units: { id: string; name: string; is_manager: boolean }[];
 }
@@ -183,6 +201,15 @@ export interface Notification {
   task_id: string | null;
   read_at: string | null;
   created_at: string;
+  /** Для перехода: запрос заметки (request_id), её копия (note_id) и т. п. */
+  data?: Record<string, string>;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  actor_avatar_url?: string | null;
+  /** Запрос заметки уже отвечен — кнопки ответа не показываем. */
+  request_status?: 'pending' | 'approved' | 'declined' | null;
+  /** Просьба или задача из уведомления: что с ней сейчас — для кнопок во «Входящих». */
+  task_state?: InboxTaskState | null;
 }
 
 /** GET /metrics: продуктовые метрики в зоне видимости человека. */

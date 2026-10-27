@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   buildThread,
+  COMMENT_FILES_MAX,
   COMMENT_MAX,
   formatDate,
   insertMention,
@@ -15,8 +16,12 @@ import {
   type DiscussionComment,
   type DiscussionEntity,
   type DiscussionSummary,
+  type Attachment,
 } from '@offix/core';
 import { api } from '../../lib/api';
+import { dropDraft } from '../../lib/files';
+import { useUploads } from '../../lib/useUploads';
+import { AttachButton, AttachmentList, PendingList, useDropZone } from '../files/Attachments';
 import { useMe, useUsers } from '../../lib/queries';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -69,29 +74,32 @@ export function Discussion({ type, id, compact }: { type: DiscussionEntity; id: 
   const firstNew = q.data?.comments.find(isNew)?.id;
 
   const renderComment = (c: DiscussionComment, reply: boolean) => (
-    <article key={c.id} className={`dsc-comment ${reply ? 'reply' : ''}`} aria-label={`${c.author_name}: ${c.body.slice(0, 60)}`}>
+    <article key={c.id} className={`dsc-comment ${reply ? 'reply' : ''}`} aria-label={`${c.author_name}: ${c.body.slice(0, 60) || c.attachments.map((a) => a.name).join(', ')}`}>
       {c.id === firstNew && (
         <div className="dsc-new" role="separator">
           Новые
         </div>
       )}
       <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
-        <Avatar name={c.author_name} size={reply ? 26 : 30} />
+        <Avatar name={c.author_name} size={reply ? 26 : 30} id={c.author_id} />
         <div className="grow stack" style={{ '--gap': '2px', minWidth: 0 } as React.CSSProperties}>
           <span className="dsc-meta">
             <b>{c.author_name}</b> <span className="faint num">{when(c.created_at, today)}</span>
           </span>
-          <p className="dsc-body">
-            {splitMentions(c.body, people).map((s, i) =>
-              s.mention ? (
-                <span key={i} className={`dsc-mention ${s.mention === me.data?.id ? 'me' : ''}`}>
-                  {s.text}
-                </span>
-              ) : (
-                <span key={i}>{s.text}</span>
-              ),
-            )}
-          </p>
+          {c.body && (
+            <p className="dsc-body">
+              {splitMentions(c.body, people).map((s, i) =>
+                s.mention ? (
+                  <span key={i} className={`dsc-mention ${s.mention === me.data?.id ? 'me' : ''}`}>
+                    {s.text}
+                  </span>
+                ) : (
+                  <span key={i}>{s.text}</span>
+                ),
+              )}
+            </p>
+          )}
+          {c.attachments?.length > 0 && <AttachmentList items={c.attachments} author={{ id: c.author_id, name: c.author_name }} size="sm" />}
           {q.data?.can_comment && (
             <button type="button" className="dsc-reply-btn" onClick={() => setReplyTo(c)}>
               <Reply size={13} aria-hidden /> Ответить
@@ -144,6 +152,8 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(0);
   const [sending, setSending] = useState(false);
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const up = useUploads();
   const ref = useRef<HTMLTextAreaElement>(null);
   const placeCaret = useRef<number | null>(null);
   const toast = useToast();
@@ -172,13 +182,24 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
     placeCaret.current = null;
   });
 
+  // С файлами текст необязателен.
+  const empty = files.length ? text.trim().length > COMMENT_MAX : !!validateComment(text);
+  const attach = async (list: File[]) => {
+    const room = COMMENT_FILES_MAX - files.length;
+    if (list.length > room) toast(`К комментарию — не больше ${COMMENT_FILES_MAX} файлов`, 'error');
+    const got = await up.upload(list.slice(0, Math.max(0, room)));
+    setFiles((f) => [...f, ...got]);
+  };
+  const drop = useDropZone((l) => void attach(l));
+
   const send = async () => {
-    if (validateComment(text) || sending) return;
+    if (empty || sending || up.running) return;
     setSending(true);
     try {
-      await api(`/discussions/${type}/${id}`, { body: { body: text, parent_id: replyTo?.parent_id ?? replyTo?.id ?? null } });
+      await api(`/discussions/${type}/${id}`, { body: { body: text, parent_id: replyTo?.parent_id ?? replyTo?.id ?? null, attachment_ids: files.length ? files.map((f) => f.id) : undefined } });
       setText('');
       setCaret(0);
+      setFiles([]);
       await onSent();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -188,7 +209,7 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
   };
 
   return (
-    <div className="dsc-composer">
+    <div className={`dsc-composer ${drop.over ? 'is-over' : ''}`} {...drop.props}>
       {replyTo && (
         <div className="dsc-replying">
           <Reply size={13} aria-hidden />
@@ -216,6 +237,12 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
             setCaret(e.target.selectionStart ?? e.target.value.length);
           }}
           onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+          onPaste={(e) => {
+            const list = Array.from(e.clipboardData?.files ?? []);
+            if (!list.length) return;
+            e.preventDefault();
+            void attach(list);
+          }}
           onKeyDown={(e) => {
             if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
               e.preventDefault();
@@ -226,7 +253,8 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
             } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void send();
           }}
         />
-        <Button variant="primary" icon={<Send size={15} />} loading={sending} disabled={!!validateComment(text)} onClick={() => void send()} aria-label="Отправить" />
+        <AttachButton variant="icon" label="Прикрепить файл" onFiles={(l) => void attach(l)} disabled={files.length >= COMMENT_FILES_MAX} />
+        <Button variant="primary" icon={<Send size={15} />} loading={sending} disabled={empty || up.running} onClick={() => void send()} aria-label="Отправить" />
         {open && (
           <div className="dsc-suggest" role="listbox" aria-label="Кого упомянуть">
             {suggestions.map((u, i) => (
@@ -240,7 +268,7 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
                   pick(u.display_name);
                 }}
               >
-                <Avatar name={u.display_name} size={22} />
+                <Avatar name={u.display_name} size={22} id={u.id} />
                 <span className="dsc-suggest-name">{u.display_name}</span>
                 {u.position && <span className="faint clip dsc-suggest-pos">{u.position}</span>}
               </button>
@@ -248,6 +276,18 @@ function Composer({ type, id, replyTo, onCancelReply, onSent }: { type: Discussi
           </div>
         )}
       </div>
+      {files.length > 0 && (
+        <AttachmentList
+          items={files}
+          size="sm"
+          canRemove={() => true}
+          onRemove={(a) => {
+            setFiles((f) => f.filter((x) => x.id !== a.id));
+            void dropDraft(a.id);
+          }}
+        />
+      )}
+      <PendingList items={up.items} onDismiss={up.dismiss} />
       <div className="faint dsc-hint">Ctrl + Enter — отправить</div>
     </div>
   );

@@ -3,14 +3,14 @@
  * по кругу, без случайных оттенков: градиент поддерживает бренд, а не спорит с ним.
  * Те же три цвета идут в CSS-запасной вариант, поэтому без WebGL образ тот же.
  */
-export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | SectionVariant;
+export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | 'wallpaper' | SectionVariant;
 
 /**
  * Шапки рабочих разделов. Та же «ночь» с фирменным синим, но у каждого
  * раздела свой третий цвет и свой разворот волны: разделы узнаются с первого
  * взгляда и при этом остаются одной семьёй.
  */
-export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create'] as const;
+export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 
 const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; rotationZ: number; positionX: number; polar: number }> = {
@@ -30,6 +30,12 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   org: { colors: ['#2f52ff', '#061c22', '#3fd6a0'], rotationZ: 230, positionX: -0.6, polar: 114 },
   // Новая цель — самый светлый и яркий: начало.
   create: { colors: ['#4a62ff', '#121a5e', '#9d86ff'], rotationZ: 235, positionX: -0.5, polar: 115 },
+  // Чаты — синий с тёплым янтарём: живой разговор.
+  chats: { colors: ['#3050ff', '#0d0b2c', '#ffb547'], rotationZ: 245, positionX: -0.45, polar: 117 },
+  // Мои заметки — синий со свежим лаймом: личный ежедневник, а не архив.
+  notes: { colors: ['#3352ff', '#08162a', '#a8e05f'], rotationZ: 225, positionX: -0.55, polar: 113 },
+  // Профиль — синий с ледяным серебром: спокойно, про себя и безопасность.
+  profile: { colors: ['#2e4cff', '#0a0c2e', '#b9c6ff'], rotationZ: 205, positionX: -0.25, polar: 109 },
 };
 
 export function isSectionVariant(v: string): v is SectionVariant {
@@ -55,6 +61,12 @@ export function gradientLook(variant: GradientVariant, dark: boolean): GradientL
   if (isSectionVariant(variant)) {
     const l = SECTION_LOOKS[variant];
     return { ...gradientLook('hero', dark), colors: l.colors, cPolarAngle: l.polar, rotation: [0, 0, l.rotationZ], position: [l.positionX, 0.1, 0] };
+  }
+  if (variant === 'wallpaper') {
+    // Обои чата: в светлой теме — пастель, в тёмной — ночь; пузыри из стекла читаются на обоих.
+    return dark
+      ? { ...gradientLook('hero', dark), colors: ['#2a44e8', '#07081c', '#c9822c'], brightness: 0.78, uStrength: 2, uSpeed: 0.1, rotation: [0, 0, 250], position: [-0.4, 0.1, 0] }
+      : { ...gradientLook('hero', dark), colors: ['#9fb0ff', '#f3f1ec', '#ffcf8f'], brightness: 1.25, uStrength: 2, uSpeed: 0.1, rotation: [0, 0, 250], position: [-0.4, 0.1, 0] };
   }
   if (variant === 'good' || variant === 'bad') {
     // Шапка цели: та же ночь, но третий цвет говорит, идёт ли показатель к цели.

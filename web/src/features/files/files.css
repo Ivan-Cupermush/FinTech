@@ -1,0 +1,199 @@
+/* Вложения задач и комментариев: те же плитки и строки, что в чатах. */
+.att-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.att-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.att-thumb-wrap,
+.att-file {
+  position: relative;
+}
+.att-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.att-file .file-row {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+.att-list.is-sm .att-file {
+  padding: 5px 6px;
+}
+.att-list.is-sm .file-tile {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.att-thumb {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 22%, var(--surface-2)), color-mix(in srgb, #ff9bd2 22%, var(--surface-2)));
+  box-shadow: 0 8px 20px -14px rgba(20, 30, 110, 0.6);
+  cursor: zoom-in;
+}
+.att-list.is-sm .att-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 13px;
+}
+.att-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms var(--ease);
+}
+.att-thumb:hover img {
+  transform: scale(1.05);
+}
+.att-thumb .album-badge {
+  top: auto;
+  bottom: 5px;
+  left: 5px;
+  font-size: 10.5px;
+}
+.att-remove {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  cursor: pointer;
+}
+.att-remove:hover {
+  color: var(--bad);
+}
+.att-thumb-wrap .att-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  color: #fff;
+  background: rgba(8, 10, 30, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.att-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur);
+}
+.att-add:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.att-add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.att-add.is-icon {
+  width: 40px;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--ink-2);
+}
+.att-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.att-pending li {
+  --p: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+  font-size: 13.5px;
+}
+.att-pending li > i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: calc(var(--p) * 100%);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, #6a80ff, #c46bff);
+  transition: width 200ms var(--ease);
+}
+.att-pending li.is-error {
+  background: var(--bad-soft);
+}
+.att-pending button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.att-err {
+  color: var(--bad);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.task-files {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -8px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 2px dashed transparent;
+  transition:
+    border-color var(--dur),
+    background var(--dur);
+}
+.task-files.is-over {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.dsc-composer.is-over {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+.task-files-empty {
+  font-size: 13.5px;
+}

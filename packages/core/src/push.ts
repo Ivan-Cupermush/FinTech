@@ -5,18 +5,38 @@
  * показывает те же настройки и ведёт по нажатию на тот же экран.
  */
 
-export const NOTIFICATION_KINDS = ['goal_assigned', 'task_assigned', 'task_blocked', 'task_unblocked', 'reschedule', 'kpi_achieved', 'comment', 'goal_activated'] as const;
+export const NOTIFICATION_KINDS = [
+  'goal_assigned',
+  'task_assigned',
+  'task_blocked',
+  'task_unblocked',
+  'reschedule',
+  'kpi_achieved',
+  'comment',
+  'goal_activated',
+  // Пересланная заметка: просят свежую версию, автор поделился или отказал.
+  'note_request',
+  'note_request_approved',
+  'note_request_declined',
+  // Просьбы и задачи: новая просьба, работа выполнена, автор благодарит.
+  'task_request',
+  'task_done',
+  'task_thanks',
+  // Руководитель включил функцию: вносить KPI, вести базу знаний.
+  'function_granted',
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /** Темы push в настройках: человеку проще выбрать четыре темы, чем восемь типов. */
-export const PUSH_TOPICS = ['tasks', 'blockers', 'goals', 'comments'] as const;
+export const PUSH_TOPICS = ['tasks', 'blockers', 'goals', 'comments', 'messages'] as const;
 export type PushTopic = (typeof PUSH_TOPICS)[number];
 
 export const PUSH_TOPIC_LABELS: Record<PushTopic, { title: string; hint: string }> = {
-  tasks: { title: 'Мои задачи', hint: 'Новая задача, перенос срока' },
+  tasks: { title: 'Мои задачи', hint: 'Новая задача или просьба, перенос срока, работа выполнена' },
   blockers: { title: 'Блокеры', hint: 'Задача в вашей зоне заблокирована или снова в работе' },
   goals: { title: 'Цели', hint: 'Вас назначили владельцем, цель запущена, KPI достиг цели' },
   comments: { title: 'Обсуждения', hint: 'Ответы и упоминания' },
+  messages: { title: 'Сообщения', hint: 'Личные и групповые чаты, кроме чатов без звука, и запросы заметок' },
 };
 
 export const KIND_TOPIC: Record<NotificationKind, PushTopic> = {
@@ -28,6 +48,13 @@ export const KIND_TOPIC: Record<NotificationKind, PushTopic> = {
   goal_activated: 'goals',
   kpi_achieved: 'goals',
   comment: 'comments',
+  note_request: 'messages',
+  note_request_approved: 'messages',
+  note_request_declined: 'messages',
+  task_request: 'tasks',
+  task_done: 'tasks',
+  task_thanks: 'tasks',
+  function_granted: 'goals',
 };
 
 export interface PushSettings {
@@ -120,8 +147,50 @@ export function pushMessage(token: string, n: PushNotificationInput, unread: num
   };
 }
 
-/** Куда вести по нажатию на push: задача важнее цели, иначе — «Входящие». */
-export function pushRoute(data: { task_id?: string | null; goal_id?: string | null } | null | undefined): string {
+/**
+ * Push о сообщении в чате. Идёт мимо «Входящих»: сообщение и так лежит в
+ * чате. Молчит, если выключена тема «Сообщения», чат без звука или ночь
+ * (тихие часы касаются и чатов — утром человек откроет чат сам).
+ */
+export function shouldPushMessage(settings: PushSettings, chatMutedUntil: string | null | undefined, at: string): PushDecision {
+  if (settings.muted.includes('messages')) return { send: false, reason: 'muted' };
+  if (chatMutedUntil && Date.parse(chatMutedUntil) > Date.parse(at)) return { send: false, reason: 'muted' };
+  if (settings.quiet_hours && isQuietHour(at)) return { send: false, reason: 'quiet_hours' };
+  return { send: true };
+}
+
+export interface ChatPushInput {
+  chat_id: string;
+  message_id: string;
+  /** Название чата; в личном — имя собеседника. */
+  chat_title: string;
+  sender_name: string;
+  is_group: boolean;
+  text: string;
+}
+
+export interface ChatPushMessage extends Omit<PushMessage, 'data'> {
+  data: { kind: 'message'; chat_id: string; message_id: string };
+}
+
+/** Push о сообщении: в личном — «Анна: текст» в заголовке не дублируем, в группе — «Анна: …» в тексте. */
+export function chatPushMessage(token: string, m: ChatPushInput, unread: number): ChatPushMessage {
+  const text = m.text.replace(/\s+/g, ' ').trim();
+  return {
+    to: token,
+    title: cut(m.is_group ? m.chat_title : m.sender_name, TITLE_MAX),
+    body: cut(m.is_group ? `${m.sender_name}: ${text}` : text, BODY_MAX),
+    sound: 'default',
+    badge: Math.max(0, unread),
+    channelId: 'default',
+    priority: 'high',
+    data: { kind: 'message', chat_id: m.chat_id, message_id: m.message_id },
+  };
+}
+
+/** Куда вести по нажатию на push: чат, задача важнее цели, иначе — «Входящие». */
+export function pushRoute(data: { task_id?: string | null; goal_id?: string | null; chat_id?: string | null } | null | undefined): string {
+  if (data?.chat_id) return `/chat/${data.chat_id}`;
   if (data?.task_id) return `/task/${data.task_id}`;
   if (data?.goal_id) return `/goal/${data.goal_id}`;
   return '/inbox';

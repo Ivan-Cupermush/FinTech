@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
-import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, templateDueChoices, templateKpiText, discussionLine, discussionStats, inboxStats, pulseStats, pushSummary } from '../src/lib/logic';
+import { canTransitionKind, canTransitionTask, findTemplate, TASK_STATUSES, type Task } from '@offix/core';
+import { dueText, effectRoute, greeting, pushCard, sparkSegments, taskActions, taskSections, tasksStats, TASK_SCOPES, TASK_SCOPE_EMPTY, templateDueChoices, templateKpiText, discussionLine, discussionStats, inboxStats, pulseStats, pushSummary } from '../src/lib/logic';
 
 const TODAY = '2026-10-19';
 const task = (id: string, over: Partial<Task> = {}): Task => ({
@@ -18,6 +18,13 @@ const task = (id: string, over: Partial<Task> = {}): Task => ({
   blocker: null,
   goal_ids: [],
   depends_on: [],
+  kind: 'task',
+  thanked_at: null,
+  archived: null,
+  checkpoints: [],
+  watcher_ids: [],
+  created_by: 'u1',
+  created_by_name: null,
   ...over,
 });
 
@@ -44,6 +51,34 @@ describe('taskActions', () => {
   it('у отменённой задачи действий нет', () => {
     expect(taskActions({ status: 'cancelled' })).toEqual([]);
   });
+  it('у просьбы нет приёмки: из работы — сразу «Выполнено»', () => {
+    expect(taskActions({ status: 'in_progress', kind: 'request' }).map((a) => [a.status, a.label, a.primary])).toEqual([
+      ['done', 'Выполнено', true],
+      ['blocked', 'Есть блокер', false],
+    ]);
+    for (const s of TASK_STATUSES) for (const a of taskActions({ status: s, kind: 'request' })) expect(canTransitionKind('request', s, a.status)).toBe(true);
+  });
+});
+
+describe('вкладки задач', () => {
+  it('те же запросы, что на сайте, и у каждой — своё пустое состояние', () => {
+    expect(TASK_SCOPES.map((s) => [s.value, s.filter])).toEqual([
+      ['mine', 'mine=1'],
+      ['all', ''],
+      ['requests', 'created=1&kind=request'],
+      ['watching', 'watching=1'],
+      ['archive', 'archived=1'],
+    ]);
+    for (const s of TASK_SCOPES) expect(TASK_SCOPE_EMPTY[s.value].title).toBeTruthy();
+  });
+  it('шапка: в работе, с блокером, просрочены — тревожные подсвечены', () => {
+    const stats = tasksStats([task('a', { status: 'in_progress' }), task('b', { status: 'blocked' }), task('c', { status: 'todo', due_at: '2026-10-10' }), task('d', { status: 'done', due_at: '2026-10-01' })], TODAY);
+    expect(stats.map((s) => [s.label, s.value, s.tone])).toEqual([
+      ['в работе', 1, undefined],
+      ['с блокером', 1, 'bad'],
+      ['просрочены', 1, 'warn'],
+    ]);
+  });
 });
 
 describe('taskSections', () => {
@@ -58,6 +93,10 @@ describe('taskSections', () => {
       ['active', ['e']],
       ['todo', ['c']],
     ]);
+  });
+  it('внутри секции — по светофору: сорванная точка выше задачи по плану', () => {
+    const s = taskSections([task('ok', { status: 'in_progress', due_at: '2026-10-25' }), task('cp', { status: 'in_progress', due_at: '2026-10-30', checkpoints: [{ id: 'c', title: 'x', due_at: '2026-10-15', status: 'pending' }] })], TODAY);
+    expect(s[0]!.data.map((t) => t.id)).toEqual(['cp', 'ok']);
   });
   it('задача не попадает в две секции', () => {
     const s = taskSections([task('a', { status: 'todo', due_at: '2026-10-01' })], TODAY);
@@ -182,7 +221,7 @@ describe('шапки экранов', () => {
   });
   it('настройки push коротко говорят, что включено', () => {
     expect(pushSummary({ muted: [], quiet_hours: true }, 1)).toBe('Все темы включены · ночью тихо.');
-    expect(pushSummary({ muted: ['comments'], quiet_hours: false }, 2)).toBe('Включено 3 из 4 тем.');
+    expect(pushSummary({ muted: ['comments'], quiet_hours: false }, 2)).toBe('Включено 4 из 5 тем.');
     expect(pushSummary({ muted: [], quiet_hours: true }, 0)).toMatch(/не привязан/);
   });
 });
