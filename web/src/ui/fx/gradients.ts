@@ -37,9 +37,11 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   // Мои заметки — синий со свежим лаймом: личный ежедневник, а не архив.
   notes: { colors: ['#3352ff', '#08162a', '#a8e05f'], rotationZ: 225, positionX: -0.55, polar: 113 },
   // Профиль — синий с ледяным серебром: спокойно, про себя и безопасность.
-  profile: { colors: ['#2e4cff', '#0a0c2e', '#b9c6ff'], rotationZ: 205, positionX: -0.25, polar: 109 },
+  // Серебро приглушено: чистый светлый тон давал белую вспышку рядом с текстом.
+  profile: { colors: ['#2e4cff', '#0a0c2e', '#8f9dff'], rotationZ: 205, positionX: -0.25, polar: 109 },
   // Продажи — синий с золотом монеты на изумрудной ночи: про деньги и выплаты.
-  sales: { colors: ['#2f4bff', '#071c18', '#ffd84a'], rotationZ: 255, positionX: -0.65, polar: 119 },
+  // Золото — тёмное, старое: под белым текстом и плитками светлый жёлтый не читался.
+  sales: { colors: ['#2f4bff', '#071c18', '#c8901c'], rotationZ: 255, positionX: -0.65, polar: 119 },
 };
 
 export function isSectionVariant(v: string): v is SectionVariant {
@@ -108,6 +110,16 @@ export function gradientLook(variant: GradientVariant, dark: boolean): GradientL
     rotation: [0, 0, 235],
     position: [-0.5, 0.1, 0],
   };
+}
+
+/**
+ * Тот же градиент для высоких панелей (обои чата, пустой экран чатов).
+ * «Водная гладь» снята под углом, и в высоком кадре над ней виден край —
+ * резкая горизонтальная линия. Здесь камера смотрит на волну в лоб: полотно
+ * закрывает кадр при любом соотношении сторон, а цвета и разворот те же.
+ */
+export function framedLook(look: GradientLook): GradientLook {
+  return { ...look, type: 'plane', cPolarAngle: 90, cAzimuthAngle: 180, cDistance: 4.6, uStrength: 3, uDensity: 1.9 };
 }
 
 /** CSS-версия того же градиента: для первого кадра, без WebGL и при печати. */

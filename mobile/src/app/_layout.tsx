@@ -11,6 +11,7 @@ import { ApiError } from '../lib/client';
 import { PushBridge } from '../lib/push-bridge';
 import { SessionProvider } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
+import { HeaderGlow } from '../ui/fx/AmbientGlow';
 
 export default function RootLayout() {
   const [loaded] = useFonts({ Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold });
@@ -35,6 +36,8 @@ export default function RootLayout() {
               screenOptions={{
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: p.bg },
+                // Шапка — верх того же свечения, что и экран под ней: без плоской полосы и шва.
+                headerBackground: () => <HeaderGlow bg={p.bg} />,
                 headerTintColor: p.ink,
                 headerTitleStyle: { fontFamily: font.semibold, fontSize: 16 },
                 headerBackTitle: 'Назад',
@@ -54,6 +57,7 @@ export default function RootLayout() {
               <Stack.Screen name="sales/person/[id]" options={{ title: 'Сотрудник' }} />
               <Stack.Screen name="sales/entry" options={{ title: 'Записать продажу', presentation: 'modal' }} />
               <Stack.Screen name="sales/fact/[id]" options={{ title: 'Отметить факт', presentation: 'modal' }} />
+              <Stack.Screen name="sales/plan" options={{ title: 'Показатель', presentation: 'modal' }} />
               <Stack.Screen name="push-settings" options={{ title: 'Уведомления' }} />
               <Stack.Screen name="discussion/[type]/[id]" options={{ title: 'Обсуждение', headerShown: false }} />
               <Stack.Screen name="notes/index" options={{ title: 'База знаний' }} />

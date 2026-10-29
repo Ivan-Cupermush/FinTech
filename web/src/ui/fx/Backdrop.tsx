@@ -28,6 +28,7 @@ export function Backdrop({
   markMode = 'landing',
   glyph,
   glyphIcon,
+  framed = false,
   className = '',
   children,
   ...rest
@@ -39,6 +40,8 @@ export function Backdrop({
   glyph?: SectionVariant;
   /** Тот же знак без WebGL: иконка раздела в матовом стекле. */
   glyphIcon?: LucideIcon;
+  /** Высокая панель: градиент закрывает кадр целиком, без края «водной глади». */
+  framed?: boolean;
   className?: string;
   children?: ReactNode;
 } & Omit<React.HTMLAttributes<HTMLElement>, 'className' | 'children'>) {
@@ -52,7 +55,7 @@ export function Backdrop({
         <div className="fx-layer fx-gl" aria-hidden>
           <SceneBoundary>
             <Suspense fallback={null}>
-              <Scene variant={variant} dark={dark} animate={level === 'full'} mark={mark} markMode={markMode} glyph={glyph} />
+              <Scene variant={variant} dark={dark} animate={level === 'full'} mark={mark} markMode={markMode} glyph={glyph} framed={framed} />
             </Suspense>
           </SceneBoundary>
         </div>

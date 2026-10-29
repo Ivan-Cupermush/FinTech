@@ -157,6 +157,12 @@ describe('события сокета в ленте', () => {
     const h = markFailed({ ...base, messages: [...base.messages, local] }, 'local-k2');
     expect((h.messages[2] as ChatMessage & { failed?: boolean }).failed).toBe(true);
   });
+  it('ответ в другом чате несёт цитату с названием исходного чата', () => {
+    const src = msg('m9', 9, { chat_id: 'c-src', text: 'План на неделю' });
+    const local = optimisticMessage({ chatId: 'c1', topicId: null, me: { id: 'u-dir', name: 'Алексей' }, text: 'Беру', clientId: 'k3', now: NOW, externalReply: { message: src, chatTitle: 'Отдел продаж' } });
+    expect(local.reply_to).toBeNull();
+    expect(local.external_reply).toMatchObject({ id: 'm9', chat_id: 'c-src', chat_title: 'Отдел продаж', text: 'План на неделю', sender_name: 'Анна Королёва' });
+  });
   it('та же реакция снимается, другая — ставится', () => {
     const rs = [{ emoji: '👍', count: 1, mine: true, people: [], user_ids: [] }];
     expect(nextReaction(rs, '👍')).toBeNull();

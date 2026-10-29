@@ -1,6 +1,6 @@
 import { ShaderGradient, ShaderGradientCanvas } from '@shadergradient/react';
 import { BrandMark3D } from './BrandMark3D';
-import { gradientLook, type GradientVariant, type SectionVariant } from './gradients';
+import { framedLook, gradientLook, type GradientVariant, type SectionVariant } from './gradients';
 import { SectionGlyph3D } from './SectionGlyph3D';
 import type { MarkMode } from './layout';
 
@@ -16,15 +16,18 @@ export default function Scene({
   mark,
   markMode,
   glyph,
+  framed = false,
 }: {
   variant: GradientVariant;
   dark: boolean;
+  /** Высокая панель: полотно в лоб, без края волны в кадре. */
+  framed?: boolean;
   animate: boolean;
   mark: boolean;
   markMode?: MarkMode;
   glyph?: SectionVariant;
 }) {
-  const g = gradientLook(variant, dark);
+  const g = framed ? framedLook(gradientLook(variant, dark)) : gradientLook(variant, dark);
   return (
     <ShaderGradientCanvas style={{ position: 'absolute', inset: 0 }} pixelDensity={Math.min(typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, 1.5)} fov={45} pointerEvents="none">
       <ShaderGradient

@@ -8,6 +8,9 @@ import { api } from './session';
 export const useSalesMonth = (month: string, user?: string) => useQuery({ queryKey: sk.month(month, user), queryFn: () => api<SalesMonth>(`/sales/month${salesQs({ user, month })}`) });
 export const useSalesTeam = (month: string, enabled: boolean) => useQuery({ queryKey: sk.team(month), queryFn: () => api<SalesTeam>(`/sales/team${salesQs({ month })}`), enabled });
 export const useSalesEmployee = (id: string, month: string) => useQuery({ queryKey: sk.employee(id, month), queryFn: () => api<SalesEmployee>(`/sales/people/${id}${salesQs({ month })}`) });
+/** Группы товаров из отчётов 1С — подсказки для правила показателя. */
+export const useSalesGroups = (month: string, enabled: boolean) =>
+  useQuery({ queryKey: [...sk.all, 'groups', month], queryFn: () => api<{ path: string; name: string; depth: number; revenue: number }[]>(`/sales/groups${salesQs({ month })}`), enabled, staleTime: 60_000 });
 export const useSalesEntries = (month: string, user: string | undefined, enabled = true) =>
   useQuery({ queryKey: sk.entries(month, user), queryFn: () => api<SaleEntry[]>(`/sales/entries${salesQs({ user, month })}`), enabled });
 
@@ -24,6 +27,9 @@ export function useSalesMutation<V, R = unknown>(fn: (v: V) => Promise<R>) {
 
 export const salesApi = {
   setFact: (id: string, fact: number) => api<SalesPlan>(`/sales/plans/${id}`, { method: 'PATCH', body: { fact } }),
+  createPlan: (body: Record<string, unknown>) => api<SalesPlan>('/sales/plans', { body }),
+  updatePlan: (id: string, body: Record<string, unknown>) => api<SalesPlan>(`/sales/plans/${id}`, { method: 'PATCH', body }),
+  deletePlan: (id: string) => api(`/sales/plans/${id}`, { method: 'DELETE' }),
   addEntry: (body: Record<string, unknown>) => api<SaleEntry>('/sales/entries', { body }),
   deleteEntry: (id: string) => api(`/sales/entries/${id}`, { method: 'DELETE' }),
   uploadReport: (f: PickedFile, onProgress?: (p: number) => void) => uploadPicked<SalesReportImport>(f, { path: '/sales/reports', onProgress }),

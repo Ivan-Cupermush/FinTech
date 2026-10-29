@@ -157,9 +157,9 @@ export function LoginPage() {
           </div>
         )}
       </div>
-      <Backdrop variant="login" className="auth-art on-color">
+      <Backdrop variant="login" framed className="auth-art on-color">
         <div aria-hidden>
-          <Glass className="auth-glass" radius={32} elasticity={0.1}>
+          <Glass className="auth-glass" radius={32} elasticity={0.1} clip>
             <div className="auth-glass-body">
               <div className="eyebrow">Время обработки заявки</div>
               <div className="big">
