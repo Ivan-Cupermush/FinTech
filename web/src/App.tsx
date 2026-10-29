@@ -8,6 +8,8 @@ import { MyNotePage, MyNotesPage } from './features/my-notes/MyNotesPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { GoalNewPage } from './features/goals/GoalTemplates';
 import { NotePage, NotesPage } from './features/notes/NotesPage';
+import { AskPage } from './features/knowledge/AskPage';
+import { DocPage } from './features/knowledge/Docs';
 import { GoalPage } from './features/goals/GoalPage';
 import { GoalsPage } from './features/goals/GoalsPage';
 import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
@@ -19,6 +21,7 @@ import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
 import { PulsePage } from './features/pulse/PulsePage';
 import { ReportPage } from './features/report/ReportPage';
+import { SalesEmployeePage, SalesPage } from './features/sales/SalesPage';
 import { TasksPage } from './features/tasks/TasksPage';
 import { ApiError } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -68,12 +71,17 @@ export function AppRoutes() {
         <Route path="chats/:id" element={<ChatsPage />} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="report" element={<ReportPage />} />
+        <Route path="sales" element={<SalesPage />} />
+        <Route path="sales/people/:id" element={<SalesEmployeePage />} />
         <Route path="org" element={<OrgPage />} />
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="integrations/:id" element={<IntegrationPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="notes/:id" element={<NotePage />} />
+        <Route path="notes/ask" element={<AskPage />} />
+        <Route path="notes/ask/:sid" element={<AskPage />} />
+        <Route path="notes/docs/:id" element={<DocPage />} />
         <Route path="my-notes" element={<MyNotesPage />} />
         <Route path="my-notes/:id" element={<MyNotePage />} />
         <Route path="profile" element={<AccountPage />} />

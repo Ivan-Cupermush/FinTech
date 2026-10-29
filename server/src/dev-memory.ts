@@ -17,6 +17,10 @@ import { createMediaStore } from './services/media';
 import { seedDemoMedia } from './seed/demo-media';
 import { seedDemoPersonal } from './seed/demo-personal';
 import { seedDemoTaskFlow } from './seed/demo-task-flow';
+import { seedDemoKnowledge } from './seed/demo-knowledge';
+import { seedDemoSales } from './seed/demo-sales';
+import { aiProviderFromEnv } from './services/ai';
+import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -30,6 +34,10 @@ const media = createMediaStore({ ...config.uploads, dir: process.env.UPLOADS_DIR
 await seedDemoMedia(db, media, demo);
 await seedDemoPersonal(db, demo);
 await seedDemoTaskFlow(db, demo);
+await seedDemoSales(db, demo);
+const knowledge = createKnowledgeService(db, media, { provider: aiProviderFromEnv() });
+await seedDemoKnowledge(db, media, knowledge, demo);
+startKnowledgeLoop(knowledge, { onError: (e) => console.error('knowledge:', e) });
 const realtime = createRealtimeHub();
 const pushSender = config.push.enabled ? expoSender({ accessToken: config.push.accessToken }) : undefined;
 if (pushSender) startPushLoop(db, pushSender, { onError: (e) => console.error('push:', e) });
@@ -41,7 +49,7 @@ const integrationFetch = fakeSystemsFetch();
 // Расписание в демо включено всегда: системы поддельные, ничего наружу не уходит.
 startIntegrationLoop(db, integrationFetch, { onError: (e) => console.error('integrations:', e) });
 startScheduledLoop(db, realtime, { store: media, now: () => new Date() }, { onMessage: pushSender ? messagePushHook(db, pushSender, realtime, () => new Date()) : undefined, onError: (e) => console.error('scheduled:', e) });
-const server = createServer(createApp({ db, config, integrationFetch, realtime, messagePush: pushSender, media }));
+const server = createServer(createApp({ db, config, integrationFetch, realtime, messagePush: pushSender, media, knowledge }));
 attachSocket(server, realtime, { db, secret: config.jwtSecret, corsOrigins: config.corsOrigins });
 server.listen(config.port, () => {
   console.log(`offix API (демо в памяти) — http://localhost:${config.port}`);

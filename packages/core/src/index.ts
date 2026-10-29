@@ -29,3 +29,8 @@ export * from './my-notes';
 export * from './account';
 export * from './task-flow';
 export * from './delegation';
+export * from './knowledge';
+export * from './sales-text';
+export * from './sales';
+export * from './sales-files';
+export * from './sales-form';

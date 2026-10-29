@@ -10,7 +10,7 @@ import { formatBytes, formatDate, noteTitle, parseMarkdown, type Inline } from '
  * вложений. Встроенные шрифты PDF не знают кириллицы — встраиваем Onest.
  */
 
-function fontsDir(): string {
+export function fontsDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   // Исходники: src/services → ../../assets; сборка: dist/index.js → ./assets.
   for (const d of [join(here, '..', '..', 'assets', 'fonts'), join(here, 'assets', 'fonts'), join(here, '..', 'assets', 'fonts')]) if (existsSync(join(d, 'Onest_400Regular.ttf'))) return d;

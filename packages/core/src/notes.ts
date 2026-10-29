@@ -207,6 +207,35 @@ export function plainText(md: string): string {
 }
 
 /**
+ * Текст без разметки, но с абзацами: блоки — через пустую строку, пункты
+ * списков — каждый своей строкой и законченной фразой. Так статью режут
+ * на фрагменты для помощника: цитаты из неё — без звёздочек и «- [x]».
+ */
+export function plainParagraphs(md: string): string {
+  const inl = (x: Inline[]) => x.map((i) => i.text).join('').trim();
+  const lines = (items: string[]) => items.filter(Boolean).map(terminate).join('\n');
+  return parseMarkdown(md)
+    .map((b) => {
+      switch (b.kind) {
+        case 'heading':
+        case 'paragraph':
+        case 'quote':
+          return inl(b.inline);
+        case 'list':
+          return lines(b.items.map(inl));
+        case 'checklist':
+          return lines(b.items.map((x) => inl(x.inline)));
+        case 'code':
+          return b.text;
+        default:
+          return '';
+      }
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/**
  * Отрывок для списка. С поиском — кусок вокруг первого совпадения, чтобы
  * было видно, почему заметка нашлась.
  */

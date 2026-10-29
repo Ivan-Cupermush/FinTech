@@ -35,6 +35,18 @@ export async function canViewAttachment(q: Queryable, actor: AuthedActor, a: Att
   }
   // Снимок заметки в чате — отправителю и участникам чатов, где есть неудалённое сообщение с ней.
   if (a.owner_type === 'note_share') return canViewShare(q, actor, a.owner_id!);
+  // Документ базы знаний — всем в компании, документ цели — тем, кто видит цель.
+  if (a.owner_type === 'kb_doc') {
+    const d = (await q.query<{ goal_id: string | null }>(`SELECT goal_id FROM knowledge_docs WHERE id = $1 AND company_id = $2`, [a.owner_id, actor.company_id])).rows[0];
+    if (!d) return false;
+    if (!d.goal_id) return true;
+    try {
+      await getVisibleGoal(q, actor, d.goal_id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   if (a.owner_type === 'message') {
     const { rows } = await q.query(
       `SELECT 1 FROM messages m JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = $2
@@ -117,7 +129,7 @@ export function filesPublicRouter(db: Db, store: MediaStore, now: () => Date): R
 }
 
 /** multer → промис: ошибки размера и типа становятся понятными ответами API. */
-function receive(store: MediaStore, field: string, opts: { imagesOnly?: boolean; maxBytes?: number } = {}) {
+export function receive(store: MediaStore, field: string, opts: { imagesOnly?: boolean; maxBytes?: number } = {}) {
   const maxBytes = opts.maxBytes ?? store.maxBytes;
   const upload = multer({
     storage: multer.diskStorage({

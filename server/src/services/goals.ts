@@ -19,8 +19,9 @@ import {
   type UnitId,
 } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
-import type { Queryable } from '../db/db';
+import { inOrder, type Queryable } from '../db/db';
 import { invalid, notFound } from '../http/errors';
+import { allowedByFunction } from './functions';
 import { loadOrg } from './org';
 
 export interface GoalRow {
@@ -103,6 +104,13 @@ export async function getVisibleGoal(q: Queryable, actor: AuthedActor, goalId: s
   return { goal, org: ctx };
 }
 
+/** Вносить факт KPI: владелец цели — всегда, остальные — по роли или с функцией «Вносить измерения KPI». */
+export async function canRecordKpi(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
+  const access = await effectiveAccess(q, actor.company_id, goal);
+  if (actor.role !== 'observer' && access.owner_id === actor.id) return true;
+  return allowedByFunction(q, actor, 'kpi_record', { byRole: canRecordObservation(actor, access, org), unitIds: access.unit_ids, org });
+}
+
 async function isVisible(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext): Promise<boolean> {
   if (canViewGoal(actor, goal.access, org)) return true;
   if (!goal.row.parent_goal_id) return false;
@@ -178,21 +186,21 @@ export async function usersById(q: Queryable, ids: (string | null)[]): Promise<M
 /** Карточка цели: KPI с фактом, прогресс без подмены, участники, права. */
 export async function goalCard(q: Queryable, actor: AuthedActor, goal: LoadedGoal, org: OrgContext) {
   const access = await effectiveAccess(q, actor.company_id, goal);
-  const [metrics, users, units, tasks, children] = await Promise.all([
-    loadMetrics(q, [goal.row.id]),
-    usersById(q, [goal.row.owner_id, goal.row.created_by]),
-    q.query<{ id: string; name: string; unit_type: string; role: string }>(
+  const [metrics, users, units, tasks, children] = await inOrder(
+    () => loadMetrics(q, [goal.row.id]),
+    () => usersById(q, [goal.row.owner_id, goal.row.created_by]),
+    () => q.query<{ id: string; name: string; unit_type: string; role: string }>(
       `SELECT u.id, u.name, u.unit_type, gu.role FROM goal_org_units gu JOIN org_units u ON u.id = gu.unit_id WHERE gu.goal_id = $1 ORDER BY u.name`,
       [goal.row.id],
     ),
-    q.query<{ status: TaskStatus }>(
+    () => q.query<{ status: TaskStatus }>(
       `SELECT t.status FROM tasks t WHERE t.id IN (
          SELECT task_id FROM goal_tasks WHERE goal_id = $1
          UNION SELECT gt.task_id FROM goal_tasks gt JOIN goals c ON c.id = gt.goal_id WHERE c.parent_goal_id = $1)`,
       [goal.row.id],
     ),
-    q.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM goals WHERE parent_goal_id = $1 AND status <> 'cancelled'`, [goal.row.id]),
-  ]);
+    () => q.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM goals WHERE parent_goal_id = $1 AND status <> 'cancelled'`, [goal.row.id]),
+  );
   const serialized = metrics.map(serializeMetric);
   const primary = serialized[0];
   const owner = goal.row.owner_id ? users.get(goal.row.owner_id) ?? null : null;

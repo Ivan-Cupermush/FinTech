@@ -61,7 +61,7 @@ export function SectionGlyph3D({ kind, animate }: { kind: SectionVariant; animat
  * там почти пропадает, поэтому оно слегка молочное и с радужной плёнкой:
  * края ловят свет даже на чёрном.
  */
-function Glass({ tint = '#f2f4ff' }: { tint?: string }) {
+function Glass({ tint = '#f2f4ff', attenuation = '#dfe4ff' }: { tint?: string; attenuation?: string }) {
   return (
     <meshPhysicalMaterial
       transmission={0.9}
@@ -69,13 +69,41 @@ function Glass({ tint = '#f2f4ff' }: { tint?: string }) {
       roughness={0.12}
       ior={1.4}
       color={tint}
-      attenuationColor="#dfe4ff"
+      attenuationColor={attenuation}
       attenuationDistance={1.2}
       clearcoat={1}
       clearcoatRoughness={0.04}
       iridescence={0.7}
       iridescenceIOR={1.3}
       envMapIntensity={2.2}
+    />
+  );
+}
+/**
+ * Золотое стекло монет. Прозрачное стекло в стопке смотрит сквозь соседние
+ * монеты в пустой фон и чернеет, поэтому здесь стекла меньше, а металла
+ * и собственного тёплого свечения больше: монета светится золотом на любом фоне.
+ */
+function GoldGlass() {
+  return (
+    <meshPhysicalMaterial
+      transmission={0.3}
+      thickness={0.3}
+      roughness={0.16}
+      metalness={0.55}
+      ior={1.5}
+      color="#ffd45c"
+      attenuationColor="#ffb21e"
+      attenuationDistance={0.8}
+      emissive="#a86a00"
+      emissiveIntensity={0.35}
+      clearcoat={1}
+      clearcoatRoughness={0.05}
+      iridescence={0.35}
+      iridescenceIOR={1.3}
+      sheen={0.6}
+      sheenColor="#fff1c2"
+      envMapIntensity={2.6}
     />
   );
 }
@@ -92,6 +120,22 @@ function Check({ position, scale = 1 }: { position: [number, number, number]; sc
       </mesh>
       <mesh position={[0.09, 0.07, 0]} rotation={[0, 0, -Math.PI / 4.6]}>
         <capsuleGeometry args={[0.06, 0.38, 8, 16]} />
+        <Solid />
+      </mesh>
+    </group>
+  );
+}
+
+/** Четырёхлучевая искра — знак ИИ: два вытянутых белых ромба крест-накрест. */
+function Sparkle({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh scale={[0.3, 1, 0.3]}>
+        <octahedronGeometry args={[0.5, 0]} />
+        <Solid />
+      </mesh>
+      <mesh scale={[1, 0.3, 0.3]}>
+        <octahedronGeometry args={[0.5, 0]} />
         <Solid />
       </mesh>
     </group>
@@ -166,6 +210,21 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
           <Solid />
         </mesh>
       ))}
+    </group>
+  ),
+  // Помощник: стеклянная сфера с искрой внутри, орбита и маленькая искра рядом — «спроси, и найдётся».
+  assistant: () => (
+    <group rotation={[0.2, -0.35, 0]}>
+      <mesh>
+        <sphereGeometry args={[0.6, 48, 48]} />
+        <Glass tint="#f6eeff" />
+      </mesh>
+      <Sparkle position={[0, 0, 0]} scale={0.62} />
+      <mesh rotation={[1.15, 0.3, 0.25]}>
+        <torusGeometry args={[0.86, 0.035, 16, 96]} />
+        <Glass />
+      </mesh>
+      <Sparkle position={[0.72, 0.64, 0.25]} scale={0.32} />
     </group>
   ),
   // Интеграции: два сцепленных звена — стеклянное и белое.
@@ -306,6 +365,31 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
           ) : null,
         ),
       )}
+    </group>
+  ),
+  // Продажи: стопка стеклянных монет с золотым отливом и белая стрелка роста.
+  sales: () => (
+    <group rotation={[0.3, -0.42, 0.05]}>
+      {[0, 1, 2, 3].map((i) => (
+        <mesh key={i} position={[-0.32 + (i % 2) * 0.04, -0.62 + i * 0.2, 0]}>
+          <cylinderGeometry args={[0.5, 0.5, 0.16, 48]} />
+          <GoldGlass />
+        </mesh>
+      ))}
+      <mesh position={[-0.28, 0.06, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.3, 0.035, 12, 48]} />
+        <Solid />
+      </mesh>
+      <group position={[0.5, 0.05, 0.3]} rotation={[0, 0, -Math.PI / 5]}>
+        <mesh>
+          <capsuleGeometry args={[0.07, 0.95, 8, 16]} />
+          <Solid />
+        </mesh>
+        <mesh position={[0, 0.66, 0]}>
+          <coneGeometry args={[0.2, 0.32, 32]} />
+          <Solid />
+        </mesh>
+      </group>
     </group>
   ),
   // Новая цель: стеклянный кристалл и белая искра рядом.

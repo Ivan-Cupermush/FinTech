@@ -31,6 +31,24 @@ export const DELEGABLE_FUNCTIONS = [
     hint: 'Править и удалять любые статьи базы знаний, не только свои',
     byDefault: 'admins',
   },
+  {
+    key: 'sales_reports',
+    label: 'Загружать отчёты о продажах',
+    hint: 'Отчёт о продажах из 1С, списки ключевых клиентов, сопоставление менеджеров',
+    byDefault: 'managers',
+  },
+  {
+    key: 'sales_files',
+    label: 'Загружать файлы KPI',
+    hint: 'Файл KPI сотрудника: план, факт, бонусы и выплаты за месяц',
+    byDefault: 'managers',
+  },
+  {
+    key: 'sales_assign',
+    label: 'Ставить план продаж',
+    hint: 'План сотрудника на месяц и правила расчёта выплат',
+    byDefault: 'managers',
+  },
 ] as const satisfies readonly { key: string; label: string; hint: string; byDefault: 'managers' | 'admins' }[];
 
 export type DelegableFunction = (typeof DELEGABLE_FUNCTIONS)[number]['key'];

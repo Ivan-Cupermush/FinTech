@@ -13,6 +13,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createMediaStore, type MediaStore } from '../src/services/media';
 import type { MediaCtx } from '../src/services/attachments';
+import type { AiProvider } from '../src/services/ai';
+import { createKnowledgeService, type KnowledgeService } from '../src/services/knowledge';
 
 /** Фиксированное «сегодня» — тесты не зависят от даты запуска. */
 export const NOW = new Date('2026-10-19T12:00:00Z');
@@ -28,6 +30,8 @@ export interface Ctx {
   /** Файлы теста — во временной папке. */
   media: MediaCtx;
   store: MediaStore;
+  /** База знаний: idle() — дождаться обработки документов. */
+  knowledge: KnowledgeService;
 }
 
 export interface Agent {
@@ -50,14 +54,18 @@ const EMAILS: Record<keyof DemoIds['users'], string> = {
   observer: 'rector@offix.demo',
 };
 
-export async function setup(opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date } = {}): Promise<Ctx> {
+export async function setup(
+  opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date; ai?: AiProvider } = {},
+): Promise<Ctx> {
   const db = await createPgliteDb();
   await migrate(db);
   const demo = await seedDemo(db, { now: NOW });
   const now = opts.now ?? (() => NOW);
   const uploads = { dir: mkdtempSync(join(tmpdir(), 'offix-test-uploads-')), maxBytes: opts.maxUploadBytes ?? 200 * 1024 * 1024, ffmpegDir: opts.ffmpeg === false ? null : undefined };
   const store = createMediaStore(uploads, SECRET);
+  const knowledge = createKnowledgeService(db, store, { provider: opts.ai, now, onError: () => undefined });
   const app = createApp({
+    knowledge,
     db,
     config: { jwtSecret: SECRET, corsOrigins: ['http://localhost:5173'] },
     now,
@@ -86,7 +94,7 @@ export async function setup(opts: { integrationFetch?: FetchLike; realtime?: Rea
       delete: (url) => auth(request(app).delete(url)),
     };
   };
-  return { db, app, demo, token, as, store, media: { store, now } };
+  return { db, app, demo, token, as, store, media: { store, now }, knowledge };
 }
 
 export const validGoal = (ownerId: string) => ({

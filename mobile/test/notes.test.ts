@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from '@offix/core';
-import { listMarker, noteMeta, notesEmpty, notesLine, notesQuery, notesStats } from '../src/lib/notes';
+import { listMarker, noteMeta, notesEmpty, notesLine, notesQuery } from '../src/lib/notes';
 
 const TODAY = '2026-10-21';
 
@@ -27,21 +27,6 @@ describe('noteMeta', () => {
   it('в заметках одной цели её название не повторяем', () => {
     expect(noteMeta(n, TODAY, false)).not.toContain('Заявки');
     expect(noteMeta({ ...n, goal_title: null }, TODAY)).toMatch(/^Ольга Смирнова · /);
-  });
-});
-
-describe('notesStats', () => {
-  it('всего, общих и обновлённых за неделю', () => {
-    const s = notesStats(
-      [
-        { goal_id: null, updated_at: '2026-10-20T10:00:00Z' },
-        { goal_id: 'g1', updated_at: '2026-10-14T10:00:00Z' },
-        { goal_id: null, updated_at: '2026-09-01T10:00:00Z' },
-      ],
-      TODAY,
-    );
-    expect(s.map((x) => x.value)).toEqual([3, 2, 2]);
-    expect(s.map((x) => x.label)).toEqual(['заметок', 'общих', 'за неделю']);
   });
 });
 

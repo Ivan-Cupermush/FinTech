@@ -128,6 +128,9 @@ describe('экран функций', () => {
       ['kpi_record', true, true, 'company'],
       ['kpi_assign', false, null, null],
       ['knowledge_manage', false, false, null],
+      ['sales_reports', false, null, null],
+      ['sales_files', false, null, null],
+      ['sales_assign', false, null, null],
     ]);
     expect(functionWhereText(d[0]!)).toBe('Включено руководителем · по всей компании');
     expect(functionWhereText(d[1]!)).toBe('Выключено');

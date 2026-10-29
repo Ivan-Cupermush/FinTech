@@ -1,0 +1,21 @@
+# Конфигурация туннеля Cloudflare для offix (вариант Б в docs/DEPLOY.md).
+# Положите как C:\cloudflared\config.yml, подставьте UUID туннеля, путь к ключу и свой адрес.
+#
+# Все адреса ведут на один сервер Node (порт из server\.env, по умолчанию 4000):
+# он сам отдаёт и сайт, и API, и сокеты. Порт 5173 (Vite) в продакшене не используется.
+
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: C:\cloudflared\creds\00000000-0000-0000-0000-000000000000.json
+
+# http2 работает поверх TCP 443 — проходит там, где UDP (QUIC) режется провайдером.
+protocol: http2
+
+originRequest:
+  # Сервер держит соединения открытыми — туннелю не нужно открывать новое на каждый запрос.
+  keepAliveTimeout: 60s
+  connectTimeout: 10s
+
+ingress:
+  - hostname: offix.example.ru
+    service: http://127.0.0.1:4000
+  - service: http_status:404

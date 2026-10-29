@@ -18,10 +18,10 @@ describe('функции сотрудника', () => {
   it('по должности: у руководителя узла — KPI, у сотрудника — ничего, у владельца — всё', async () => {
     const olga = await ctx.as('olga');
     const me = (await olga.get(`${API}/functions/me`)).body.data as View;
-    expect(enabled(me)).toEqual({ kpi_record: true, kpi_assign: true, knowledge_manage: false });
+    expect(enabled(me)).toEqual({ kpi_record: true, kpi_assign: true, knowledge_manage: false, sales_reports: true, sales_files: true, sales_assign: true });
     expect(me.can_change).toBe(false);
     const anna = (await olga.get(`${API}/functions/users/${ctx.demo.users.anna}`)).body.data as View;
-    expect(enabled(anna)).toEqual({ kpi_record: false, kpi_assign: false, knowledge_manage: false });
+    expect(enabled(anna)).toEqual({ kpi_record: false, kpi_assign: false, knowledge_manage: false, sales_reports: false, sales_files: false, sales_assign: false });
     expect(anna.can_change).toBe(true);
     const dir = await ctx.as('director');
     const owner = (await dir.get(`${API}/functions/me`)).body.data as View;

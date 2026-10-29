@@ -1,7 +1,7 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addDays, todayIso, type Checkpoint, type Discussion, type FunctionDetail, type Member, type PersonCard, type TaskDetail } from '@offix/core';
+import { addDays, DELEGABLE_FUNCTIONS, todayIso, type Checkpoint, type Discussion, type FunctionDetail, type Member, type PersonCard, type TaskDetail } from '@offix/core';
 import type { Dashboard, Me, Notification, Task } from '../src/lib/types';
 import { lastSocket } from './fake-socket';
 import { task } from './fixtures';
@@ -358,7 +358,7 @@ describe('живые уведомления', () => {
 
 describe('функции сотрудника', () => {
   const fn = (key: FunctionDetail['key'], over: Partial<FunctionDetail> = {}): FunctionDetail => {
-    const labels = { kpi_record: 'Вносить измерения KPI', kpi_assign: 'Менять KPI целей', knowledge_manage: 'Вести базу знаний' };
+    const labels: Record<FunctionDetail['key'], string> = Object.fromEntries(DELEGABLE_FUNCTIONS.map((f) => [f.key, f.label])) as Record<FunctionDetail['key'], string>;
     return { key, label: labels[key], hint: '', default: false, override: null, enabled: false, where: null, locked: false, ...over };
   };
   const anna: PersonCard = { id: 'u-anna', display_name: 'Анна Королёва', my_name: null, position: 'Специалист', email: 'anna@offix.demo', avatar_url: null, role: 'member', active: true, units: [], online: false, last_seen_at: null, is_me: false };

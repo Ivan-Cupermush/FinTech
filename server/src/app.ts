@@ -5,6 +5,8 @@ import { requireAuth } from './auth/auth';
 import { loadUploadsConfig, type Config, type UploadsConfig } from './config';
 import type { Db } from './db/db';
 import { errorHandler, notFound } from './http/errors';
+import { siteRouter } from './http/site';
+import { buildVersion } from './services/version';
 import type { FetchLike } from './services/integrations';
 import { noRealtime, type Realtime } from './realtime/hub';
 import { messagePushHook } from './services/chat-jobs';
@@ -33,10 +35,14 @@ import { accountRouter } from './routes/account';
 import { contactsRouter } from './routes/contacts';
 import { myNotesRouter } from './routes/my-notes';
 import { qrPublicRouter } from './routes/qr';
+import { knowledgeRouter } from './routes/knowledge';
+import { salesRouter } from './routes/sales';
+import { createKnowledgeService, type KnowledgeService } from './services/knowledge';
+import { aiProviderFromEnv } from './services/ai';
 
 export interface AppOptions {
   db: Db;
-  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'>; uploads?: UploadsConfig };
+  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'>; uploads?: UploadsConfig; webDist?: string | null };
   now?: () => Date;
   rateLimit?: boolean;
   /** Запросы интеграций в 1С и Moodle; в тестах и демо — поддельные системы. */
@@ -47,10 +53,13 @@ export interface AppOptions {
   messagePush?: PushSender<ChatPushMessage>;
   /** Хранилище файлов; не задано — создаётся по config.uploads (или UPLOADS_DIR). */
   media?: MediaStore;
+  /** База знаний с ИИ; не задана — нейросеть по окружению (KNOWLEDGE_AI), иначе встроенный поиск. */
+  knowledge?: KnowledgeService;
 }
 
-export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush, media }: AppOptions): Express {
+export function createApp({ db, config, now = () => new Date(), rateLimit, integrationFetch = fetch, realtime = noRealtime, messagePush, media, knowledge }: AppOptions): Express {
   const store = media ?? createMediaStore(config.uploads ?? loadUploadsConfig(), config.jwtSecret);
+  const kb = knowledge ?? createKnowledgeService(db, store, { provider: aiProviderFromEnv(), now });
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -79,11 +88,32 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
     next();
   });
 
-  app.get('/api/health', async (_req, res) => {
-    await db.query('SELECT 1');
+  // Проверка для прокси, службы и скриптов обновления: база, версия сборки, последняя миграция.
+  // База не отвечает — 503, чтобы прокси и update-скрипт видели сбой, а не «живой» сервер.
+  const version = buildVersion();
+  const health: express.RequestHandler = async (_req, res) => {
+    let migration: string | null = null;
+    let database: 'ok' | 'error' = 'ok';
+    try {
+      migration = (await db.query<{ name: string }>('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')).rows[0]?.name ?? null;
+    } catch {
+      database = 'error';
+    }
+    const ok = database === 'ok';
+    res.setHeader('Cache-Control', 'no-store');
     // Без ffmpeg у видео нет обложки, а голосовые из браузера не перекодируются.
-    res.json({ ok: true, media: { ffmpeg: await store.hasFfmpeg(), max_upload_bytes: store.maxBytes } });
-  });
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? 'ok' : 'error',
+      database,
+      version,
+      migration,
+      site: !!config.webDist,
+      media: { ffmpeg: await store.hasFfmpeg(), max_upload_bytes: store.maxBytes },
+    });
+  };
+  app.get('/api/health', health);
+  app.get('/health', health);
 
   const v1 = express.Router();
   // Вход по QR опрашивается часто — свой лимит, до общего лимита /auth.
@@ -108,7 +138,9 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/templates', templatesRouter(db, now));
   v1.use('/discussions', discussionsRouter(db, mediaCtx));
   v1.use('/notes', notesRouter(db));
+  v1.use('/knowledge', knowledgeRouter(db, mediaCtx, kb, { rateLimit }));
   v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
+  v1.use('/sales', salesRouter(db, mediaCtx));
   const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
   v1.use('/chats', chatsRouter(chatDeps));
   v1.use('/messages', messagesRouter(chatDeps));
@@ -116,6 +148,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));
+  if (config.webDist) app.use(siteRouter(config.webDist));
   app.use(errorHandler);
   return app;
 }

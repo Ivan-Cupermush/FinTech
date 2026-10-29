@@ -115,7 +115,7 @@ describe('база знаний', () => {
   it('вкладка «Заметки» на цели — заметки этой цели', async () => {
     const calls = mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap(), 'GET /notes': [summary('n5', { title: 'Методика замера', goal_id: 'g1' })] });
     renderApp('/app/goals/g1');
-    await userEvent.click(await screen.findByRole('tab', { name: 'Заметки' }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'База знаний' }));
     expect(await screen.findByRole('link', { name: /Методика замера/ })).toBeInTheDocument();
     expect(calls.some((c) => c.path === '/notes?goal_id=g1')).toBe(true);
   });

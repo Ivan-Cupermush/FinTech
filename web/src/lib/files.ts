@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fileLinkFresh, type Attachment } from '@offix/core';
+import { fileLinkFresh, type Attachment, type KnowledgeDoc } from '@offix/core';
 import { API_BASE, ApiError, api, tokenStore } from './api';
 
 /**
@@ -65,6 +65,10 @@ function send<T>(path: string, file: Blob, opts: UploadOptions = {}): Promise<T>
 /** Загрузить вложение: появится черновик, его забирает сообщение, задача или комментарий. */
 export const uploadFile = (file: Blob, opts: UploadOptions = {}) => send<Attachment>('/files', file, opts);
 export const uploadAvatar = (file: Blob, opts: UploadOptions = {}) => send<{ avatar_url: string }>('/files/avatar', file, opts);
+/** Документ в базу знаний: сервер прочитает его в фоне. */
+export const uploadKnowledgeDoc = (file: Blob, opts: UploadOptions = {}) => send<KnowledgeDoc>('/knowledge/docs', file, opts);
+/** Файл продаж — отчёт 1С, файл KPI, продажи из Excel, список клиентов: сервер разберёт его сразу. */
+export const uploadSalesFile = <T>(path: string, file: Blob, opts: UploadOptions = {}) => send<T>(`/sales${path}`, file, opts);
 export const dropDraft = (id: string) => api(`/files/${id}`, { method: 'DELETE' }).catch(() => undefined);
 
 const fresh = new Map<string, string>();

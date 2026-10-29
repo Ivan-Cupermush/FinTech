@@ -10,7 +10,7 @@ export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | 'wallpaper' | 
  * раздела свой третий цвет и свой разворот волны: разделы узнаются с первого
  * взгляда и при этом остаются одной семьёй.
  */
-export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile'] as const;
+export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'assistant', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile', 'sales'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 
 const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; rotationZ: number; positionX: number; polar: number }> = {
@@ -22,6 +22,8 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   report: { colors: ['#3346ff', '#0b0a2b', '#a58bff'], rotationZ: 200, positionX: 0.1, polar: 108 },
   // База знаний — синий с тёплым персиком: место, где читают.
   knowledge: { colors: ['#3a55ff', '#14102e', '#ee8466'], rotationZ: 240, positionX: -0.4, polar: 116 },
+  // Помощник базы знаний — синий с электрической орхидеей: здесь думают вместе с ИИ.
+  assistant: { colors: ['#3a4cff', '#120a30', '#d26bff'], rotationZ: 215, positionX: -0.35, polar: 111 },
   // Интеграции — синий с электрическим голубым: про связь систем.
   integrations: { colors: ['#2448ff', '#04122b', '#3fb8ff'], rotationZ: 260, positionX: -0.9, polar: 120 },
   // Уведомления — синий с мягкой розовой искрой: внимание без тревоги.
@@ -36,6 +38,8 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   notes: { colors: ['#3352ff', '#08162a', '#a8e05f'], rotationZ: 225, positionX: -0.55, polar: 113 },
   // Профиль — синий с ледяным серебром: спокойно, про себя и безопасность.
   profile: { colors: ['#2e4cff', '#0a0c2e', '#b9c6ff'], rotationZ: 205, positionX: -0.25, polar: 109 },
+  // Продажи — синий с золотом монеты на изумрудной ночи: про деньги и выплаты.
+  sales: { colors: ['#2f4bff', '#071c18', '#ffd84a'], rotationZ: 255, positionX: -0.65, polar: 119 },
 };
 
 export function isSectionVariant(v: string): v is SectionVariant {
