@@ -1,9 +1,10 @@
-import { Check, CheckCheck, Clock, Forward, Pin, RotateCcw } from 'lucide-react-native';
-import { memo, useId } from 'react';
+import { Check, CheckCheck, CircleCheck, CircleSlash, CircleX, Clock, CornerDownRight, Forward, Pin, RotateCcw } from 'lucide-react-native';
+import { memo, useId, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { albumLayout, messageBody, moscowTime, type ChatMessage, type ChatPoll, type ContactCard } from '@offix/core';
 import { wallpaperColors } from '../lib/chat-logic';
+import { optionTone, pollState } from '../lib/compose';
 import { isVisual } from '../lib/media';
 import { font, usePalette } from '../lib/theme';
 import { Album, ContactBubble, FileRow, VideoNoteBubble, VoiceBubble } from './media';
@@ -166,7 +167,13 @@ export interface BubbleProps {
   onLongPress: (m: ChatMessage) => void;
   onReact: (m: ChatMessage, emoji: string) => void;
   onJump: (id: string) => void;
-  onVote: (m: ChatMessage, optionId: string) => void;
+  onVote: (m: ChatMessage, optionIds: string[]) => void;
+  /** Отозвать голос, посмотреть голоса или закрыть опрос. */
+  onPoll?: (m: ChatMessage, action: 'unvote' | 'voters' | 'close') => void;
+  /** Закрыть чужой опрос может админ с правом удалять сообщения. */
+  canClosePoll?: boolean;
+  /** Цитата из другого чата — открыть тот чат. */
+  onOpenExternal?: (chatId: string, messageId: string) => void;
   onRetry: (m: ChatMessage) => void;
   onOpenMedia: (m: ChatMessage, index: number) => void;
   onListen: (m: ChatMessage) => void;
@@ -181,7 +188,7 @@ export interface BubbleProps {
  * Альбом занимает пузырь от края до края, кружочек живёт без пузыря.
  */
 export const Bubble = memo(function Bubble(props: BubbleProps) {
-  const { m, mine, group, first, last, onPress, onLongPress, onReact, onJump, onVote, onRetry, onOpenMedia, onListen, onWrite, onOpenNote } = props;
+  const { m, mine, group, first, last, onPress, onLongPress, onReact, onJump, onVote, onPoll, canClosePoll, onOpenExternal, onRetry, onOpenMedia, onListen, onWrite, onOpenNote } = props;
   const w = useWall();
   const { width } = useWindowDimensions();
   if (m.kind === 'service') return <WallPill text={m.text ?? ''} />;
@@ -197,7 +204,7 @@ export const Bubble = memo(function Bubble(props: BubbleProps) {
   const text = m.text?.trim() ? m.text : '';
   const hasAlbum = visuals.length > 0;
   const showName = group && !mine && first;
-  const head = showName || !!m.forwarded_from || !!m.reply_to;
+  const head = showName || !!m.forwarded_from || !!m.reply_to || !!m.external_reply;
   const mediaOnly = hasAlbum && !text && !files.length;
   const inset = hasAlbum ? { paddingHorizontal: 9 } : undefined;
   const bubbleMax = Math.floor((width - 20) * 0.8);
@@ -266,6 +273,19 @@ export const Bubble = memo(function Bubble(props: BubbleProps) {
                   </Text>
                 </View>
               )}
+              {m.external_reply && (
+                <Pressable onPress={() => onOpenExternal?.(m.external_reply!.chat_id, m.external_reply!.id)} accessibilityRole="button" accessibilityLabel={`Ответ на сообщение из чата «${m.external_reply.chat_title}»`} style={{ marginBottom: 4, paddingVertical: 4, paddingHorizontal: 8, borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.85)' : '#8a5cff', borderRadius: 8, backgroundColor: mine ? 'rgba(255,255,255,0.16)' : 'rgba(138,92,255,0.1)' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <CornerDownRight size={12} color={mine ? '#fff' : '#8a5cff'} />
+                    <Text style={{ flexShrink: 1, color: mine ? '#fff' : '#8a5cff', fontFamily: font.semibold, fontSize: 12.5 }} numberOfLines={1}>
+                      {m.external_reply.sender_name ?? 'Удалённый аккаунт'} · {m.external_reply.chat_title}
+                    </Text>
+                  </View>
+                  <Text style={{ color: soft, fontSize: 13 }} numberOfLines={1}>
+                    {messageBody(m.external_reply)}
+                  </Text>
+                </Pressable>
+              )}
               {m.reply_to && (
                 <Pressable onPress={() => onJump(m.reply_to!.id)} accessibilityRole="button" accessibilityLabel={`Ответ на сообщение ${m.reply_to.sender_name ?? ''}`} style={{ marginBottom: 4, paddingVertical: 4, paddingHorizontal: 8, borderLeftWidth: 3, borderLeftColor: mine ? 'rgba(255,255,255,0.85)' : w.name(hueOf(m.reply_to.sender_name ?? '')), borderRadius: 8, backgroundColor: mine ? 'rgba(255,255,255,0.16)' : 'rgba(59,91,255,0.08)' }}>
                   <Text style={{ color: mine ? '#fff' : w.name(hueOf(m.reply_to.sender_name ?? '')), fontFamily: font.semibold, fontSize: 12.5 }} numberOfLines={1}>
@@ -298,7 +318,7 @@ export const Bubble = memo(function Bubble(props: BubbleProps) {
               <NoteShareBubble note={m.note} mine={mine} ink={ink} soft={soft} onOpen={() => onOpenNote?.(m)} />
             </View>
           )}
-          {m.poll ? <PollCard poll={m.poll} ink={ink} soft={soft} onVote={(o) => onVote(m, o)} /> : text ? <Text style={[{ color: ink, fontSize: 16, lineHeight: 22 }, inset, hasAlbum && { marginTop: 6 }]}>{text}</Text> : null}
+          {m.poll ? <PollCard poll={m.poll} mine={mine} canClose={!!canClosePoll} ink={ink} soft={soft} onVote={(ids) => onVote(m, ids)} onAction={(a) => onPoll?.(m, a)} /> : text ? <Text style={[{ color: ink, fontSize: 16, lineHeight: 22 }, inset, hasAlbum && { marginTop: 6 }]}>{text}</Text> : null}
           {!mediaOnly && (
             <View style={[inset, { marginTop: 2 }]}>
               <Meta m={m} mine={mine} color={soft} />
@@ -312,42 +332,72 @@ export const Bubble = memo(function Bubble(props: BubbleProps) {
   );
 });
 
-/** Опрос в пузыре: до голоса — варианты, после — полосы с процентами. */
-function PollCard({ poll, ink, soft, onVote }: { poll: ChatPoll; ink: string; soft: string; onVote: (optionId: string) => void }) {
-  const results = poll.voted || poll.closed;
+/**
+ * Опрос в пузыре: до голоса — варианты (в «нескольких ответах» — отметки и
+ * «Голосовать»), после — полосы с процентами. В викторине правильный ответ
+ * подсвечен, неверный мой — красным, ниже пояснение.
+ */
+function PollCard({ poll, mine, canClose, ink, soft, onVote, onAction }: { poll: ChatPoll; mine: boolean; canClose: boolean; ink: string; soft: string; onVote: (optionIds: string[]) => void; onAction: (a: 'unvote' | 'voters' | 'close') => void }) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const st = pollState(poll, { mine, canClose });
+  const accent = mine ? '#fff' : '#3b5bff';
+  const link = (label: string, a: 'unvote' | 'voters' | 'close', icon?: ReactNode) => (
+    <Pressable key={a} accessibilityRole="button" onPress={() => onAction(a)} hitSlop={6} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1 })}>
+      {icon}
+      <Text style={{ color: accent, fontFamily: font.semibold, fontSize: 13 }}>{label}</Text>
+    </Pressable>
+  );
   return (
-    <View style={{ gap: 8, minWidth: 220 }}>
+    <View style={{ gap: 8, minWidth: 230 }}>
       <Text style={{ color: ink, fontFamily: font.semibold, fontSize: 16, lineHeight: 21 }}>{poll.question}</Text>
-      <Text style={{ color: soft, fontSize: 12.5 }}>
-        {poll.quiz ? 'Викторина' : poll.anonymous ? 'Анонимный опрос' : 'Открытый опрос'}
-        {poll.closed ? ' · закрыт' : ''}
-      </Text>
-      {poll.options.map((o) => {
-        const pct = poll.total_voters ? Math.round((o.votes / poll.total_voters) * 100) : 0;
-        return (
-          <Pressable
-            key={o.id}
-            disabled={results}
-            onPress={() => onVote(o.id)}
-            accessibilityRole={results ? 'text' : 'radio'}
-            accessibilityState={{ checked: o.voted }}
-            accessibilityLabel={results ? `${o.text}: ${pct}%` : o.text}
-            style={({ pressed }) => ({ minHeight: 40, borderRadius: 12, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(127,127,160,0.35)', backgroundColor: pressed ? 'rgba(127,127,160,0.18)' : 'rgba(255,255,255,0.08)' })}
-          >
-            {results && <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, backgroundColor: o.voted ? 'rgba(59,91,255,0.35)' : 'rgba(127,127,160,0.22)' }} />}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {results ? (
-                <Text style={{ color: ink, fontFamily: font.bold, fontSize: 13, width: 38 }}>{pct}%</Text>
-              ) : (
-                <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: soft }} />
-              )}
-              <Text style={{ color: ink, fontSize: 15, flex: 1 }}>{o.text}</Text>
-              {o.voted && <Check size={15} color={ink} />}
-            </View>
+      <Text style={{ color: soft, fontSize: 12.5 }}>{st.kind}</Text>
+      <View accessibilityRole={st.results ? undefined : poll.multiple ? undefined : 'radiogroup'} style={{ gap: 6 }}>
+        {poll.options.map((o) => {
+          const pct = poll.total_voters ? Math.round((o.votes / poll.total_voters) * 100) : 0;
+          if (st.results) {
+            const tone = optionTone(o);
+            const fill = tone === 'correct' ? 'rgba(31,174,107,0.38)' : tone === 'wrong' ? 'rgba(224,70,76,0.35)' : o.voted ? (mine ? 'rgba(255,255,255,0.3)' : 'rgba(59,91,255,0.3)') : 'rgba(127,127,160,0.22)';
+            return (
+              <View key={o.id} accessibilityLabel={`${o.text}: ${pct}%${tone === 'correct' ? ', правильный ответ' : tone === 'wrong' ? ', неверно' : ''}${o.voted ? ', ваш голос' : ''}`} style={{ minHeight: 40, borderRadius: 12, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(127,127,160,0.35)', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, backgroundColor: fill }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={{ color: ink, fontFamily: font.bold, fontSize: 13, width: 38, fontVariant: ['tabular-nums'] }}>{pct}%</Text>
+                  <Text style={{ color: ink, fontSize: 15, flex: 1 }}>{o.text}</Text>
+                  {tone === 'correct' ? <CircleCheck size={16} color={mine ? '#c9ffe4' : '#1fae6b'} /> : tone === 'wrong' ? <CircleX size={16} color={mine ? '#ffd2d4' : '#e0464c'} /> : o.voted ? <Check size={15} color={ink} /> : null}
+                </View>
+              </View>
+            );
+          }
+          const on = picked.includes(o.id);
+          return (
+            <Pressable
+              key={o.id}
+              onPress={() => (poll.multiple ? setPicked((p) => (on ? p.filter((x) => x !== o.id) : [...p, o.id])) : onVote([o.id]))}
+              accessibilityRole={poll.multiple ? 'checkbox' : 'radio'}
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={o.text}
+              style={({ pressed }) => ({ minHeight: 40, borderRadius: 12, justifyContent: 'center', paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: on ? accent : 'rgba(127,127,160,0.35)', backgroundColor: pressed || on ? 'rgba(127,127,160,0.18)' : 'rgba(255,255,255,0.08)' })}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 18, height: 18, borderRadius: poll.multiple ? 5 : 9, borderWidth: 2, borderColor: on ? accent : soft, backgroundColor: on ? accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{on && <Check size={12} color={mine ? '#3b5bff' : '#fff'} strokeWidth={3} />}</View>
+                <Text style={{ color: ink, fontSize: 15, flex: 1 }}>{o.text}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      {st.results && poll.explanation ? <Text style={{ color: ink, fontSize: 13.5, lineHeight: 19 }}>💡 {poll.explanation}</Text> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6 }}>
+        <Text style={{ color: soft, fontSize: 12.5 }}>{st.footer}</Text>
+        {!st.results && poll.multiple && (
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: !picked.length }} disabled={!picked.length} onPress={() => onVote(picked)} style={({ pressed }) => ({ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, backgroundColor: picked.length ? (mine ? '#fff' : '#3b5bff') : 'rgba(127,127,160,0.25)', opacity: pressed ? 0.8 : 1 })}>
+            <Text style={{ color: picked.length ? (mine ? '#3b5bff' : '#fff') : soft, fontFamily: font.semibold, fontSize: 13 }}>Голосовать</Text>
           </Pressable>
-        );
-      })}
-      <Text style={{ color: soft, fontSize: 12.5 }}>{poll.total_voters ? `Голосов: ${poll.total_voters}` : 'Пока никто не голосовал'}</Text>
+        )}
+        {st.canUnvote && link('Отозвать голос', 'unvote')}
+        {st.canSeeVoters && link('Кто как', 'voters')}
+        {st.canClose && link('Закрыть', 'close', <CircleSlash size={12} color={accent} />)}
+      </View>
     </View>
   );
 }

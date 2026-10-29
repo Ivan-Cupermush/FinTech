@@ -1,25 +1,27 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowUp, ChevronLeft, CornerUpLeft, Info, Mic, Paperclip, Pencil, PinOff, X } from 'lucide-react-native';
+import { ArrowUp, CalendarClock, ChevronLeft, CornerDownRight, CornerUpLeft, Info, Mic, Paperclip, Pencil, PinOff, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buildFeed, canEditMessage, MESSAGE_MAX, messageBody, REACTIONS, renameSenders, typingText, type Attachment, type ChatHistory, type ChatMessage, type ContactCard, type FeedItem } from '@offix/core';
-import { chatStatus, isOnline, nextReaction } from '../../../lib/chat-logic';
-import { chatApi, ck, loadOlder, patchHistory, sendMessage, typistNames, useChat, useChatLive, useHistory, usePinned } from '../../../lib/chats';
+import { chatStatus, isOnline, nextReaction, type ExternalReply } from '../../../lib/chat-logic';
+import { chatApi, ck, loadOlder, patchHistory, pendingExternal, sendMessage, typistNames, useChat, useChatLive, useHistory, usePinned, useScheduled } from '../../../lib/chats';
+import { forwardable, forwardTitle, scheduleLabel } from '../../../lib/compose';
 import { uploadPicked } from '../../../lib/files';
 import { uploadFields, viewerItems, type PickedFile, type ViewerItem } from '../../../lib/media';
 import { useContactBook } from '../../../lib/personal-api';
 import { useMe } from '../../../lib/queries';
 import { font } from '../../../lib/theme';
 import { AttachMenu, ContactSheet, SendSheet } from '../../../ui/attach';
+import { ChatPickSheet, PollSheet, ScheduledSheet, ScheduleSheet, VotersSheet } from '../../../ui/chat-sheets';
 import { Bubble, ChatAvatar, TypingDots, useWall, Wallpaper, WallPill } from '../../../ui/chats';
 import { VideoNoteRecorder, VoiceRecorderBar, type Recording } from '../../../ui/recorder';
 import { MediaViewer } from '../../../ui/viewer';
 import { Glass } from '../../../ui/fx/Glass';
 import { NO_WEB_OUTLINE, Text } from '../../../ui/primitives';
 
-type Mode = { kind: 'reply' | 'edit'; message: ChatMessage } | null;
+type Mode = { kind: 'reply' | 'edit'; message: ChatMessage } | ({ kind: 'external' } & ExternalReply) | null;
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось, попробуйте ещё раз');
 
@@ -47,7 +49,22 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [mode, setMode] = useState<Mode>(null);
   const [reactFor, setReactFor] = useState<ChatMessage | null>(null);
-  const [sheet, setSheet] = useState<{ kind: 'menu' } | { kind: 'send'; files: PickedFile[]; asFile: boolean } | { kind: 'contact' } | { kind: 'note' } | { kind: 'viewer'; items: ViewerItem[]; index: number } | null>(null);
+  const [sheet, setSheet] = useState<
+    | { kind: 'menu' }
+    | { kind: 'send'; files: PickedFile[]; asFile: boolean }
+    | { kind: 'contact' }
+    | { kind: 'note' }
+    | { kind: 'viewer'; items: ViewerItem[]; index: number }
+    | { kind: 'poll' }
+    | { kind: 'schedule'; text: string }
+    | { kind: 'scheduled' }
+    | { kind: 'forward'; ids: string[] }
+    | { kind: 'external'; message: ChatMessage }
+    | { kind: 'voters'; message: ChatMessage }
+    | null
+  >(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const scheduled = useScheduled(chatId);
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const meId = me.data?.id ?? '';
@@ -55,6 +72,21 @@ export default function ChatScreen() {
 
   const c = chat.data;
   const topic = c?.topics.find((t) => t.id === topicId) ?? null;
+
+  // Пришли сюда из «Ответить в другом чате» — цитата уже ждёт в поле ввода.
+  useEffect(() => {
+    const x = pendingExternal.get(chatId);
+    if (!x) return;
+    pendingExternal.delete(chatId);
+    setMode({ kind: 'external', ...x });
+  }, [chatId]);
+
+  // Подсказка на обоях гаснет сама.
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 2600);
+    return () => clearTimeout(t);
+  }, [notice]);
   const data = history.data;
   if (readMark.current === null && data) readMark.current = data.my_last_read_seq;
   // Подписи отправителей и цитат — моими именами для коллег.
@@ -131,6 +163,12 @@ export default function ChatScreen() {
               },
             ]
           : []),
+        ...(forwardable(m)
+          ? [
+              { label: 'Переслать', run: () => setSheet({ kind: 'forward', ids: [m.id] }) },
+              { label: 'Ответить в другом чате', run: () => setSheet({ kind: 'external', message: m }) },
+            ]
+          : []),
         ...(canEditMessage(m, meId, new Date().toISOString())
           ? [
               {
@@ -157,13 +195,31 @@ export default function ChatScreen() {
   );
 
   const vote = useCallback(
-    (m: ChatMessage, optionId: string) =>
+    (m: ChatMessage, optionIds: string[]) =>
       void chatApi
-        .vote(m.id, [optionId])
+        .vote(m.id, optionIds)
         .then((poll) => patch(m.id, (x) => ({ ...x, poll })))
         .catch((e) => Alert.alert('Голос не принят', errText(e))),
     [patch],
   );
+
+  const pollAction = useCallback(
+    (m: ChatMessage, a: 'unvote' | 'voters' | 'close') => {
+      if (a === 'voters') return setSheet({ kind: 'voters', message: m });
+      const run = (fn: () => Promise<ChatMessage['poll']>) =>
+        void fn()
+          .then((poll) => patch(m.id, (x) => ({ ...x, poll })))
+          .catch((e) => Alert.alert('Не получилось', errText(e)));
+      if (a === 'unvote') return run(() => chatApi.unvote(m.id));
+      Alert.alert('Закрыть опрос?', 'Голосовать больше будет нельзя, итоги увидят все.', [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Закрыть', style: 'destructive', onPress: () => run(() => chatApi.closePoll(m.id)) },
+      ]);
+    },
+    [patch],
+  );
+
+  const openExternal = useCallback((id: string) => (id === chatId ? undefined : router.push({ pathname: '/chat/[id]', params: { id } })), [chatId]);
 
   const jump = useCallback(
     (id: string) => {
@@ -207,15 +263,22 @@ export default function ChatScreen() {
     if (r) setMode(null);
     return r;
   };
+  const takeExternal = (): ExternalReply | null => {
+    if (mode?.kind !== 'external') return null;
+    setMode(null);
+    return { message: mode.message, chatTitle: mode.chatTitle };
+  };
 
   /** Альбомы по 10: ответ — у первого, подпись — у последнего. */
   const sendBatches = async (batches: { attachments: Attachment[]; caption: string }[]) => {
     setSheet(null);
     let replyTo = takeReply();
+    let externalReply = takeExternal();
     list.current?.scrollToOffset({ offset: 0, animated: true });
     for (const b of batches) {
-      await sendMessage(qc, { chatId, topicId, me: who, text: b.caption, attachments: b.attachments, replyTo }).catch(() => undefined);
+      await sendMessage(qc, { chatId, topicId, me: who, text: b.caption, attachments: b.attachments, replyTo, externalReply }).catch(() => undefined);
       replyTo = null;
+      externalReply = null;
     }
   };
 
@@ -260,8 +323,14 @@ export default function ChatScreen() {
         .catch((e) => Alert.alert('Не удалось изменить', errText(e)));
       return;
     }
-    void sendMessage(qc, { chatId, topicId, me: { id: meId, name: me.data?.display_name ?? '' }, text: t, replyTo: m?.kind === 'reply' ? m.message : null }).catch(() => undefined);
+    void sendMessage(qc, { chatId, topicId, me: { id: meId, name: me.data?.display_name ?? '' }, text: t, replyTo: m?.kind === 'reply' ? m.message : null, externalReply: m?.kind === 'external' ? { message: m.message, chatTitle: m.chatTitle } : null }).catch(() => undefined);
     list.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  /** Долгое касание «Отправить» — как в привычных мессенджерах: отправить позже. */
+  const scheduleCurrent = () => {
+    if (mode?.kind === 'edit') return;
+    setSheet({ kind: 'schedule', text: text.trim() });
   };
 
   if (c?.is_supergroup && !topicId) return <Redirect href={{ pathname: '/chat/[id]/topics', params: { id: chatId } }} />;
@@ -368,7 +437,7 @@ export default function ChatScreen() {
               ) : item.type === 'new' ? (
                 <WallPill text="Новые сообщения" accent />
               ) : (
-                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onRetry={retry} onOpenMedia={openMedia} onListen={listen} onWrite={writeTo} onOpenNote={openNote} />
+                <Bubble m={item.message} mine={item.message.sender_id === meId} group={!!group} first={item.first} last={item.last} onPress={openActions} onLongPress={setReactFor} onReact={react} onJump={jump} onVote={vote} onPoll={pollAction} canClosePoll={!!group && can('delete_messages')} onOpenExternal={openExternal} onRetry={retry} onOpenMedia={openMedia} onListen={listen} onWrite={writeTo} onOpenNote={openNote} />
               )
             }
           />
@@ -383,9 +452,11 @@ export default function ChatScreen() {
             {mode && (
               <Glass tone="surface" radius={16}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12 }}>
-                  {mode.kind === 'edit' ? <Pencil size={16} color="#3b5bff" /> : <CornerUpLeft size={16} color="#3b5bff" />}
+                  {mode.kind === 'edit' ? <Pencil size={16} color="#3b5bff" /> : mode.kind === 'external' ? <CornerDownRight size={16} color="#8a5cff" /> : <CornerUpLeft size={16} color="#3b5bff" />}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#3b5bff', fontFamily: font.semibold, fontSize: 13 }}>{mode.kind === 'edit' ? (captionOnly ? 'Изменение подписи' : 'Изменение сообщения') : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}</Text>
+                    <Text numberOfLines={1} style={{ color: mode.kind === 'external' ? '#8a5cff' : '#3b5bff', fontFamily: font.semibold, fontSize: 13 }}>
+                      {mode.kind === 'edit' ? (captionOnly ? 'Изменение подписи' : 'Изменение сообщения') : mode.kind === 'external' ? `Ответ из «${mode.chatTitle}» · ${mode.message.sender_name ?? 'удалённый аккаунт'}` : `Ответ · ${mode.message.sender_name ?? 'удалённый аккаунт'}`}
+                    </Text>
                     <Text numberOfLines={1} style={{ color: w.inkSoft, fontSize: 13 }}>
                       {messageBody(mode.message)}
                     </Text>
@@ -405,6 +476,20 @@ export default function ChatScreen() {
               </Glass>
             )}
             {busy && <WallPill text={busy} />}
+            {notice && <WallPill text={notice} accent />}
+            {!!scheduled.data?.length && !mode && (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${scheduled.data.length}`} onPress={() => setSheet({ kind: 'scheduled' })} style={({ pressed }) => ({ alignSelf: 'center', opacity: pressed ? 0.7 : 1 })}>
+                <Glass tone="surface" radius={16}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <CalendarClock size={14} color="#3b5bff" />
+                    <Text style={{ color: w.ink, fontFamily: font.semibold, fontSize: 13 }}>
+                      {`Отложенные · ${scheduled.data.length}`}
+                      <Text style={{ color: w.inkSoft, fontFamily: font.regular, fontSize: 13 }}>{` · ближайшее ${scheduleLabel(scheduled.data.reduce((a, b) => (a.send_at < b.send_at ? a : b)).send_at, new Date())}`}</Text>
+                    </Text>
+                  </View>
+                </Glass>
+              </Pressable>
+            )}
             <Glass tone="surface" radius={26}>
               {recording ? (
                 <VoiceRecorderBar onCancel={() => setRecording(false)} onDone={(r) => void sendRecording('voice', r)} />
@@ -450,6 +535,9 @@ export default function ChatScreen() {
                       accessibilityState={{ disabled: !canSend }}
                       disabled={!canSend}
                       onPress={submit}
+                      onLongPress={scheduleCurrent}
+                      delayLongPress={380}
+                      accessibilityHint={mode?.kind === 'edit' ? undefined : 'Долгое касание — отправить позже'}
                       style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: canSend ? '#3b5bff' : 'rgba(127,127,160,0.3)', transform: [{ scale: pressed ? 0.92 : 1 }] })}
                     >
                       <ArrowUp size={20} color="#fff" strokeWidth={2.4} />
@@ -470,12 +558,63 @@ export default function ChatScreen() {
           onContact={() => setSheet({ kind: 'contact' })}
           onMyNote={() => router.push({ pathname: '/my-notes/pick', params: topicId ? { chat: chatId, topic: topicId } : { chat: chatId } })}
           onVideoNote={Platform.OS !== 'web' ? () => setSheet({ kind: 'note' }) : undefined}
+          onPoll={() => setSheet({ kind: 'poll' })}
+          onSchedule={() => setSheet({ kind: 'schedule', text: text.trim() })}
         />
       )}
       {sheet?.kind === 'send' && <SendSheet files={sheet.files} asFile={sheet.asFile} onClose={() => setSheet(null)} onSend={(b) => void sendBatches(b)} />}
       {sheet?.kind === 'contact' && <ContactSheet meId={meId} onClose={() => setSheet(null)} onPick={sendContact} />}
       {sheet?.kind === 'note' && <VideoNoteRecorder onClose={() => setSheet(null)} onDone={(r) => void sendRecording('video_note', r)} />}
       {sheet?.kind === 'viewer' && <MediaViewer items={sheet.items} index={sheet.index} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'poll' && <PollSheet chatId={chatId} topicId={topicId} onClose={() => setSheet(null)} onCreated={() => list.current?.scrollToOffset({ offset: 0, animated: true })} />}
+      {sheet?.kind === 'voters' && <VotersSheet message={sheet.message} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'scheduled' && <ScheduledSheet chatId={chatId} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'schedule' && (
+        <ScheduleSheet
+          chatId={chatId}
+          topicId={topicId}
+          replyTo={mode?.kind === 'reply' ? mode.message : null}
+          initialText={sheet.text}
+          onClose={() => setSheet(null)}
+          onDone={(at) => {
+            // Текст из поля ввода ушёл в отложенные — поле очищаем.
+            if (sheet.text && text.trim() === sheet.text) setText('');
+            if (mode?.kind === 'reply') setMode(null);
+            setNotice(`Отправим ${scheduleLabel(at, new Date())}`);
+          }}
+        />
+      )}
+      {sheet?.kind === 'forward' && (
+        <ChatPickSheet
+          title={forwardTitle(sheet.ids.length)}
+          sub="Касание — и сообщение уже там"
+          onClose={() => setSheet(null)}
+          onPick={async (target) => {
+            try {
+              await chatApi.forward(sheet.ids, target.id);
+              setSheet(null);
+              void qc.invalidateQueries({ queryKey: ck.list });
+              if (target.id !== chatId) router.push({ pathname: '/chat/[id]', params: { id: target.id } });
+              else setNotice('Переслано');
+            } catch (e) {
+              Alert.alert('Не получилось переслать', errText(e));
+            }
+          }}
+        />
+      )}
+      {sheet?.kind === 'external' && (
+        <ChatPickSheet
+          title="Ответить в другом чате"
+          sub="Цитата попадёт в выбранный чат"
+          exclude={chatId}
+          onClose={() => setSheet(null)}
+          onPick={(target) => {
+            pendingExternal.set(target.id, { message: sheet.message, chatTitle: topic ? `${c?.title ?? ''} · ${topic.name}` : (c?.title ?? 'другого чата') });
+            setSheet(null);
+            router.push({ pathname: '/chat/[id]', params: { id: target.id } });
+          }}
+        />
+      )}
 
       <Modal visible={!!reactFor} transparent animationType="fade" onRequestClose={() => setReactFor(null)}>
         <Pressable accessibilityLabel="Закрыть" style={{ flex: 1, backgroundColor: 'rgba(5,8,30,0.35)', justifyContent: 'center', padding: 20 }} onPress={() => setReactFor(null)}>

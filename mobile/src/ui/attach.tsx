@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, CircleDot, FileText, Film, Images, NotebookPen, Search, SendHorizontal, UserRound, X } from 'lucide-react-native';
+import { BarChart3, CalendarClock, Camera, CircleDot, FileText, Film, Images, NotebookPen, Search, SendHorizontal, UserRound, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import { Glass } from './fx/Glass';
 import { NO_WEB_OUTLINE, Text } from './primitives';
 
 /** Шторка: на iOS — настоящее стекло, в вебе и на Android — плотная подложка, чтобы лента не просвечивала. */
-const sheetFill = (w: { ink: string }) => (Platform.OS === 'ios' ? undefined : { backgroundColor: w.ink === '#11152e' ? 'rgba(250,250,253,0.97)' : 'rgba(20,22,40,0.97)' });
+export const sheetFill = (w: { ink: string }) => (Platform.OS === 'ios' ? undefined : { backgroundColor: w.ink === '#11152e' ? 'rgba(250,250,253,0.97)' : 'rgba(20,22,40,0.97)' });
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось, попробуйте ещё раз');
 
@@ -64,8 +64,8 @@ function Tile({ label, hue, icon, onPress }: { label: string; hue: number; icon:
   );
 }
 
-/** Меню «Вложения»: галерея, камера, файл, контакт и кружочек — стеклянная шторка снизу. */
-export function AttachMenu({ onClose, onFiles, onContact, onMyNote, onVideoNote }: { onClose: () => void; onFiles: (files: PickedFile[], asFile: boolean) => void; onContact: () => void; onMyNote?: () => void; onVideoNote?: () => void }) {
+/** Меню «Вложения»: галерея, камера, файл, контакт, заметка, кружочек, опрос и «позже» — стеклянная шторка снизу. */
+export function AttachMenu({ onClose, onFiles, onContact, onMyNote, onVideoNote, onPoll, onSchedule }: { onClose: () => void; onFiles: (files: PickedFile[], asFile: boolean) => void; onContact: () => void; onMyNote?: () => void; onVideoNote?: () => void; onPoll?: () => void; onSchedule?: () => void }) {
   const insets = useSafeAreaInsets();
   const w = useWall();
   const run = (fn: () => Promise<PickedFile[]>, asFile: boolean) => () => {
@@ -111,6 +111,28 @@ export function AttachMenu({ onClose, onFiles, onContact, onMyNote, onVideoNote 
                 onPress={() => {
                   onClose();
                   onVideoNote();
+                }}
+              />
+            )}
+            {onPoll && (
+              <Tile
+                label="Опрос"
+                hue={196}
+                icon={<BarChart3 size={24} color="#fff" />}
+                onPress={() => {
+                  onClose();
+                  onPoll();
+                }}
+              />
+            )}
+            {onSchedule && (
+              <Tile
+                label="Позже"
+                hue={48}
+                icon={<CalendarClock size={24} color="#fff" />}
+                onPress={() => {
+                  onClose();
+                  onSchedule();
                 }}
               />
             )}
