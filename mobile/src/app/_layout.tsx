@@ -11,6 +11,7 @@ import { ApiError } from '../lib/client';
 import { PushBridge } from '../lib/push-bridge';
 import { SessionProvider } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
+import { HeaderGlow } from '../ui/fx/AmbientGlow';
 
 export default function RootLayout() {
   const [loaded] = useFonts({ Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold });
@@ -35,6 +36,8 @@ export default function RootLayout() {
               screenOptions={{
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: p.bg },
+                // Шапка — верх того же свечения, что и экран под ней: без плоской полосы и шва.
+                headerBackground: () => <HeaderGlow bg={p.bg} />,
                 headerTintColor: p.ink,
                 headerTitleStyle: { fontFamily: font.semibold, fontSize: 16 },
                 headerBackTitle: 'Назад',

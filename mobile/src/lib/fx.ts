@@ -92,9 +92,9 @@ const PALETTES: Record<HeroVariant, readonly [string, string, string]> = {
   settings: ['#2f52ff', '#061c22', '#3fd6a0'],
   chats: ['#3050ff', '#0d0b2c', '#ffb547'],
   notes: ['#3352ff', '#08162a', '#a8e05f'],
-  profile: ['#2e4cff', '#0a0c2e', '#b9c6ff'],
+  profile: ['#2e4cff', '#0a0c2e', '#8f9dff'],
   tasks: ['#2c58ff', '#06162b', '#4fd1c5'],
-  sales: ['#2f4bff', '#071c18', '#ffd84a'],
+  sales: ['#2f4bff', '#071c18', '#c8901c'],
 };
 
 export function heroColors(variant: HeroVariant): readonly [string, string, string] {

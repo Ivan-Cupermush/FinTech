@@ -91,7 +91,10 @@ describe('шапка продаж', () => {
   });
   it('у раздела продаж своя шапка, хорошая цифра — светло-зелёная', () => {
     expect(SECTION_VARIANTS).toContain('sales');
-    expect(heroColors('sales')[2]).toBe('#ffd84a');
+    // Золото приглушённое: на ярко-жёлтом белые цифры шапки не читались.
+    const [r, g, b] = (heroColors('sales')[2]!.match(/\w\w/g) ?? []).map((h) => parseInt(h, 16) / 255);
+    expect(0.2126 * r! + 0.7152 * g! + 0.0722 * b!).toBeLessThan(0.65);
+    expect(heroColors('sales')[2]).toBe('#c8901c');
     expect(heroStatColor('good')).not.toBe(heroStatColor(undefined));
   });
 });

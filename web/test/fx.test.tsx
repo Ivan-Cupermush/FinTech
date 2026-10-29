@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Glass } from '../src/ui/fx/Glass';
-import { gradientCss, gradientForKpi, gradientLook } from '../src/ui/fx/gradients';
+import { framedLook, gradientCss, gradientForKpi, gradientLook } from '../src/ui/fx/gradients';
 import { kpiBarHeights, markPlacement } from '../src/ui/fx/layout';
 import { PilotChart } from '../src/ui/fx/PilotChart';
 import { PILOT_BARS } from '../src/features/landing/LandingPage';
@@ -115,6 +115,14 @@ describe('градиенты', () => {
       expect(bad).not.toEqual(hero);
       expect(good).not.toEqual(bad);
       for (const c of [...good, ...bad]) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+  it('высокая панель: волна в лоб, без края в кадре, цвета те же', () => {
+    for (const dark of [false, true]) {
+      const base = gradientLook('wallpaper', dark);
+      const f = framedLook(base);
+      expect(f).toMatchObject({ type: 'plane', cPolarAngle: 90, colors: base.colors, rotation: base.rotation });
+      expect(f.cDistance).toBeGreaterThan(0);
     }
   });
   it('CSS-запасной вариант собран из тех же трёх цветов', () => {
