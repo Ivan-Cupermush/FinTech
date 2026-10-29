@@ -45,7 +45,7 @@ export async function pickDocuments(): Promise<PickedFile[]> {
 function Tile({ label, hue, icon, onPress }: { label: string; hue: number; icon: ReactNode; onPress: () => void }) {
   const w = useWall();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ width: 76, alignItems: 'center', gap: 7, transform: [{ scale: pressed ? 0.93 : 1 }] })}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ width: '25%', alignItems: 'center', gap: 7, transform: [{ scale: pressed ? 0.93 : 1 }] })}>
       <View style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: `hsl(${hue}, 90%, 50%)`, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } }}>
         <Svg width={58} height={58} style={StyleSheet.absoluteFill}>
           <Defs>
@@ -79,7 +79,7 @@ export function AttachMenu({ onClose, onFiles, onContact, onMyNote, onVideoNote,
       <Pressable accessibilityLabel="Закрыть" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(5,8,30,0.3)' }} />
       <View style={{ paddingHorizontal: 10, paddingBottom: Math.max(insets.bottom, 10) }}>
         <Glass tone="surface" radius={30} style={sheetFill(w)}>
-          <View accessibilityRole="menu" accessibilityLabel="Вложения" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', rowGap: 16, paddingVertical: 20, paddingHorizontal: 8 }}>
+          <View accessibilityRole="menu" accessibilityLabel="Вложения" style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18, paddingVertical: 20, paddingHorizontal: 6 }}>
             <Tile label="Галерея" hue={228} icon={<Images size={24} color="#fff" />} onPress={run(pickGallery, false)} />
             {Platform.OS !== 'web' && <Tile label="Камера" hue={340} icon={<Camera size={24} color="#fff" />} onPress={run(pickCamera, false)} />}
             <Tile label="Файл" hue={28} icon={<FileText size={24} color="#fff" />} onPress={run(pickDocuments, true)} />

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Check, Plus, Search, Send, Trash2, X } from 'lucide-react-native';
+import { CalendarClock, Check, Plus, Search, Send, Trash2, X, type LucideIcon } from 'lucide-react-native';
 import { useId, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,46 @@ function Sheet({ title, sub, onClose, children, footer, tall }: { title: string;
         </View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+export interface SheetAction {
+  label: string;
+  run: () => void;
+  icon?: LucideIcon;
+  danger?: boolean;
+}
+
+/**
+ * Действия с сообщением на Android и в вебе — стеклянной шторкой: системный
+ * диалог Android вмещает только три кнопки, а действий больше.
+ */
+export function ActionsSheet({ title, sub, items, onClose }: { title: string; sub?: string; items: SheetAction[]; onClose: () => void }) {
+  const w = useWall();
+  return (
+    <Sheet title={title} sub={sub} onClose={onClose}>
+      <View accessibilityRole="menu" style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: 'rgba(127,127,160,0.10)' }}>
+        {items.map((it, i) => {
+          const color = it.danger ? '#e0464c' : w.ink;
+          const Icon = it.icon;
+          return (
+            <Pressable
+              key={it.label}
+              accessibilityRole="menuitem"
+              accessibilityLabel={it.label}
+              onPress={() => {
+                onClose();
+                it.run();
+              }}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, minHeight: 50, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: 'rgba(127,127,160,0.28)', backgroundColor: pressed ? 'rgba(127,127,160,0.16)' : 'transparent' })}
+            >
+              {Icon ? <Icon size={20} color={it.danger ? color : BLUE} /> : null}
+              <Text style={{ color, fontSize: 16, fontFamily: font.medium }}>{it.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Sheet>
   );
 }
 
@@ -213,7 +253,7 @@ export function PollSheet({ chatId, topicId, onClose, onCreated }: { chatId: str
         <SwitchRow label="Несколько ответов" value={f.multiple && !f.quiz} disabled={f.quiz} onChange={(multiple) => set({ multiple })} />
         <SwitchRow label="Викторина" hint="С правильным ответом" value={f.quiz} onChange={(quiz) => set({ quiz })} />
       </View>
-      {f.quiz && <Field label="Пояснение после ответа" value={f.explanation} onChange={(explanation) => set({ explanation })} placeholder="Пояснение после ответа — необязательно" error={show('explanation')} />}
+      {f.quiz && <Field label="Пояснение после ответа" multiline value={f.explanation} onChange={(explanation) => set({ explanation })} placeholder="Пояснение после ответа — необязательно" error={show('explanation')} />}
     </Sheet>
   );
 }

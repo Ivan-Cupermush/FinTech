@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
-import { ArrowUp, CalendarClock, ChevronLeft, CornerDownRight, CornerUpLeft, Info, Mic, Paperclip, Pencil, PinOff, X } from 'lucide-react-native';
+import { ArrowUp, CalendarClock, ChevronLeft, CornerDownRight, CornerUpLeft, Forward, Info, MessagesSquare, Mic, Paperclip, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { useContactBook } from '../../../lib/personal-api';
 import { useMe } from '../../../lib/queries';
 import { font } from '../../../lib/theme';
 import { AttachMenu, ContactSheet, SendSheet } from '../../../ui/attach';
-import { ChatPickSheet, PollSheet, ScheduledSheet, ScheduleSheet, VotersSheet } from '../../../ui/chat-sheets';
+import { ActionsSheet, ChatPickSheet, PollSheet, ScheduledSheet, ScheduleSheet, VotersSheet, type SheetAction } from '../../../ui/chat-sheets';
 import { Bubble, ChatAvatar, TypingDots, useWall, Wallpaper, WallPill } from '../../../ui/chats';
 import { VideoNoteRecorder, VoiceRecorderBar, type Recording } from '../../../ui/recorder';
 import { MediaViewer } from '../../../ui/viewer';
@@ -61,6 +61,7 @@ export default function ChatScreen() {
     | { kind: 'forward'; ids: string[] }
     | { kind: 'external'; message: ChatMessage }
     | { kind: 'voters'; message: ChatMessage }
+    | { kind: 'actions'; message: ChatMessage; items: SheetAction[] }
     | null
   >(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -145,13 +146,14 @@ export default function ChatScreen() {
   const openActions = useCallback(
     (m: ChatMessage) => {
       if (m.id.startsWith('local-')) return;
-      const items: { label: string; run: () => void; danger?: boolean }[] = [
-        { label: 'Ответить', run: () => setMode({ kind: 'reply', message: m }) },
-        { label: 'Реакция…', run: () => setReactFor(m) },
+      const items: SheetAction[] = [
+        { label: 'Ответить', icon: CornerUpLeft, run: () => setMode({ kind: 'reply', message: m }) },
+        { label: 'Реакция…', icon: SmilePlus, run: () => setReactFor(m) },
         ...(can('pin_messages')
           ? [
               {
                 label: m.pinned ? 'Открепить' : 'Закрепить',
+                icon: m.pinned ? PinOff : Pin,
                 run: () =>
                   void chatApi
                     .pin(m.id, !m.pinned)
@@ -165,14 +167,15 @@ export default function ChatScreen() {
           : []),
         ...(forwardable(m)
           ? [
-              { label: 'Переслать', run: () => setSheet({ kind: 'forward', ids: [m.id] }) },
-              { label: 'Ответить в другом чате', run: () => setSheet({ kind: 'external', message: m }) },
+              { label: 'Переслать', icon: Forward, run: () => setSheet({ kind: 'forward', ids: [m.id] }) },
+              { label: 'Ответить в другом чате', icon: MessagesSquare, run: () => setSheet({ kind: 'external', message: m }) },
             ]
           : []),
         ...(canEditMessage(m, meId, new Date().toISOString())
           ? [
               {
                 label: 'Изменить',
+                icon: Pencil,
                 run: () => {
                   setMode({ kind: 'edit', message: m });
                   setText(m.text ?? '');
@@ -180,16 +183,14 @@ export default function ChatScreen() {
               },
             ]
           : []),
-        { label: 'Удалить', danger: true, run: () => removeMessage(m) },
+        { label: 'Удалить', icon: Trash2, danger: true, run: () => removeMessage(m) },
       ];
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           { options: [...items.map((i) => i.label), 'Отмена'], cancelButtonIndex: items.length, destructiveButtonIndex: items.findIndex((i) => i.danger) },
           (i) => items[i]?.run(),
         );
-      } else {
-        Alert.alert('Сообщение', undefined, [...items.map((i) => ({ text: i.label, onPress: i.run, style: i.danger ? ('destructive' as const) : undefined })), { text: 'Отмена', style: 'cancel' as const }]);
-      }
+      } else setSheet({ kind: 'actions', message: m, items });
     },
     [meId, patch, qc, chatId, topicId, c], // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -568,6 +569,7 @@ export default function ChatScreen() {
       {sheet?.kind === 'viewer' && <MediaViewer items={sheet.items} index={sheet.index} onClose={() => setSheet(null)} />}
       {sheet?.kind === 'poll' && <PollSheet chatId={chatId} topicId={topicId} onClose={() => setSheet(null)} onCreated={() => list.current?.scrollToOffset({ offset: 0, animated: true })} />}
       {sheet?.kind === 'voters' && <VotersSheet message={sheet.message} onClose={() => setSheet(null)} />}
+      {sheet?.kind === 'actions' && <ActionsSheet title="Сообщение" sub={`${sheet.message.sender_name} · ${messageBody(sheet.message).slice(0, 80)}`} items={sheet.items} onClose={() => setSheet(null)} />}
       {sheet?.kind === 'scheduled' && <ScheduledSheet chatId={chatId} onClose={() => setSheet(null)} />}
       {sheet?.kind === 'schedule' && (
         <ScheduleSheet

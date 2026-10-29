@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import {
@@ -106,7 +106,7 @@ export function PayoutCard({ m }: { m: SalesMonth }) {
 const SOURCE_TONES: Record<SalesPlan['calc']['source'], Tone> = { file: 'info', report: 'accent', manual: 'neutral' };
 
 /** Показатель плана: факт из плана, полоса с прогнозом и порогами, выплата и подсказка. */
-export function PlanCard({ plan, today, onFact }: { plan: SalesPlan; today: string; onFact?: () => void }) {
+export function PlanCard({ plan, today, onFact, onEdit }: { plan: SalesPlan; today: string; onFact?: () => void; /** Руководитель: план, правило факта и выплаты. */ onEdit?: () => void }) {
   const p = usePalette();
   const c = plan.calc;
   const fixed = plan.payout_rule.type === 'fixed';
@@ -130,6 +130,11 @@ export function PlanCard({ plan, today, onFact }: { plan: SalesPlan; today: stri
         {onFact && (
           <Pressable accessibilityRole="button" accessibilityLabel={`Отметить факт «${plan.name}»`} onPress={onFact} hitSlop={8} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: p.surface2, opacity: pressed ? 0.7 : 1 })}>
             <Pencil size={15} color={p.ink2} />
+          </Pressable>
+        )}
+        {onEdit && (
+          <Pressable accessibilityRole="button" accessibilityLabel={`Изменить «${plan.name}»`} onPress={onEdit} hitSlop={8} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: p.surface2, opacity: pressed ? 0.7 : 1 })}>
+            <SlidersHorizontal size={15} color={p.ink2} />
           </Pressable>
         )}
       </View>
