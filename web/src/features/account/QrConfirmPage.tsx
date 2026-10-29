@@ -65,12 +65,12 @@ export function QrConfirmPage() {
   const waiting = info && (info.status === 'scanned' || info.status === 'pending');
 
   return (
-    <Backdrop variant="login" className="qr-confirm on-color">
+    <Backdrop variant="login" framed className="qr-confirm on-color">
       <div className="qr-confirm-inner">
         <Link to="/app" aria-label="offix" className="qr-confirm-logo">
           <Logo size={26} />
         </Link>
-        <Glass className="qr-confirm-glass" radius={30} elasticity={0} displacement={44} blur={0.3}>
+        <Glass className="qr-confirm-glass" radius={30} elasticity={0} displacement={44} blur={0.3} clip>
           <div className="qr-confirm-body" aria-live="polite">
             {current.kind === 'loading' && <p>Проверяем код…</p>}
             {current.kind === 'error' && (
