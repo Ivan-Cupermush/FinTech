@@ -15,8 +15,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # kusok (native/kusok, C11): свои тесты на C и привязки к Node, затем сборка аддона для сервера.
+      - run: npm run kusok:test
+      - run: npm run kusok:build
       - run: npm run typecheck
       - run: npm test
+      # Файловые тесты ещё раз — с оригиналами в kusok, а не в папке files/.
+      - run: npm test -w server -- test/media.test.ts test/chats.test.ts test/knowledge.test.ts test/my-notes.test.ts test/sandbox.test.ts
+        env:
+          OFFIX_TEST_BLOBS: kusok
       - run: npm run build
 
   mobile:

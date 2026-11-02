@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UPLOAD_MAX_MB_DEFAULT } from '@offix/core';
 import { resolveWebDist } from './http/site';
+import { parseBlobMode, type BlobMode } from './services/blobs';
 
 /**
  * Настройки из server/.env (служба и npm-скрипты запускаются в папке server;
@@ -57,6 +58,17 @@ export interface UploadsConfig {
   maxBytes: number;
   /** Путь к папке с ffmpeg; null — ffmpeg не используется; undefined — искать в PATH. */
   ffmpegDir?: string | null;
+  /**
+   * Где хранить оригиналы (UPLOADS_STORE): kusok — хранилище с дедупликацией
+   * (native/kusok, должно быть собрано), fs — папка files/, auto (по умолчанию) —
+   * kusok, если собран. Старые файлы из files/ открываются в любом режиме.
+   */
+  store?: BlobMode;
+  /**
+   * Куда сервер копирует хранилище kusok (KUSOK_BACKUP_DIR). Копию снимает сам
+   * сервер — он держит хранилище на запись, — ночью и по просьбе backup.sh.
+   */
+  kusokBackupDir?: string;
 }
 
 export const DEFAULT_UPLOADS_DIR = fileURLToPath(new URL('../data/uploads', import.meta.url));
@@ -67,6 +79,8 @@ export function loadUploadsConfig(env: NodeJS.ProcessEnv = process.env): Uploads
     dir: resolve(env.UPLOADS_DIR?.trim() || DEFAULT_UPLOADS_DIR),
     maxBytes: Math.round((Number.isFinite(mb) && mb > 0 ? Math.min(mb, 4096) : UPLOAD_MAX_MB_DEFAULT) * 1024 * 1024),
     ffmpegDir: env.FFMPEG === 'off' ? null : env.FFMPEG_DIR?.trim() || undefined,
+    store: parseBlobMode(env.UPLOADS_STORE),
+    kusokBackupDir: env.KUSOK_BACKUP_DIR?.trim() ? resolve(env.KUSOK_BACKUP_DIR.trim()) : undefined,
   };
 }
 

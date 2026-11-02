@@ -122,7 +122,7 @@ export function messagesRouter({ db, now, rt, onMessage, media }: ChatDeps): Rou
           ),
         );
         // Файлы пересылаются той же записью на диске — без копирования байтов.
-        if (m.kind === 'media' || m.kind === 'voice' || m.kind === 'video_note') await copyAttachments(q, { type: 'message', id: m.id }, { type: 'message', id: out[out.length - 1]!.id }, actor.id);
+        if (m.kind === 'media' || m.kind === 'voice' || m.kind === 'video_note') await copyAttachments(q, media.store, { type: 'message', id: m.id }, { type: 'message', id: out[out.length - 1]!.id }, actor.id);
       }
       return { chat: target.chat, rows: out };
     });

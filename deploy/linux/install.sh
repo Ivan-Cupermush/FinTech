@@ -50,7 +50,8 @@ fi
 [[ "${ID:-}" == "ubuntu" ]] || warn "Скрипт проверен на Ubuntu, у вас ${PRETTY_NAME:-неизвестная система}"
 export DEBIAN_FRONTEND=noninteractive
 
-PKGS=(git curl ca-certificates gnupg openssl ffmpeg rsync postgresql-client)
+# cmake и компилятор — для хранилища файлов kusok (native/kusok, собирается из исходников).
+PKGS=(git curl ca-certificates gnupg openssl ffmpeg rsync postgresql-client cmake build-essential)
 [[ -n "$DATABASE_URL" ]] || PKGS+=(postgresql)
 step "Пакеты: ${PKGS[*]}"
 apt-get update -q

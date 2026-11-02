@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, promises as fs } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
+import type { Readable } from 'node:stream';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import {
@@ -18,13 +19,17 @@ import {
   type MediaKind,
 } from '@offix/core';
 import type { UploadsConfig } from '../config';
+import { isKusokKey, kusokId, kusokKey, kusokStream, loadKusok, type KusokHandle } from './blobs';
 
 const run = promisify(execFile);
 
 /**
  * Хранилище файлов на диске и обработка медиа. Раскладка внутри UPLOADS_DIR:
  *
- *  - files/ab/<32 hex>.<ext> — оригиналы; отдаются только по подписанной ссылке;
+ *  - kusok/ — оригиналы в хранилище с дедупликацией (ключ `kusok:<sha256>`),
+ *    если привязка kusok собрана (UPLOADS_STORE=kusok|fs|auto, см. blobs.ts);
+ *  - files/ab/<32 hex>.<ext> — оригиналы без kusok и все загруженные до него;
+ *    отдаются только по подписанной ссылке;
  *  - thumbs/<32 hex>.jpg — превью фото и кадры-обложки видео (случайное имя);
  *  - avatars/<32 hex>.jpg — фото профиля (случайное имя, открыты всем в компании);
  *  - tmp/ — загрузки в процессе.
@@ -40,10 +45,24 @@ export interface MediaStore {
   hasFfmpeg(): Promise<boolean>;
   process(input: UploadInput): Promise<ProcessedUpload>;
   saveAvatar(tmpPath: string): Promise<string>;
-  /** Абсолютный путь по ключу; ключ вне хранилища — null. */
+  /** Где лежат новые оригиналы: kusok или папка files/. */
+  readonly blobs: 'kusok' | 'fs';
+  /** Открытое хранилище kusok (null — работаем с папкой files/). */
+  readonly kusok: KusokHandle | null;
+  /** Абсолютный путь по ключу files/, thumbs/, avatars/; ключ вне хранилища и kusok: — null. */
   pathOf(key: string): string | null;
-  /** Удалить файлы, не падая, если их уже нет. */
+  /** Оригинал из kusok: размер и поток байтов [start, end]; нет такого — null. */
+  openBlob(key: string): { id: string; size: number; stream(start: number, end: number): Readable } | null;
+  /** Файл на диске для чтения целиком (разбор документа): из kusok — во временную копию. */
+  materialize(key: string): Promise<{ path: string; done(): Promise<void> } | null>;
+  /** Удалить файлы files/, thumbs/, avatars/, не падая, если их уже нет. Ключи kusok: здесь не трогаются. */
   remove(keys: (string | null | undefined)[]): Promise<void>;
+  /** Новые строки ссылаются на эти ключи kusok (пересылка): +1 ссылка на каждый, с повторами. */
+  retain(keys: (string | null | undefined)[]): void;
+  /** Строки с этими ключами kusok удалены: −1 ссылка на каждый, с повторами. */
+  release(keys: (string | null | undefined)[]): void;
+  /** Закрыть kusok при остановке сервера. */
+  close(): void;
   sign(id: string, userId: string, nowMs: number): string;
   verify(id: string, exp: unknown, userId: unknown, sig: unknown, nowMs: number): boolean;
 }
@@ -100,10 +119,28 @@ export function guessMime(name: string, given: string | null | undefined): strin
 const hex = (n = 16) => randomBytes(n).toString('hex');
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * kusok для этого хранилища: UPLOADS_STORE=fs — без него; kusok — обязательно
+ * (не собран — ошибка при запуске); auto — если собран.
+ */
+function openKusok(cfg: UploadsConfig, dir: string): KusokHandle | null {
+  const mode = cfg.store ?? 'auto';
+  if (mode === 'fs') return null;
+  const { module, error } = loadKusok();
+  if (!module) {
+    if (mode === 'kusok') throw new Error(`UPLOADS_STORE=kusok, но ${error}`);
+    return null;
+  }
+  mkdirSync(dir, { recursive: true });
+  // compress 1 — быстрое сжатие: на сервере в 1 CPU важнее не тормозить загрузку.
+  return new module.Kusok(dir, { compress: 1 });
+}
+
 export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore {
   const root = resolve(cfg.dir);
   const dirs = { files: join(root, 'files'), thumbs: join(root, 'thumbs'), avatars: join(root, 'avatars'), tmp: join(root, 'tmp') };
   for (const d of Object.values(dirs)) mkdirSync(d, { recursive: true });
+  const ks = openKusok(cfg, join(root, 'kusok'));
   const key = Buffer.from(hkdfSync('sha256', secret, 'offix', 'file-links', 32));
   const bin = (name: 'ffmpeg' | 'ffprobe') => (cfg.ffmpegDir ? join(cfg.ffmpegDir, name) : name);
 
@@ -128,6 +165,20 @@ export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore
     const id = hex();
     mkdirSync(join(dirs.files, id.slice(0, 2)), { recursive: true });
     return `files/${id.slice(0, 2)}/${id}${ext ? `.${ext}` : ''}`;
+  };
+
+  /** Временный файл для результата обработки (sharp, ffmpeg) до сохранения. */
+  const tmpFile = (ext: string) => join(dirs.tmp, `${Date.now()}-${hex(8)}.${ext}`);
+
+  /**
+   * Сохранить готовый оригинал: в kusok (+1 ссылка) или копией в files/.
+   * Исходный файл остаётся на месте — его удаляет тот, кто создал.
+   */
+  const commit = async (local: string, ext: string): Promise<string> => {
+    if (ks) return kusokKey((await ks.putFile(local)).id);
+    const key = newFileKey(ext);
+    await fs.copyFile(local, join(root, key));
+    return key;
   };
 
   const probe = async (file: string): Promise<{ width: number | null; height: number | null; duration: number | null; hasVideo: boolean }> => {
@@ -206,44 +257,59 @@ export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore
     await sharp(input.path, { animated: false }).rotate().resize(960, 960, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 80, mozjpeg: true }).toFile(join(root, thumb));
     // Анимацию (GIF) и PNG с прозрачностью не пережимаем в JPEG.
     const keep = animated || meta.format === 'gif' || (meta.format === 'png' && meta.hasAlpha);
-    let storage: string;
     let mime: string;
     let width = (swap ? meta.height : meta.width) ?? null;
     let height = (swap ? meta.width : meta.height) ?? null;
     let outName = name;
-    if (keep) {
-      storage = newFileKey(meta.format === 'gif' ? 'gif' : 'png');
-      if (meta.format === 'png') await sharp(input.path).rotate().png().toFile(join(root, storage));
-      else await fs.copyFile(input.path, join(root, storage));
-      mime = meta.format === 'gif' ? 'image/gif' : 'image/png';
-    } else {
-      storage = newFileKey('jpg');
-      const info = await sharp(input.path).rotate().resize(2560, 2560, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 85, mozjpeg: true }).toFile(join(root, storage));
-      width = info.width;
-      height = info.height;
-      mime = 'image/jpeg';
-      outName = fileExtension(name) === 'jpg' || fileExtension(name) === 'jpeg' ? name : `${name.replace(/\.[^.]+$/, '')}.jpg`;
+    let ext: string;
+    // Готовый оригинал — во временном файле, оттуда в kusok или files/.
+    let ready = input.path;
+    let made: string | null = null;
+    try {
+      if (keep) {
+        ext = meta.format === 'gif' ? 'gif' : 'png';
+        if (meta.format === 'png') {
+          made = tmpFile('png');
+          await sharp(input.path).rotate().png().toFile(made);
+          ready = made;
+        }
+        mime = meta.format === 'gif' ? 'image/gif' : 'image/png';
+      } else {
+        ext = 'jpg';
+        made = tmpFile('jpg');
+        const info = await sharp(input.path).rotate().resize(2560, 2560, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 85, mozjpeg: true }).toFile(made);
+        ready = made;
+        width = info.width;
+        height = info.height;
+        mime = 'image/jpeg';
+        outName = fileExtension(name) === 'jpg' || fileExtension(name) === 'jpeg' ? name : `${name.replace(/\.[^.]+$/, '')}.jpg`;
+      }
+      const size = await fileSize(ready);
+      const storage = await commit(ready, ext);
+      return { kind: 'photo', name: safeFileName(outName), mime, size, storage_key: storage, thumb_key: thumb, width, height, duration: null, waveform: null };
+    } finally {
+      if (made) await fs.rm(made, { force: true });
     }
-    return { kind: 'photo', name: safeFileName(outName), mime, size: await fileSize(join(root, storage)), storage_key: storage, thumb_key: thumb, width, height, duration: null, waveform: null };
   };
 
   /** Сохранить загруженный файл как есть (документ или медиа без обработки). */
   const keepOriginal = async (input: UploadInput, name: string, kind: MediaKind): Promise<ProcessedUpload> => {
-    const storage = newFileKey(fileExtension(name));
-    await fs.copyFile(input.path, join(root, storage));
+    const storage = await commit(input.path, fileExtension(name));
     return { kind, name, mime: guessMime(name, input.mime), size: input.size, storage_key: storage, thumb_key: null, width: null, height: null, duration: null, waveform: null };
   };
 
   const processVideo = async (input: UploadInput, name: string): Promise<ProcessedUpload> => {
-    const out = await keepOriginal(input, name, 'video');
-    if (!(await hasFfmpeg())) return out;
-    try {
-      const p = await probe(join(root, out.storage_key));
-      if (!p.hasVideo) return { ...out, kind: 'file' };
-      return { ...out, width: p.width, height: p.height, duration: p.duration, thumb_key: await poster(join(root, out.storage_key), p.duration) };
-    } catch {
-      return out;
+    // Размеры и обложку читаем из загруженного файла, пока он ещё на диске.
+    let extra: Partial<ProcessedUpload> = {};
+    if (await hasFfmpeg()) {
+      try {
+        const p = await probe(input.path);
+        extra = p.hasVideo ? { width: p.width, height: p.height, duration: p.duration, thumb_key: await poster(input.path, p.duration) } : { kind: 'file' };
+      } catch {
+        extra = {};
+      }
     }
+    return { ...(await keepOriginal(input, name, 'video')), ...extra };
   };
 
   /**
@@ -258,8 +324,7 @@ export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore
       return { ...out, duration: clientDuration, waveform: kind === 'voice' ? clientWave : null };
     }
     const outExt = kind === 'voice' ? 'm4a' : 'mp4';
-    const storage = newFileKey(outExt);
-    const target = join(root, storage);
+    const target = tmpFile(outExt);
     const args =
       kind === 'voice'
         ? ['-y', '-v', 'error', '-i', input.path, '-vn', '-ac', '1', '-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', target]
@@ -277,28 +342,89 @@ export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore
       const out = await keepOriginal(input, name, kind);
       return { ...out, duration: clientDuration, waveform: kind === 'voice' ? clientWave : null };
     }
-    const p = await probe(target).catch(() => null);
-    const base = safeFileName(`${name.replace(/\.[^.]+$/, '')}.${outExt}`);
-    return {
-      kind,
-      name: base,
-      mime: kind === 'voice' ? 'audio/mp4' : 'video/mp4',
-      size: await fileSize(target),
-      storage_key: storage,
-      thumb_key: kind === 'video_note' ? await poster(target, p?.duration ?? null) : null,
-      width: kind === 'video_note' ? 480 : null,
-      height: kind === 'video_note' ? 480 : null,
-      duration: p?.duration ?? clientDuration,
-      waveform: kind === 'voice' ? (clientWave ?? (await waveOf(target))) : null,
-    };
+    try {
+      const p = await probe(target).catch(() => null);
+      const base = safeFileName(`${name.replace(/\.[^.]+$/, '')}.${outExt}`);
+      const thumb = kind === 'video_note' ? await poster(target, p?.duration ?? null) : null;
+      const waveform = kind === 'voice' ? (clientWave ?? (await waveOf(target))) : null;
+      const size = await fileSize(target);
+      return {
+        kind,
+        name: base,
+        mime: kind === 'voice' ? 'audio/mp4' : 'video/mp4',
+        size,
+        storage_key: await commit(target, outExt),
+        thumb_key: thumb,
+        width: kind === 'video_note' ? 480 : null,
+        height: kind === 'video_note' ? 480 : null,
+        duration: p?.duration ?? clientDuration,
+        waveform,
+      };
+    } finally {
+      await fs.rm(target, { force: true });
+    }
+  };
+
+  const each = (keys: (string | null | undefined)[], fn: (id: string) => void) => {
+    if (!ks) return;
+    for (const k of keys) if (isKusokKey(k)) fn(kusokId(k));
   };
 
   return {
     root,
     tmpDir: dirs.tmp,
     maxBytes: cfg.maxBytes,
+    blobs: ks ? 'kusok' : 'fs',
+    kusok: ks,
     hasFfmpeg,
     pathOf,
+
+    openBlob(k) {
+      if (!ks || !isKusokKey(k)) return null;
+      const id = kusokId(k);
+      let size: number;
+      try {
+        size = ks.size(id);
+      } catch {
+        return null; // нет такого файла (ENOTFOUND)
+      }
+      return { id, size, stream: (start, end) => kusokStream(ks, id, start, end) };
+    },
+
+    async materialize(k) {
+      if (isKusokKey(k)) {
+        const blob = this.openBlob(k);
+        if (!blob) return null;
+        const path = tmpFile('bin');
+        try {
+          await fs.writeFile(path, blob.size ? blob.stream(0, blob.size - 1) : '');
+        } catch (e) {
+          await fs.rm(path, { force: true });
+          throw e;
+        }
+        return { path, done: () => fs.rm(path, { force: true }) };
+      }
+      const p = pathOf(k);
+      return p && existsSync(p) ? { path: p, done: async () => undefined } : null;
+    },
+
+    retain(keys) {
+      each(keys, (id) => ks!.ref(id));
+    },
+
+    release(keys) {
+      each(keys, (id) => {
+        try {
+          ks!.unref(id);
+        } catch {
+          // файла уже нет — ночная сверка сообщит, если это не случайность
+        }
+      });
+    },
+
+    close() {
+      ks?.close();
+    },
 
     async process(input) {
       const name = safeFileName(input.originalName);

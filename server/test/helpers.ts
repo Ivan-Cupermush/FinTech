@@ -8,10 +8,11 @@ import { DEMO_PASSWORD, seedDemo, type DemoIds } from '../src/seed/demo';
 import { fakeSystemsFetch } from '../src/seed/fake-systems';
 import type { FetchLike } from '../src/services/integrations';
 import type { Realtime } from '../src/realtime/hub';
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createMediaStore, type MediaStore } from '../src/services/media';
+import { isKusokKey, kusokId } from '../src/services/blobs';
 import type { MediaCtx } from '../src/services/attachments';
 import type { AiProvider } from '../src/services/ai';
 import { createKnowledgeService, type KnowledgeService } from '../src/services/knowledge';
@@ -54,14 +55,56 @@ const EMAILS: Record<keyof DemoIds['users'], string> = {
   observer: 'rector@offix.demo',
 };
 
+/**
+ * Где тесты хранят оригиналы: OFFIX_TEST_BLOBS=kusok — в kusok (CI гоняет
+ * так файловые тесты второй раз), иначе в папке files/.
+ */
+export const testBlobs = (): 'fs' | 'kusok' => (process.env.OFFIX_TEST_BLOBS === 'kusok' ? 'kusok' : 'fs');
+
+/**
+ * Удалённые строки отпустили файл: в files/ — файл стёрт с диска; в kusok —
+ * ссылок ровно столько, сколько строк с этим ключом осталось (одинаковый файл
+ * мог загрузить кто-то ещё, тогда он живёт дальше — это и есть дедупликация).
+ */
+export async function blobGone(ctx: { store: MediaStore; db: Db }, key: string): Promise<boolean> {
+  if (!isKusokKey(key)) return !existsSync(ctx.store.pathOf(key)!);
+  const rows = (await ctx.db.query(`SELECT 1 FROM attachments WHERE storage_key = $1`, [key])).rows.length;
+  try {
+    return ctx.store.kusok!.refs(kusokId(key)) === rows;
+  } catch {
+    return rows === 0;
+  }
+}
+
+/** Файл на месте: в files/ — лежит на диске, в kusok — на него есть ссылки. */
+export function blobHeld(store: MediaStore, key: string): boolean {
+  if (!isKusokKey(key)) return existsSync(store.pathOf(key)!);
+  try {
+    return store.kusok!.refs(kusokId(key)) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Байты оригинала, где бы он ни лежал. */
+export async function blobBytes(store: MediaStore, key: string): Promise<Buffer> {
+  const f = await store.materialize(key);
+  if (!f) throw new Error(`нет файла ${key}`);
+  try {
+    return readFileSync(f.path);
+  } finally {
+    await f.done();
+  }
+}
+
 export async function setup(
-  opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date; ai?: AiProvider } = {},
+  opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date; ai?: AiProvider; blobs?: 'fs' | 'kusok' } = {},
 ): Promise<Ctx> {
   const db = await createPgliteDb();
   await migrate(db);
   const demo = await seedDemo(db, { now: NOW });
   const now = opts.now ?? (() => NOW);
-  const uploads = { dir: mkdtempSync(join(tmpdir(), 'offix-test-uploads-')), maxBytes: opts.maxUploadBytes ?? 200 * 1024 * 1024, ffmpegDir: opts.ffmpeg === false ? null : undefined };
+  const uploads = { dir: mkdtempSync(join(tmpdir(), 'offix-test-uploads-')), maxBytes: opts.maxUploadBytes ?? 200 * 1024 * 1024, ffmpegDir: opts.ffmpeg === false ? null : undefined, store: opts.blobs ?? testBlobs() };
   const store = createMediaStore(uploads, SECRET);
   const knowledge = createKnowledgeService(db, store, { provider: opts.ai, now, onError: () => undefined });
   const app = createApp({

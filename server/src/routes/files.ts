@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, promises as fs } from 'node:fs';
-import { Router, type Request } from 'express';
+import { pipeline } from 'node:stream/promises';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { formatBytes, isBlockedFile, isWaveform, type Attachment, type AvatarEntry } from '@offix/core';
 import { actorOf, type AuthedActor } from '../auth/auth';
@@ -86,6 +87,47 @@ export async function canViewShare(q: Queryable, actor: AuthedActor, shareId: st
 const SAFE_NAME = /^[0-9a-f]{32}\.jpg$/;
 
 /**
+ * Оригинал из kusok: как sendFile, только байты читаются из хранилища.
+ * Браузер просит куски (Range) при перемотке видео и листании PDF — отвечаем
+ * 206 с нужным куском; id — SHA-256 содержимого, поэтому он же и ETag.
+ */
+export function sendBlob(req: Request, res: Response, blob: NonNullable<ReturnType<MediaStore['openBlob']>>, type: string) {
+  const etag = `"${blob.id}"`;
+  res.setHeader('Content-Type', type);
+  // no-transform: сжатие (compression) не трогает ответ, иначе куски по Range не сойдутся с размером.
+  res.setHeader('Cache-Control', 'private, max-age=600, no-transform');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('ETag', etag);
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end();
+    return;
+  }
+  let start = 0;
+  let end = blob.size - 1;
+  // If-Range с другим ETag — файл уже не тот: отдаём целиком.
+  const ifRange = req.headers['if-range'];
+  const ranges = req.headers.range && (!ifRange || ifRange === etag) ? req.range(blob.size, { combine: true }) : undefined;
+  if (ranges === -1) {
+    res.status(416).setHeader('Content-Range', `bytes */${blob.size}`).end();
+    return;
+  }
+  // Несколько кусков сразу браузеры для медиа не просят — тогда отдаём файл целиком.
+  if (ranges && ranges !== -2 && ranges.type === 'bytes' && ranges.length === 1) {
+    start = ranges[0]!.start;
+    end = ranges[0]!.end;
+    res.status(206).setHeader('Content-Range', `bytes ${start}-${end}/${blob.size}`);
+  }
+  res.setHeader('Content-Length', String(blob.size ? end - start + 1 : 0));
+  if (req.method === 'HEAD' || !blob.size) {
+    res.end();
+    return;
+  }
+  pipeline(blob.stream(start, end), res).catch(() => {
+    // клиент закрыл соединение посреди файла (перемотал видео) — это не ошибка
+  });
+}
+
+/**
  * Отдача файлов без заголовка Authorization — `<img>` и `<video>` его не
  * шлют. Превью и аватары — по случайному имени; оригиналы — по подписанной
  * ссылке на 10–20 минут, пока человек активен. Отдаём с запретом исполнять
@@ -116,13 +158,19 @@ export function filesPublicRouter(db: Db, store: MediaStore, now: () => Date): R
     );
     const a = rows[0];
     if (!a || !a.active) throw notFound('Файл не найден');
-    const p = store.pathOf(a.storage_key);
-    if (!p || !existsSync(p)) throw notFound('Файл не найден');
+    const blob = store.openBlob(a.storage_key);
+    const p = blob ? null : store.pathOf(a.storage_key);
+    if (!blob && (!p || !existsSync(p))) throw notFound('Файл не найден');
     const inline = inlineMime(a.mime) && req.query.download !== '1';
+    const type = inline ? a.mime : 'application/octet-stream';
     res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Content-Disposition', contentDisposition(inline ? 'inline' : 'attachment', a.name));
-    res.sendFile(p, { headers: { 'Content-Type': inline ? a.mime : 'application/octet-stream', 'Cache-Control': 'private, max-age=600' }, dotfiles: 'deny', acceptRanges: true });
+    if (!blob) {
+      res.sendFile(p!, { headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=600, no-transform' }, dotfiles: 'deny', acceptRanges: true });
+      return;
+    }
+    sendBlob(req, res, blob, type);
   });
 
   return r;

@@ -12,3 +12,6 @@ mobile/ios/
 mobile/android/
 *.tsbuildinfo
 server/data/
+
+# Сборки kusok (native/kusok): npm run kusok:build / kusok:test
+native/kusok/build*/

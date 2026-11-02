@@ -8,7 +8,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Attachment, ChatGallery, ChatHistory, ChatMessage, ChatStats, ChatSummary } from '@offix/core';
 import { sweepDrafts } from '../src/services/attachments';
 import { reportPdf, speechLike, wav } from '../src/seed/demo-media';
-import { NOW, recordingRealtime, setup, type Ctx } from './helpers';
+import { NOW, blobBytes, blobGone, blobHeld, recordingRealtime, setup, type Ctx } from './helpers';
 
 type Who = keyof Ctx['demo']['users'];
 const API = '/api/v1';
@@ -98,8 +98,7 @@ describe('загрузка файлов', () => {
     const a = await uploaded('anna', withExif, 'IMG_0001.JPG', 'image/jpeg');
     // Ориентация 6 — снимок повёрнут: ширина и высота меняются местами.
     expect([a.width, a.height]).toEqual([200, 300]);
-    const p = ctx.store.pathOf((await diskOf(a)).storage_key)!;
-    const meta = await sharp(p).metadata();
+    const meta = await sharp(await blobBytes(ctx.store, (await diskOf(a)).storage_key)).metadata();
     expect(meta.exif).toBeUndefined();
     expect(meta.orientation ?? 1).toBe(1);
   });
@@ -228,7 +227,7 @@ describe('черновики', () => {
     const { storage_key, thumb_key } = await diskOf(a);
     expect((await (await ctx.as('olga')).delete(`${API}/files/${a.id}`)).status).toBe(404);
     expect((await (await ctx.as('anna')).delete(`${API}/files/${a.id}`)).status).toBe(204);
-    expect(existsSync(ctx.store.pathOf(storage_key)!)).toBe(false);
+    expect(await blobGone(ctx, storage_key)).toBe(true);
     expect(existsSync(ctx.store.pathOf(thumb_key!)!)).toBe(false);
   });
 
@@ -237,7 +236,7 @@ describe('черновики', () => {
     const { storage_key } = await diskOf(a);
     expect(await sweepDrafts(ctx.db, ctx.store, new Date(NOW.getTime() + 2 * 3_600_000))).toBe(0);
     expect(await sweepDrafts(ctx.db, ctx.store, new Date(NOW.getTime() + 25 * 3_600_000))).toBeGreaterThanOrEqual(1);
-    expect(existsSync(ctx.store.pathOf(storage_key)!)).toBe(false);
+    expect(await blobGone(ctx, storage_key)).toBe(true);
   });
 });
 
@@ -304,7 +303,7 @@ describe('медиа в чате', () => {
     const { storage_key } = await diskOf(a);
     expect((await (await ctx.as('anna')).delete(`${API}/messages/${m.id}?for=all`)).status).toBe(204);
     expect((await (await ctx.as('olga')).get(`${API}/files/${a.id}`)).status).toBe(404);
-    expect(existsSync(ctx.store.pathOf(storage_key)!)).toBe(false);
+    expect(await blobGone(ctx, storage_key)).toBe(true);
     expect((await raw(m.attachments[0]!.url)).status).toBe(404);
   });
 
@@ -347,7 +346,7 @@ describe('медиа в чате', () => {
     expect(copy.attachments[0]!.id).not.toBe(a.id);
     const { storage_key } = await diskOf(a);
     await (await ctx.as('anna')).delete(`${API}/messages/${m.id}?for=all`);
-    expect(existsSync(ctx.store.pathOf(storage_key)!)).toBe(true);
+    expect(blobHeld(ctx.store, storage_key)).toBe(true);
     const mariaView = await (await ctx.as('maria')).get(`${API}/files/${copy.attachments[0]!.id}`);
     expect(mariaView.status).toBe(200);
     expect((await raw(mariaView.body.data.url)).status).toBe(200);
@@ -366,7 +365,7 @@ describe('медиа в чате', () => {
     await sent('anna', r.body.data.id, { attachment_ids: [a.id] });
     const { storage_key } = await diskOf(a);
     expect((await (await ctx.as('anna')).delete(`${API}/chats/${r.body.data.id}`)).status).toBe(204);
-    expect(existsSync(ctx.store.pathOf(storage_key)!)).toBe(false);
+    expect(await blobGone(ctx, storage_key)).toBe(true);
     expect((await ctx.db.query(`SELECT 1 FROM attachments WHERE id = $1`, [a.id])).rows).toHaveLength(0);
   });
 });

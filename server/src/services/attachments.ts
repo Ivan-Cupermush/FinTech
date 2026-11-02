@@ -2,6 +2,7 @@ import type { Attachment, MediaKind } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { invalid } from '../http/errors';
+import { isKusokKey } from './blobs';
 import { ATT_COLS, serializeAttachment, type AttachmentRow, type MediaStore } from './media';
 
 /** note — личная заметка, note_share — снимок заметки, отправленной в чат, kb_doc — документ базы знаний. */
@@ -58,19 +59,31 @@ export async function claimDrafts(
   return ordered;
 }
 
-/** Пересылка: новые записи на те же файлы — исходник можно удалить, копия останется. */
-export async function copyAttachments(q: Queryable, from: { type: OwnerType; id: string }, to: { type: OwnerType; id: string }, uploaderId: string): Promise<void> {
-  await q.query(
+/**
+ * Пересылка: новые записи на те же файлы — исходник можно удалить, копия
+ * останется. Файл в kusok получает по ссылке на каждую копию.
+ */
+export async function copyAttachments(
+  q: Queryable,
+  store: MediaStore,
+  from: { type: OwnerType; id: string },
+  to: { type: OwnerType; id: string },
+  uploaderId: string,
+): Promise<void> {
+  const { rows } = await q.query<{ storage_key: string }>(
     `INSERT INTO attachments (company_id, uploaded_by, owner_type, owner_id, position, kind, name, mime, size, storage_key, thumb_key, width, height, duration, waveform)
      SELECT company_id, $4, $3, $5, position, kind, name, mime, size, storage_key, thumb_key, width, height, duration, waveform
-       FROM attachments WHERE owner_type = $1 AND owner_id = $2`,
+       FROM attachments WHERE owner_type = $1 AND owner_id = $2
+     RETURNING storage_key`,
     [from.type, from.id, to.type, uploaderId, to.id],
   );
+  store.retain(rows.map((r) => r.storage_key));
 }
 
 /**
- * Удалить вложения владельцев. Файл на диске стирается, когда на него больше
- * не ссылается ни одна запись (пересланная копия держит файл).
+ * Удалить вложения владельцев. Файл в kusok теряет по ссылке на каждую
+ * удалённую запись; файл в files/ стирается, когда на него больше не
+ * ссылается ни одна запись (пересланная копия держит файл).
  */
 export async function deleteAttachments(q: Queryable, store: MediaStore, where: { type: OwnerType; ids: string[] } | { attachmentIds: string[] }): Promise<number> {
   const { rows } =
@@ -81,9 +94,10 @@ export async function deleteAttachments(q: Queryable, store: MediaStore, where: 
           where.ids,
         ]);
   if (!rows.length) return 0;
-  const keys = [...new Set(rows.map((r) => r.storage_key))];
+  store.release(rows.map((r) => r.storage_key));
+  const keys = [...new Set(rows.map((r) => r.storage_key).filter((k) => !isKusokKey(k)))];
   const still = new Set(
-    (await q.query<{ storage_key: string }>(`SELECT DISTINCT storage_key FROM attachments WHERE storage_key = ANY($1::text[])`, [keys])).rows.map((r) => r.storage_key),
+    !keys.length ? [] : (await q.query<{ storage_key: string }>(`SELECT DISTINCT storage_key FROM attachments WHERE storage_key = ANY($1::text[])`, [keys])).rows.map((r) => r.storage_key),
   );
   const thumbs = [...new Set(rows.map((r) => r.thumb_key).filter((t): t is string => !!t))];
   const thumbsStill = new Set(
