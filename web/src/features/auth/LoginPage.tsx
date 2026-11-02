@@ -40,7 +40,11 @@ export function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   // Песочница для жюри: сервер запущен с OFFIX_SANDBOX=1. Иначе — null, и страница как обычно.
-  const sandbox = useSandbox().data ?? null;
+  const sandboxQuery = useSandbox();
+  const sandbox = sandboxQuery.data ?? null;
+  // Пока не знаем, песочница ли это, не показываем ни демо-людей, ни карточку:
+  // иначе на сервере жюри на секунду мелькают чужие сотрудники.
+  const checking = sandboxQuery.isPending;
 
   if (token) return <Navigate to={next} replace />;
 
@@ -77,7 +81,7 @@ export function LoginPage() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
 
   return (
-    <div className={`auth ${sandbox ? 'is-sandbox' : ''}`}>
+    <div className={`auth ${sandbox ? 'is-sandbox' : ''} ${checking ? 'is-checking' : ''}`} aria-busy={checking || undefined}>
       <div className="auth-form">
         <Link to="/" aria-label="На главную">
           <Logo size={30} />
@@ -151,7 +155,7 @@ export function LoginPage() {
           )}
         </form>
         )}
-        {mode === 'login' && !byQr && !sandbox && (
+        {mode === 'login' && !byQr && !sandbox && !checking && (
           <div className="stack" style={{ '--gap': '10px' } as React.CSSProperties}>
             <div className="eyebrow">Демо — войти как</div>
             <div className="demo-people">

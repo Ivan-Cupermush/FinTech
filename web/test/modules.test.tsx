@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CompanyModules, SandboxInfo } from '@offix/core';
 import type { Dashboard, Me } from '../src/lib/types';
 import { TODAY } from './fixtures';
-import { mockApi, renderApp } from './render';
+import { apiError, mockApi, renderApp } from './render';
 
 const ALL_ON: CompanyModules = { sales: true, chats: true, knowledge_ai: true, my_notes: true, integrations: true };
 const UNI: CompanyModules = { ...ALL_ON, sales: false };
@@ -48,9 +48,9 @@ describe('песочница на странице входа', () => {
   it('без песочницы карточки нет, и поле — «Почта»', async () => {
     mockApi({ 'GET /auth/sandbox': { enabled: false, company_name: null, people: [] } });
     renderApp('/login', { token: null });
-    expect(await screen.findByLabelText('Почта')).toBeInTheDocument();
+    expect(await screen.findByText('Демо — войти как')).toBeInTheDocument();
+    expect(screen.getByLabelText('Почта')).toBeInTheDocument();
     expect(screen.queryByText('Песочница для жюри')).not.toBeInTheDocument();
-    expect(screen.getByText('Демо — войти как')).toBeInTheDocument();
   });
 
   it('в песочнице — люди с логинами и паролями, щелчок входит', async () => {
@@ -64,6 +64,26 @@ describe('песочница на странице входа', () => {
     await userEvent.click(screen.getByRole('button', { name: /Войти: Анна Заявкина/ }));
     await waitFor(() => expect(calls.find((c) => c.path === '/auth/login')?.body).toEqual({ email: 'spec', password: 'spec' }));
     await waitFor(() => expect(localStorage.getItem('offix.token')).toBe('sbx-token'));
+  });
+
+  it('пока сервер не ответил про песочницу, демо-люди не мелькают', async () => {
+    let answer!: (v: unknown) => void;
+    mockApi({ 'GET /auth/sandbox': () => new Promise((r) => (answer = r)) });
+    const { container } = renderApp('/login', { token: null });
+    await waitFor(() => expect(container.querySelector('.auth.is-checking')).not.toBeNull());
+    expect(screen.queryByText('Демо — войти как')).not.toBeInTheDocument();
+    expect(screen.queryByText('Алексей Петров')).not.toBeInTheDocument();
+    answer(SANDBOX);
+    expect(await screen.findByText('Песочница для жюри')).toBeInTheDocument();
+    expect(container.querySelector('.auth.is-checking')).toBeNull();
+    expect(screen.queryByText('Демо — войти как')).not.toBeInTheDocument();
+  });
+
+  it('если сервер про песочницу не ответил, обычный вход с демо-людьми', async () => {
+    mockApi({ 'GET /auth/sandbox': () => apiError(500, 'нет') });
+    renderApp('/login', { token: null });
+    expect(await screen.findByText('Демо — войти как')).toBeInTheDocument();
+    expect(screen.queryByText('Песочница для жюри')).not.toBeInTheDocument();
   });
 
   it('логин без почты проходит проверку формы', async () => {

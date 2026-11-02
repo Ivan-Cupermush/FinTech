@@ -152,7 +152,8 @@ export default function Login() {
             )}
             <Button title="Войти" onPress={() => run('form', email, password)} loading={busy === 'form'} icon={<ArrowRight size={18} color={p.bg} />} />
           </View>
-          {people.length === 0 && (
+          {/* Пока не ясно, песочница ли это, демо-людей не показываем: иначе они мелькают. */}
+          {people.length === 0 && !sandbox.isPending && (
           <View style={{ gap: 10 }}>
             <Text variant="eyebrow" tone="faint">
               Демо-университет · вход в один тап
