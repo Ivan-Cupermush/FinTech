@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { canChangeFunctions, DELEGABLE_KEYS, functionDetails, functionInfo, managersOf, planFunctionChange, type DelegableFunction } from '@offix/core';
+import { canChangeFunctions, DELEGABLE_KEYS, functionDetails, functionInfo, hiddenFunctions, managersOf, MODULES, planFunctionChange, type DelegableFunction, type FunctionDetail } from '@offix/core';
 import { actorOf } from '../auth/auth';
 import type { Db } from '../db/db';
 import { forbidden, invalid, notFound } from '../http/errors';
@@ -8,6 +8,7 @@ import { idParam, parseBody } from '../http/validate';
 import type { Realtime } from '../realtime/hub';
 import { audit } from '../services/audit';
 import { loadDelegation } from '../services/functions';
+import { loadModules, moduleDisabled } from '../services/modules';
 import { inbox } from '../services/notify';
 
 const changesSchema = z.object({
@@ -21,11 +22,16 @@ const changesSchema = z.object({
  */
 export function functionsRouter(db: Db, rt: Realtime): Router {
   const r = Router();
+  /** Функции выключенных разделов компании (продажи и т. п.) не показываем. */
+  const visible = async (companyId: string, list: FunctionDetail[]) => {
+    const hidden = hiddenFunctions(await loadModules(db, companyId));
+    return list.filter((f) => !hidden.has(f.key));
+  };
 
   r.get('/me', async (req, res) => {
     const actor = actorOf(req);
     const ctx = await loadDelegation(db, actor.company_id);
-    res.json({ data: { functions: functionDetails(ctx, actor.id), can_change: false, reason: canChangeFunctions(ctx, actor.id, actor.id) } });
+    res.json({ data: { functions: await visible(actor.company_id, functionDetails(ctx, actor.id)), can_change: false, reason: canChangeFunctions(ctx, actor.id, actor.id) } });
   });
 
   r.get('/users/:id', async (req, res) => {
@@ -36,7 +42,7 @@ export function functionsRouter(db: Db, rt: Realtime): Router {
     const admin = actor.role === 'owner' || actor.role === 'admin';
     if (id !== actor.id && !admin && !managersOf(ctx.units, ctx.memberships, id).has(actor.id)) throw notFound('Сотрудник не найден');
     const reason = canChangeFunctions(ctx, actor.id, id);
-    res.json({ data: { functions: functionDetails(ctx, id), can_change: reason === null, reason } });
+    res.json({ data: { functions: await visible(actor.company_id, functionDetails(ctx, id)), can_change: reason === null, reason } });
   });
 
   /** { changes: { kpi_record: true, knowledge_manage: null } } — включить, отключить или вернуть «по должности». */
@@ -45,6 +51,9 @@ export function functionsRouter(db: Db, rt: Realtime): Router {
     const id = idParam(req.params.id);
     const { changes } = parseBody(changesSchema, req.body);
     if (!Object.keys(changes).length) throw invalid('Нечего менять', { changes: 'Выберите функцию' });
+    const hidden = hiddenFunctions(await loadModules(db, actor.company_id));
+    const blocked = (Object.keys(changes) as DelegableFunction[]).find((fn) => hidden.has(fn));
+    if (blocked) throw moduleDisabled(MODULES.find((m) => m.functions.includes(blocked))!.key);
     const box = inbox();
     const data = await db.tx(async (q) => {
       const ctx = await loadDelegation(q, actor.company_id);
@@ -90,7 +99,7 @@ export function functionsRouter(db: Db, rt: Realtime): Router {
           actor.id,
         );
       }
-      return { functions: after, can_change: true, reason: null };
+      return { functions: after.filter((f) => !hidden.has(f.key)), can_change: true, reason: null };
     });
     box.flush(rt, actor.company_id);
     res.json({ data });

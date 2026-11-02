@@ -1,6 +1,6 @@
 import { loadConfig, loadDotEnv } from '../config';
 import { migrate } from '../db/migrate';
-import { createPgDb } from '../db/pg';
+import { openDb } from '../db/open';
 import { DEMO_PASSWORD, seedDemo } from './demo';
 import { seedDemoPersonal } from './demo-personal';
 import { seedDemoTaskFlow } from './demo-task-flow';
@@ -12,7 +12,7 @@ import { createMediaStore } from '../services/media';
 
 loadDotEnv();
 const config = loadConfig();
-const db = createPgDb(config.databaseUrl);
+const db = await openDb(config.databaseUrl);
 await migrate(db);
 const exists = await db.query(`SELECT 1 FROM users WHERE email = 'director@offix.demo'`);
 if (exists.rows.length) {

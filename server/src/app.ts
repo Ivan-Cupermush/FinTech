@@ -29,6 +29,9 @@ import { pushRouter } from './routes/push';
 import { roadmapRouter } from './routes/roadmap';
 import { tasksRouter } from './routes/tasks';
 import { functionsRouter } from './routes/functions';
+import { companyRouter } from './routes/company';
+import { requireModule } from './services/modules';
+import { sandboxGuard, sandboxInfo } from './seed/sandbox';
 import { templatesRouter } from './routes/templates';
 import { usersRouter } from './routes/users';
 import { accountRouter } from './routes/account';
@@ -42,7 +45,7 @@ import { aiProviderFromEnv } from './services/ai';
 
 export interface AppOptions {
   db: Db;
-  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'>; uploads?: UploadsConfig; webDist?: string | null };
+  config: Pick<Config, 'jwtSecret' | 'corsOrigins'> & { mail?: Pick<Config['mail'], 'enabled'>; uploads?: UploadsConfig; webDist?: string | null; sandbox?: boolean };
   now?: () => Date;
   rateLimit?: boolean;
   /** Запросы интеграций в 1С и Moodle; в тестах и демо — поддельные системы. */
@@ -118,13 +121,21 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   const v1 = express.Router();
   // Вход по QR опрашивается часто — свой лимит, до общего лимита /auth.
   v1.use('/auth/qr', qrPublicRouter(db, config.jwtSecret, now, { rateLimit }));
-  v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit }));
+  // Песочница: список готовых входов для страницы входа. Без OFFIX_SANDBOX — пусто.
+  v1.get('/auth/sandbox', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ data: config.sandbox ? await sandboxInfo(db) : { enabled: false, company_name: null, people: [] } });
+  });
+  // В песочнице жюри часто входит и выходит с одного адреса — лимит попыток выше.
+  v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit, loginLimit: config.sandbox ? 120 : 30 }));
   // Файлы по подписанной ссылке и превью — без заголовка Authorization (<img>, <video>).
   v1.use('/files', filesPublicRouter(db, store, now));
   v1.use(requireAuth(db, config.jwtSecret));
+  if (config.sandbox) v1.use(sandboxGuard(db));
   const mediaCtx = { store, now };
   v1.use('/files', filesRouter(db, mediaCtx, realtime));
   v1.use('/users', usersRouter(db, realtime));
+  v1.use('/company', companyRouter(db, realtime));
   v1.use('/functions', functionsRouter(db, realtime));
   v1.use('/account', accountRouter(db, config.jwtSecret, now, realtime));
   v1.use('/contacts', contactsRouter(db, realtime));
@@ -138,13 +149,13 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/templates', templatesRouter(db, now));
   v1.use('/discussions', discussionsRouter(db, mediaCtx));
   v1.use('/notes', notesRouter(db));
-  v1.use('/knowledge', knowledgeRouter(db, mediaCtx, kb, { rateLimit }));
-  v1.use('/integrations', integrationsRouter(db, now, integrationFetch));
-  v1.use('/sales', salesRouter(db, mediaCtx));
+  v1.use('/knowledge', requireModule(db, 'knowledge_ai'), knowledgeRouter(db, mediaCtx, kb, { rateLimit }));
+  v1.use('/integrations', requireModule(db, 'integrations'), integrationsRouter(db, now, integrationFetch));
+  v1.use('/sales', requireModule(db, 'sales'), salesRouter(db, mediaCtx));
   const chatDeps = { db, now, rt: realtime, media: mediaCtx, onMessage: messagePush ? messagePushHook(db, messagePush, realtime, now) : undefined };
-  v1.use('/chats', chatsRouter(chatDeps));
-  v1.use('/messages', messagesRouter(chatDeps));
-  v1.use('/my-notes', myNotesRouter(chatDeps));
+  v1.use('/chats', requireModule(db, 'chats'), chatsRouter(chatDeps));
+  v1.use('/messages', requireModule(db, 'chats'), messagesRouter(chatDeps));
+  v1.use('/my-notes', requireModule(db, 'my_notes'), myNotesRouter(chatDeps));
   v1.use('/', roadmapRouter(db, now));
   app.use('/api/v1', v1);
   app.use('/api', (_req, _res, next) => next(notFound('Метод не найден')));

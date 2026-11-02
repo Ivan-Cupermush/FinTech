@@ -22,7 +22,7 @@ export interface DemoIds {
   chats: DemoChats;
 }
 
-type DemoUser = 'director' | 'olga' | 'anna' | 'igor' | 'dima' | 'maria' | 'sergey' | 'elena' | 'observer';
+export type DemoUser = 'director' | 'olga' | 'anna' | 'igor' | 'dima' | 'maria' | 'sergey' | 'elena' | 'observer';
 
 const PEOPLE: Record<DemoUser, { name: string; email: string; position: string; role: string }> = {
   director: { name: 'Алексей Петров', email: 'director@offix.demo', position: 'Проректор по цифровой трансформации', role: 'owner' },
