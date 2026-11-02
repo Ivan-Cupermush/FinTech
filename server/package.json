@@ -12,9 +12,11 @@
     "migrate": "tsx src/db/migrate-cli.ts",
     "seed": "tsx src/seed/cli.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start:sandbox": "OFFIX_SANDBOX=1 NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.10",
     "@offix/core": "*",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
@@ -33,7 +35,6 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.10",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",

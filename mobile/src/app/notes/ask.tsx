@@ -11,13 +11,14 @@ import { Glass } from '../../ui/fx/Glass';
 import { PageHero } from '../../ui/fx/PageHero';
 import { AnswerView, AssistantMark, QuestionBubble } from '../../ui/knowledge';
 import { Card, Empty, NO_WEB_OUTLINE, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 /**
  * Помощник базы знаний: вопрос словами — ответ со ссылками на статьи и
  * документы, которые сотруднику можно видеть. Вопрос из строки на экране
  * базы знаний приходит параметром q и задаётся сразу.
  */
-export default function AskScreen() {
+function AskScreen() {
   const params = useLocalSearchParams<{ q?: string; session?: string }>();
   const p = usePalette();
   const insets = useSafeAreaInsets();
@@ -202,3 +203,6 @@ export default function AskScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('knowledge_ai', AskScreen);

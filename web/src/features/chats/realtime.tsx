@@ -187,6 +187,12 @@ export function ChatRealtimeProvider({ meId, children }: { meId: string | undefi
         if (p.user_id === meId) void qc.invalidateQueries({ queryKey: ['me'] });
         refreshList();
       },
+      // Владелец включил или выключил разделы в «Функциях компании» — меню и экраны перестраиваются.
+      modules_changed: () => {
+        void qc.invalidateQueries({ queryKey: ['me'] });
+        void qc.invalidateQueries({ queryKey: ['company-modules'] });
+        void qc.invalidateQueries({ queryKey: ['functions'] });
+      },
       // Сеансы завершили (смена пароля, «выйти везде»). Это устройство могло
       // уже получить новый токен — проверяем чуть позже, старый токен выйдет сам.
       session_revoked: () => {

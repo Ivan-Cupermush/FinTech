@@ -42,6 +42,12 @@ export interface Config {
    * null — только API.
    */
   webDist: string | null;
+  /**
+   * Песочница для жюри (OFFIX_SANDBOX=1): при запуске заводит университет с
+   * готовыми данными, на странице входа — список сотрудников с логинами,
+   * интеграции ходят только в поддельные 1С и Moodle. Без флага ничего этого нет.
+   */
+  sandbox: boolean;
   /** Дата «сегодня» для тестов и демо; в продакшене — системная. */
   now?: () => Date;
 }
@@ -79,6 +85,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     integrations: { enabled: env.INTEGRATIONS_ENABLED === '1' },
     uploads: loadUploadsConfig(env),
     webDist: resolveWebDist(env),
+    sandbox: env.OFFIX_SANDBOX === '1',
     mail: {
       enabled: env.REPORT_MAIL_ENABLED === '1' && !!env.SMTP_URL && !!env.MAIL_FROM,
       smtpUrl: env.SMTP_URL || undefined,

@@ -15,6 +15,7 @@ import { Markdown } from './Markdown';
 import { AskBar } from '../knowledge/AskBar';
 import { DocsPanel } from '../knowledge/Docs';
 import { useKnowledgeDocs, useKnowledgeStatus } from '../knowledge/data';
+import { useModuleOn } from '../../lib/modules';
 import './notes.css';
 
 type Scope = 'all' | 'company';
@@ -71,13 +72,15 @@ export function NotesPage() {
   const navigate = useNavigate();
   const me = useMe();
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('tab') === 'docs' ? 'docs' : 'notes';
+  // ИИ-помощник выключен в «Функциях компании» — остаются только статьи.
+  const ai = useModuleOn('knowledge_ai');
+  const tab: Tab = ai && params.get('tab') === 'docs' ? 'docs' : 'notes';
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const q = useNotes({ q: useDebounced(query), scope });
   const all = useNotes({});
-  const docs = useKnowledgeDocs();
-  const status = useKnowledgeStatus();
+  const docs = useKnowledgeDocs(undefined, ai);
+  const status = useKnowledgeStatus(ai);
   const today = todayIso();
   const canWrite = me.data?.role !== 'observer';
   const readyDocs = docs.data?.filter((d) => d.status === 'ready').length;
@@ -88,12 +91,12 @@ export function NotesPage() {
         variant="knowledge"
         icon={BookOpen}
         title="База знаний"
-        subtitle="Регламенты, договорённости и документы — и помощник, который отвечает по ним со ссылками."
+        subtitle={ai ? 'Регламенты, договорённости и документы — и помощник, который отвечает по ним со ссылками.' : 'Регламенты, договорённости и решения — всё, что команда должна знать одинаково.'}
         stats={all.data ? knowledgeHeroStats(all.data, readyDocs, today) : undefined}
       >
         {/* Строка вопроса — главное действие шапки; справа от неё — новая статья. Правую треть занимает знак раздела. */}
         <div className="kb-hero-row">
-          <AskBar />
+          {ai && <AskBar />}
           {canWrite && tab === 'notes' && (
             <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/notes/new')}>
               Новая статья
@@ -102,15 +105,17 @@ export function NotesPage() {
         </div>
       </PageHero>
       <div className="row wrap" style={{ gap: 12, marginBottom: 16 }}>
-        <Segmented<Tab>
-          label="Раздел базы знаний"
-          value={tab}
-          onChange={(t) => setParams(t === 'docs' ? { tab: 'docs' } : {}, { replace: true })}
-          options={[
-            { value: 'notes', label: <><BookOpen size={13} /> Статьи</> },
-            { value: 'docs', label: <><FileText size={13} /> Документы{docs.data?.length ? ` · ${docs.data.length}` : ''}</> },
-          ]}
-        />
+        {ai && (
+          <Segmented<Tab>
+            label="Раздел базы знаний"
+            value={tab}
+            onChange={(t) => setParams(t === 'docs' ? { tab: 'docs' } : {}, { replace: true })}
+            options={[
+              { value: 'notes', label: <><BookOpen size={13} /> Статьи</> },
+              { value: 'docs', label: <><FileText size={13} /> Документы{docs.data?.length ? ` · ${docs.data.length}` : ''}</> },
+            ]}
+          />
+        )}
         {tab === 'notes' && (
           <>
             <div className="note-search grow">
@@ -320,6 +325,7 @@ export function NotePage() {
 
 /** Вкладка «Заметки» на карточке цели: статьи и документы этой цели. */
 export function GoalNotes({ goalId, canWrite, canUploadDocs = false }: { goalId: string; canWrite: boolean; canUploadDocs?: boolean }) {
+  const ai = useModuleOn('knowledge_ai');
   const navigate = useNavigate();
   const q = useNotes({ goal_id: goalId });
   const today = todayIso();
@@ -343,8 +349,12 @@ export function GoalNotes({ goalId, canWrite, canUploadDocs = false }: { goalId:
           </Empty>
         </div>
       )}
-      <h3 className="kb-h3">Документы цели</h3>
-      <DocsPanel goalId={goalId} canUpload={canUploadDocs} />
+      {ai && (
+        <>
+          <h3 className="kb-h3">Документы цели</h3>
+          <DocsPanel goalId={goalId} canUpload={canUploadDocs} />
+        </>
+      )}
     </section>
   );
 }

@@ -1,13 +1,17 @@
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowRight, Server } from 'lucide-react-native';
-import { useState } from 'react';
+import { ArrowRight, FlaskConical, Server } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import { COMPANY_ROLE_LABELS, type SandboxInfo } from '@offix/core';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiError } from '../lib/client';
+import { ApiError, createClient, normalizeBaseUrl } from '../lib/client';
+import { roleLine, sandboxPeople } from '../lib/modules';
 import { useSession } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
 import { LogoMark } from '../ui/domain';
 import { Glass } from '../ui/fx/Glass';
+import { GradientBackdrop } from '../ui/fx/GradientBackdrop';
 import { Hero } from '../ui/fx/Hero';
 import { Avatar, Button, Input, Text } from '../ui/primitives';
 
@@ -28,10 +32,14 @@ export default function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Песочница для жюри: тот же сервер, что в поле адреса. Нет песочницы или нет связи — обычный вход.
+  const probe = useMemo(() => createClient({ baseUrl: () => normalizeBaseUrl(server), token: () => null }), [server]);
+  const sandbox = useQuery({ queryKey: ['sandbox', server], queryFn: () => probe<SandboxInfo>('/auth/sandbox'), retry: false, staleTime: 60_000 });
+  const people = sandboxPeople(sandbox.data);
 
   const run = async (key: string, e: string, pw: string) => {
     const local: Record<string, string> = {};
-    if (!e.trim()) local.email = 'Введите почту';
+    if (!e.trim()) local.email = people.length ? 'Введите логин или почту' : 'Введите почту';
     if (!pw) local.password = 'Введите пароль';
     setErrors(local);
     setMessage(null);
@@ -75,9 +83,65 @@ export default function Login() {
               </View>
             </View>
           </Hero>
+          {/* Песочница — сразу под шапкой: жюри видит, под кем войти, без прокрутки. */}
+          {people.length > 0 && (
+            <View style={{ borderRadius: 28, overflow: 'hidden', backgroundColor: '#0a0c2e' }}>
+              <GradientBackdrop variant="hero" />
+              <View style={{ padding: 8 }}>
+                <Glass radius={22}>
+                  <View style={{ padding: 14, gap: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+                        <FlaskConical size={18} color="#fff" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="caption" style={{ color: 'rgba(255,255,255,0.75)', fontFamily: font.semibold, letterSpacing: 0.6 }}>
+                          ПЕСОЧНИЦА ДЛЯ ЖЮРИ
+                        </Text>
+                        <Text style={{ color: '#fff', fontFamily: font.bold, fontSize: 18 }}>{sandbox.data?.company_name ?? 'Университет'}</Text>
+                      </View>
+                    </View>
+                    <Text variant="small" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                      Продажи и выплаты выключены — университету они не нужны. Нажмите на сотрудника, чтобы войти; пароль совпадает с логином.
+                    </Text>
+                    {people.map((d) => (
+                      <Pressable
+                        key={d.login}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Войти: ${d.display_name}, ${d.position}. Логин ${d.login}, пароль ${d.password}`}
+                        disabled={!!busy}
+                        onPress={() => {
+                          setEmail(d.login);
+                          setPassword(d.password);
+                          void run(d.login, d.login, d.password);
+                        }}
+                        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.09)', opacity: pressed || busy === d.login ? 0.6 : 1 })}
+                      >
+                        <Avatar name={d.display_name} size={34} />
+                        <View style={{ flex: 1, gap: 1 }}>
+                          <Text style={{ color: '#fff', fontFamily: font.semibold }}>{d.display_name}</Text>
+                          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.78)' }} numberOfLines={2}>
+                            {roleLine(d.position, COMPANY_ROLE_LABELS[d.role])}
+                          </Text>
+                          <Text variant="caption" style={{ color: 'rgba(255,255,255,0.92)', fontFamily: font.medium }}>
+                            {busy === d.login ? 'Входим…' : `логин ${d.login} · пароль ${d.password}`}
+                          </Text>
+                        </View>
+                        <ArrowRight size={16} color="rgba(255,255,255,0.7)" />
+                      </Pressable>
+                    ))}
+                  </View>
+                </Glass>
+              </View>
+            </View>
+          )}
           <Text tone="muted">Войдите, чтобы увидеть, что под угрозой и кому нужна помощь.</Text>
           <View style={{ gap: 14 }}>
-            <Input label="Почта" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" error={errors.email} placeholder="name@company.ru" />
+            {people.length ? (
+              <Input label="Логин или почта" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} autoComplete="username" error={errors.email} placeholder="rector" />
+            ) : (
+              <Input label="Почта" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" error={errors.email} placeholder="name@company.ru" />
+            )}
             <Input label="Пароль" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" error={errors.password} onSubmitEditing={() => run('form', email, password)} />
             {message && (
               <View accessibilityRole="alert" style={{ backgroundColor: p.badSoft, borderRadius: 12, padding: 12 }}>
@@ -88,6 +152,7 @@ export default function Login() {
             )}
             <Button title="Войти" onPress={() => run('form', email, password)} loading={busy === 'form'} icon={<ArrowRight size={18} color={p.bg} />} />
           </View>
+          {people.length === 0 && (
           <View style={{ gap: 10 }}>
             <Text variant="eyebrow" tone="faint">
               Демо-университет · вход в один тап
@@ -114,6 +179,7 @@ export default function Login() {
               ))}
             </View>
           </View>
+          )}
           <View style={{ gap: 10, marginTop: 'auto' }}>
             <Pressable onPress={() => setShowServer((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityRole="button">
               <Server size={14} color={p.ink3} />

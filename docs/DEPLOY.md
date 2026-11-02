@@ -8,6 +8,7 @@
 | `deploy/vps/` | «входная дверь» на VPS: HTTPS (Caddy), брандмауэр, защита SSH, туннель из офиса |
 | `deploy/windows/` | сервер в офисе на Windows: служба, обновление, откат, копии, туннель к VPS, диагностика |
 | `deploy/measure/` | замер скорости сайта с разных сетей |
+| `deploy/sandbox/` | песочница для жюри на маленьком сервере: сборка в архив, служба systemd, блок nginx ([README](../deploy/sandbox/README.md)) |
 | `mobile/eas.json`, `mobile/app.config.ts` | сборка приложения в EAS |
 
 > **Состояние.** Скрипты проверены тестами (`server/test/deploy.test.ts`) и локальным запуском

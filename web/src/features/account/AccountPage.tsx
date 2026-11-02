@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { BarChart3, BookOpen, Camera, ChevronRight, Copy, FileText, KeyRound, LaptopMinimal, LogOut, Mail, Moon, NotebookPen, Pencil, Plug, QrCode as QrIcon, ShieldCheck, Smartphone, Sun, UserRound } from 'lucide-react';
+import { BarChart3, BookOpen, Camera, ChevronRight, Copy, FileText, KeyRound, LaptopMinimal, LogOut, Mail, Moon, NotebookPen, Pencil, Plug, QrCode as QrIcon, ShieldCheck, SlidersHorizontal, Smartphone, Sun, UserRound } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, formatDate, passwordError, passwordStrength, profileUrl, todayIso, type AccountProfile } from '@offix/core';
+import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, formatDate, isModuleOn, passwordError, passwordStrength, profileUrl, todayIso, type AccountProfile } from '@offix/core';
 import { ProfilePhotoDialog } from '../../app/ProfilePhoto';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -263,6 +263,7 @@ export function AccountPage() {
   const [dialog, setDialog] = useState<'email' | 'logout' | 'photo' | null>(null);
   const p = q.data;
   const admin = p?.role === 'owner' || p?.role === 'admin';
+  const mods = me.data?.modules;
 
   if (q.isLoading || !p) return <div className="page"><Skeleton h={320} /></div>;
   return (
@@ -362,9 +363,11 @@ export function AccountPage() {
       </div>
 
       <nav className="card card-tight list acc-menu" aria-label="Разделы">
-        <Link className="list-row" to="/app/my-notes">
-          <NotebookPen size={18} aria-hidden /> <span className="grow">Мои заметки</span> <ChevronRight size={16} className="faint" aria-hidden />
-        </Link>
+        {isModuleOn(mods, 'my_notes') && (
+          <Link className="list-row" to="/app/my-notes">
+            <NotebookPen size={18} aria-hidden /> <span className="grow">Мои заметки</span> <ChevronRight size={16} className="faint" aria-hidden />
+          </Link>
+        )}
         <Link className="list-row" to="/app/notes">
           <BookOpen size={18} aria-hidden /> <span className="grow">База знаний</span> <ChevronRight size={16} className="faint" aria-hidden />
         </Link>
@@ -374,9 +377,14 @@ export function AccountPage() {
         <Link className="list-row" to="/app/report">
           <FileText size={18} aria-hidden /> <span className="grow">Отчёт</span> <ChevronRight size={16} className="faint" aria-hidden />
         </Link>
-        {admin && (
+        {admin && isModuleOn(mods, 'integrations') && (
           <Link className="list-row" to="/app/integrations">
             <Plug size={18} aria-hidden /> <span className="grow">Интеграции</span> <ChevronRight size={16} className="faint" aria-hidden />
+          </Link>
+        )}
+        {admin && (
+          <Link className="list-row" to="/app/company">
+            <SlidersHorizontal size={18} aria-hidden /> <span className="grow">Функции компании</span> <ChevronRight size={16} className="faint" aria-hidden />
           </Link>
         )}
         <button type="button" className="list-row" onClick={toggleTheme}>

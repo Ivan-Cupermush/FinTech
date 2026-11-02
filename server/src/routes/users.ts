@@ -8,6 +8,7 @@ import { noRealtime, type Realtime } from '../realtime/hub';
 import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
+import { loadModules } from '../services/modules';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -27,7 +28,7 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
         WHERE mm.user_id = $1 AND mm.company_id = $2 AND mm.ended_at IS NULL ORDER BY mm.is_primary DESC, o.name`,
       [actor.id, actor.company_id],
     );
-    res.json({ data: { ...rows[0], units: units.rows } });
+    res.json({ data: { ...rows[0], units: units.rows, modules: await loadModules(db, actor.company_id) } });
   });
 
   /** Поиск сотрудников для выбора владельца или исполнителя. */

@@ -24,6 +24,8 @@ import { ReportPage } from './features/report/ReportPage';
 import { SalesEmployeePage, SalesPage } from './features/sales/SalesPage';
 import { TasksPage } from './features/tasks/TasksPage';
 import { ApiError } from './lib/api';
+import { ModuleGate } from './lib/modules';
+import { CompanyFunctionsPage } from './features/company/CompanyFunctionsPage';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './ui/Toast';
 
@@ -67,23 +69,24 @@ export function AppRoutes() {
         <Route path="goals/new" element={<GoalNewPage />} />
         <Route path="goals/:id" element={<GoalPage />} />
         <Route path="tasks" element={<TasksPage />} />
-        <Route path="chats" element={<ChatsPage />} />
-        <Route path="chats/:id" element={<ChatsPage />} />
+        <Route path="chats" element={<ModuleGate module="chats"><ChatsPage /></ModuleGate>} />
+        <Route path="chats/:id" element={<ModuleGate module="chats"><ChatsPage /></ModuleGate>} />
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="report" element={<ReportPage />} />
-        <Route path="sales" element={<SalesPage />} />
-        <Route path="sales/people/:id" element={<SalesEmployeePage />} />
+        <Route path="sales" element={<ModuleGate module="sales"><SalesPage /></ModuleGate>} />
+        <Route path="sales/people/:id" element={<ModuleGate module="sales"><SalesEmployeePage /></ModuleGate>} />
         <Route path="org" element={<OrgPage />} />
-        <Route path="integrations" element={<IntegrationsPage />} />
-        <Route path="integrations/:id" element={<IntegrationPage />} />
+        <Route path="integrations" element={<ModuleGate module="integrations"><IntegrationsPage /></ModuleGate>} />
+        <Route path="integrations/:id" element={<ModuleGate module="integrations"><IntegrationPage /></ModuleGate>} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="notes/:id" element={<NotePage />} />
-        <Route path="notes/ask" element={<AskPage />} />
-        <Route path="notes/ask/:sid" element={<AskPage />} />
-        <Route path="notes/docs/:id" element={<DocPage />} />
-        <Route path="my-notes" element={<MyNotesPage />} />
-        <Route path="my-notes/:id" element={<MyNotePage />} />
+        <Route path="notes/ask" element={<ModuleGate module="knowledge_ai"><AskPage /></ModuleGate>} />
+        <Route path="notes/ask/:sid" element={<ModuleGate module="knowledge_ai"><AskPage /></ModuleGate>} />
+        <Route path="notes/docs/:id" element={<ModuleGate module="knowledge_ai"><DocPage /></ModuleGate>} />
+        <Route path="my-notes" element={<ModuleGate module="my_notes"><MyNotesPage /></ModuleGate>} />
+        <Route path="my-notes/:id" element={<ModuleGate module="my_notes"><MyNotePage /></ModuleGate>} />
+        <Route path="company" element={<CompanyFunctionsPage />} />
         <Route path="profile" element={<AccountPage />} />
         <Route path="people/:id" element={<PersonPage />} />
       </Route>

@@ -10,9 +10,10 @@ import { font, usePalette } from '../../../lib/theme';
 import { ChatAvatar } from '../../../ui/chats';
 import { PageHero } from '../../../ui/fx/PageHero';
 import { Button, Card, Empty, Input, Screen, Text } from '../../../ui/primitives';
+import { gated } from '../../../ui/modules';
 
 /** Темы группы: общая сверху, у каждой — значок, цвет, последнее и непрочитанное. */
-export default function TopicsScreen() {
+function TopicsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const qc = useQueryClient();
@@ -137,3 +138,6 @@ export default function TopicsScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', TopicsScreen);

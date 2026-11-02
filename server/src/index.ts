@@ -8,33 +8,42 @@ import { startIntegrationLoop } from './services/integrations';
 import { expoSender, startPushLoop } from './services/push';
 import { smtpSender, startReportMailLoop } from './services/report-mail';
 import { migrate } from './db/migrate';
-import { createPgDb } from './db/pg';
+import { openDb, safeDbUrl } from './db/open';
+import { fakeSystemsFetch } from './seed/fake-systems';
+import { SANDBOX_SEATS, seedSandbox } from './seed/sandbox';
 import { createMediaStore } from './services/media';
 import { aiProviderFromEnv } from './services/ai';
 import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
 
 loadDotEnv();
 const config = loadConfig();
-const db = createPgDb(config.databaseUrl);
+let db: Awaited<ReturnType<typeof openDb>>;
 try {
+  db = await openDb(config.databaseUrl);
   await migrate(db);
 } catch (e) {
   // Служба перезапустит сервер; в журнале — понятная причина, а адрес базы — без пароля.
-  console.error(`offix: нет связи с базой или миграция не применилась (${config.databaseUrl.replace(/(:\/\/[^:/@]+:)[^@]*@/, '$1***@')}): ${(e as Error).message}`);
+  console.error(`offix: нет связи с базой или миграция не применилась (${safeDbUrl(config.databaseUrl)}): ${(e as Error).message}`);
   process.exit(1);
 }
 const realtime = createRealtimeHub();
 const pushSender = config.push.enabled ? expoSender({ accessToken: config.push.accessToken }) : undefined;
 const media = createMediaStore(config.uploads, config.jwtSecret);
 const knowledge = createKnowledgeService(db, media, { provider: aiProviderFromEnv(), onError: (e) => console.error('knowledge:', e) });
-const app = createApp({ db, config, realtime, messagePush: pushSender, media, knowledge });
+if (config.sandbox) {
+  // Песочница заводится один раз; при следующих запусках данные уже в базе.
+  if (await seedSandbox(db, media, knowledge)) console.log(`Песочница готова: входы ${SANDBOX_SEATS.map((s) => s.login).join(', ')} (пароль = логин)`);
+}
+// В песочнице интеграции ходят только в поддельные 1С и Moodle: наружу сервер не обращается.
+const integrationFetch = config.sandbox ? fakeSystemsFetch() : fetch;
+const app = createApp({ db, config, realtime, messagePush: pushSender, media, knowledge, integrationFetch });
 // Документы, что не успели прочитать до перезапуска, и пересчёт векторов после смены модели.
 startKnowledgeLoop(knowledge, { onError: (e) => console.error('knowledge:', e) });
 if (pushSender) startPushLoop(db, pushSender, { onError: (e) => console.error('push:', e) });
 if (config.mail.enabled && config.mail.smtpUrl && config.mail.from) {
   startReportMailLoop(db, smtpSender({ url: config.mail.smtpUrl, from: config.mail.from }), { appUrl: config.mail.appUrl, onError: (e) => console.error('report mail:', e) });
 }
-if (config.integrations.enabled) startIntegrationLoop(db, fetch, { onError: (e) => console.error('integrations:', e) });
+if (config.integrations.enabled || config.sandbox) startIntegrationLoop(db, integrationFetch, { onError: (e) => console.error('integrations:', e) });
 startScheduledLoop(db, realtime, { store: media, now: () => new Date() }, { onMessage: pushSender ? messagePushHook(db, pushSender, realtime, () => new Date()) : undefined, onError: (e) => console.error('scheduled:', e) });
 // Один HTTP-сервер на API и сокет: тот же порт и тот же прокси.
 const server = createServer(app);

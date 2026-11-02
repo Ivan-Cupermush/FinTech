@@ -11,6 +11,7 @@ import { Segmented } from '../../ui/Misc';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
 import { QrLogin } from './QrLogin';
+import { SandboxCard, useSandbox } from './SandboxCard';
 import './auth.css';
 
 /** Демо-вход: каждая роль видит свой срез — так проще показать права на питче. */
@@ -38,6 +39,8 @@ export function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Песочница для жюри: сервер запущен с OFFIX_SANDBOX=1. Иначе — null, и страница как обычно.
+  const sandbox = useSandbox().data ?? null;
 
   if (token) return <Navigate to={next} replace />;
 
@@ -62,7 +65,7 @@ export function LoginPage() {
     e.preventDefault();
     if (mode === 'login') {
       const local: Record<string, string> = {};
-      if (!form.email.trim()) local.email = 'Введите почту';
+      if (!form.email.trim()) local.email = sandbox ? 'Введите логин или почту' : 'Введите почту';
       if (!form.password) local.password = 'Введите пароль';
       if (Object.keys(local).length) return setErrors(local);
       void run('form', () => login(form.email, form.password));
@@ -74,14 +77,20 @@ export function LoginPage() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
 
   return (
-    <div className="auth">
+    <div className={`auth ${sandbox ? 'is-sandbox' : ''}`}>
       <div className="auth-form">
         <Link to="/" aria-label="На главную">
           <Logo size={30} />
         </Link>
         <div className="stack" style={{ '--gap': '8px' } as React.CSSProperties}>
-          <h1>{mode === 'login' ? 'С возвращением' : 'Создайте пространство'}</h1>
-          <p className="muted">{mode === 'login' ? 'Войдите, чтобы увидеть, как движутся ваши цели.' : 'Компания и вы — владелец. Отделы и команды добавите, когда понадобятся.'}</p>
+          <h1>{mode === 'register' ? 'Создайте пространство' : sandbox ? 'Песочница offix' : 'С возвращением'}</h1>
+          <p className="muted">
+            {mode === 'register'
+              ? 'Компания и вы — владелец. Отделы и команды добавите, когда понадобятся.'
+              : sandbox
+                ? 'Выберите сотрудника университета в карточке «Песочница для жюри» или введите его логин и пароль.'
+                : 'Войдите, чтобы увидеть, как движутся ваши цели.'}
+          </p>
         </div>
         <Segmented
           label="Вход или регистрация"
@@ -115,9 +124,15 @@ export function LoginPage() {
               </Field>
             </>
           )}
-          <Field label="Почта" error={errors.email}>
-            {(p) => <input className="input" {...p} type="email" value={form.email} onChange={set('email')} placeholder="name@company.ru" autoComplete="email" />}
-          </Field>
+          {sandbox && mode === 'login' ? (
+            <Field label="Логин или почта" error={errors.email}>
+              {(p) => <input className="input" {...p} type="text" value={form.email} onChange={set('email')} placeholder="rector" autoComplete="username" autoCapitalize="none" spellCheck={false} />}
+            </Field>
+          ) : (
+            <Field label="Почта" error={errors.email}>
+              {(p) => <input className="input" {...p} type="email" value={form.email} onChange={set('email')} placeholder="name@company.ru" autoComplete="email" />}
+            </Field>
+          )}
           <Field label="Пароль" error={errors.password} hint={mode === 'register' ? 'Не короче 8 символов' : undefined}>
             {(p) => <input className="input" {...p} type="password" value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />}
           </Field>
@@ -136,7 +151,7 @@ export function LoginPage() {
           )}
         </form>
         )}
-        {mode === 'login' && !byQr && (
+        {mode === 'login' && !byQr && !sandbox && (
           <div className="stack" style={{ '--gap': '10px' } as React.CSSProperties}>
             <div className="eyebrow">Демо — войти как</div>
             <div className="demo-people">
@@ -158,6 +173,19 @@ export function LoginPage() {
         )}
       </div>
       <Backdrop variant="login" framed className="auth-art on-color">
+        {sandbox ? (
+          <SandboxCard
+            info={sandbox}
+            busy={busy}
+            onPick={(p) => {
+              // Щелчок и заполняет форму, и сразу входит: видно, какой логин сработал.
+              setMode('login');
+              setByQr(false);
+              setForm((f) => ({ ...f, email: p.login, password: p.password }));
+              void run(p.login, () => login(p.login, p.password));
+            }}
+          />
+        ) : (
         <div aria-hidden>
           <Glass className="auth-glass" radius={32} elasticity={0.1} clip>
             <div className="auth-glass-body">
@@ -175,6 +203,7 @@ export function LoginPage() {
             </div>
           </Glass>
         </div>
+        )}
       </Backdrop>
     </div>
   );

@@ -13,6 +13,7 @@ import { Glass } from '../../ui/fx/Glass';
 import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { PageHero } from '../../ui/fx/PageHero';
 import { Card, Empty, NO_WEB_OUTLINE, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 /** Действия с чатом по долгому касанию: закрепить, без звука, прочитать, скрыть. */
 function chatActions(c: ChatSummary, now: string, refresh: () => void) {
@@ -36,7 +37,7 @@ function chatActions(c: ChatSummary, now: string, refresh: () => void) {
  * Чаты на телефоне: живая шапка с цифрами, поиск, папки и список, где
  * сразу видно, кто печатает, что не прочитано и что без звука.
  */
-export default function ChatsTab() {
+function ChatsTab() {
   const p = usePalette();
   const qc = useQueryClient();
   const me = useMe();
@@ -151,3 +152,6 @@ export default function ChatsTab() {
     </Screen>
   );
 }
+
+// Вкладка скрыта, когда чаты выключены; по старой ссылке — «Раздел выключен».
+export default gated('chats', ChatsTab);

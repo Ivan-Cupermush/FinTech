@@ -29,13 +29,14 @@ import { font, radius, usePalette } from '../../lib/theme';
 import { Button, Card, Empty, Input, NO_WEB_OUTLINE, Screen, Text } from '../../ui/primitives';
 import { Chips } from '../../ui/sales';
 import { errText } from '../../ui/sales-month';
+import { gated } from '../../ui/modules';
 
 /**
  * Показатель плана с телефона — то же, что окно «Показатель» на сайте:
  * название, как считается факт, план, бонус и правило выплаты. У показателя
  * из файла KPI меняется только правило выплаты — остальное приходит с файлом.
  */
-export default function SalesPlanScreen() {
+function SalesPlanScreen() {
   const { id, month = salesToday().slice(0, 7), user } = useLocalSearchParams<{ id?: string; month?: string; user?: string }>();
   const m = useSalesMonth(month, user);
   const plan = id ? m.data?.plans.find((x) => x.id === id) : undefined;
@@ -382,3 +383,6 @@ function RemoveButton({ label, onPress }: { label: string; onPress: () => void }
     </Pressable>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('sales', SalesPlanScreen);

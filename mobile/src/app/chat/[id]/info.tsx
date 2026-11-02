@@ -12,12 +12,13 @@ import { useMe } from '../../../lib/queries';
 import { font, usePalette } from '../../../lib/theme';
 import { ChatAvatar } from '../../../ui/chats';
 import { Avatar, Button, Card, Empty, Screen, Text } from '../../../ui/primitives';
+import { gated } from '../../../ui/modules';
 
 const ROLE: Record<ChatMember['role'], string> = { creator: 'создатель', admin: 'администратор', member: '' };
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не получилось');
 
 /** Карточка чата: мои настройки, участники и их роли, темы, выход и удаление. */
-export default function ChatInfoScreen() {
+function ChatInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const qc = useQueryClient();
@@ -199,3 +200,6 @@ export default function ChatInfoScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', ChatInfoScreen);

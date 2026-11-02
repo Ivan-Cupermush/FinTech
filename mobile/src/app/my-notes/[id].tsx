@@ -13,6 +13,8 @@ import { Glass } from '../../ui/fx/Glass';
 import { PageHero } from '../../ui/fx/PageHero';
 import { Markdown } from '../../ui/markdown';
 import { Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
+import { useModuleOn } from '../../ui/modules';
 
 const errText = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : e instanceof Error ? e.message : 'Не получилось, попробуйте ещё раз');
 
@@ -34,7 +36,9 @@ function HeroAction({ label, icon, onPress, busy }: { label: string; icon: React
  * Одна заметка: чтение с разметкой, правка, файлы, PDF и отправка в чат.
  * id «new» — новая заметка на день из ?date.
  */
-export default function MyNoteScreen() {
+function MyNoteScreen() {
+  // Чаты выключены в «Функциях компании» — отправлять заметку некуда.
+  const chats = useModuleOn('chats');
   const { id, date: dateParam } = useLocalSearchParams<{ id: string; date?: string }>();
   const isNew = id === 'new';
   const p = usePalette();
@@ -220,7 +224,7 @@ export default function MyNoteScreen() {
               {!editing && n && (
                 <>
                   <HeroAction label="Изменить" icon={<Pencil size={15} color="#fff" />} onPress={() => setEditing(true)} />
-                  <HeroAction label="В чат" icon={<Send size={15} color="#fff" />} onPress={() => router.push({ pathname: '/my-notes/send', params: { id: n.id, title: noteTitle(n.title) } })} />
+                  {chats && <HeroAction label="В чат" icon={<Send size={15} color="#fff" />} onPress={() => router.push({ pathname: '/my-notes/send', params: { id: n.id, title: noteTitle(n.title) } })} />}
                   <HeroAction label="PDF" icon={<Download size={15} color="#fff" />} busy={busy === 'pdf'} onPress={() => void pdf()} />
                   <HeroAction label="Ещё" icon={<Copy size={15} color="#fff" />} onPress={more} />
                 </>
@@ -273,3 +277,6 @@ export default function MyNoteScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('my_notes', MyNoteScreen);

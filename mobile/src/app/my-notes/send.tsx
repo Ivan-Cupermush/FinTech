@@ -9,9 +9,10 @@ import { myNotesApi } from '../../lib/personal-api';
 import { font, usePalette } from '../../lib/theme';
 import { ChatAvatar } from '../../ui/chats';
 import { Button, Card, Input, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 /** Отправить мою заметку в чат: выбор чата и подпись. В чат уходит снимок. */
-export default function SendNoteScreen() {
+function SendNoteScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const p = usePalette();
   const qc = useQueryClient();
@@ -69,3 +70,6 @@ export default function SendNoteScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated(['my_notes', 'chats'], SendNoteScreen);

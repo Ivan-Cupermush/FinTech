@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_GAP, TAB_BAR_HEIGHT, tabIndicator } from '../../lib/fx';
+import { tabSlots } from '../../lib/modules';
 import { font, usePalette } from '../../lib/theme';
 import { Text } from '../primitives';
 import { Glass } from './Glass';
@@ -17,25 +18,35 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab }: Bott
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const [width, setWidth] = useState(0);
-  const count = state.routes.length;
-  const pos = useRef(new Animated.Value(state.index)).current;
+  // Вкладка выключенного раздела (href: null) не показывается — «капля» считает только видимые.
+  const slots = tabSlots(
+    state.routes.map((r) => {
+      // expo-router превращает href: null в hidden: true.
+      const o = descriptors[r.key]?.options as { href?: unknown; hidden?: boolean } | undefined;
+      return o?.hidden === true || o?.href === null;
+    }),
+    state.index,
+  );
+  const count = slots.count;
+  const at = Math.max(0, slots.at);
+  const pos = useRef(new Animated.Value(at)).current;
   const stretch = useRef(new Animated.Value(1)).current;
   const first = useRef(true);
 
   useEffect(() => {
     if (first.current) {
       first.current = false;
-      pos.setValue(state.index);
+      pos.setValue(at);
       return;
     }
     Animated.parallel([
-      Animated.spring(pos, { toValue: state.index, useNativeDriver: true, damping: 16, stiffness: 180, mass: 0.9 }),
+      Animated.spring(pos, { toValue: at, useNativeDriver: true, damping: 16, stiffness: 180, mass: 0.9 }),
       Animated.sequence([
         Animated.timing(stretch, { toValue: 1.45, duration: 110, useNativeDriver: true }),
         Animated.spring(stretch, { toValue: 1, useNativeDriver: true, damping: 9, stiffness: 160 }),
       ]),
     ]).start();
-  }, [state.index, pos, stretch]);
+  }, [at, pos, stretch]);
 
   const slot = tabIndicator(0, count, width);
   const step = tabIndicator(1, count, width).x - slot.x;
@@ -45,7 +56,7 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab }: Bott
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 8) + TAB_BAR_GAP - 4 }}>
       <Glass tone="surface" radius={TAB_BAR_HEIGHT / 2} interactive style={{ shadowColor: '#0b0b0f', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 12 }}>
         <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ height: TAB_BAR_HEIGHT, flexDirection: 'row', paddingHorizontal: 6 }} accessibilityRole="tablist">
-          {width > 0 && (
+          {width > 0 && slots.at >= 0 && (
             <Animated.View
               pointerEvents="none"
               style={{
@@ -60,7 +71,8 @@ export function GlassTabBar({ state, descriptors, emitter, navigateToTab }: Bott
               }}
             />
           )}
-          {state.routes.map((route, index) => {
+          {slots.visible.map((index) => {
+            const route = state.routes[index]!;
             const { options } = descriptors[route.key]!;
             const focused = state.index === index;
             const color = focused ? p.accent : p.ink2;

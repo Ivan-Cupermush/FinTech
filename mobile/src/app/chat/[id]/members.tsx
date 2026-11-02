@@ -6,9 +6,10 @@ import { chatApi, ck, useChat, usePeople } from '../../../lib/chats';
 import { useMe } from '../../../lib/queries';
 import { PeoplePicker } from '../../../ui/chats';
 import { Button, Card, Input, Screen } from '../../../ui/primitives';
+import { gated } from '../../../ui/modules';
 
 /** Добавить коллег в группу: поиск и отметки, кто уже в чате — неактивен. */
-export default function AddMembersScreen() {
+function AddMembersScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
   const me = useMe();
@@ -39,3 +40,6 @@ export default function AddMembersScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', AddMembersScreen);

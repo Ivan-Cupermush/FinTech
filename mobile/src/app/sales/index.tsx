@@ -11,13 +11,14 @@ import { PageHero } from '../../ui/fx/PageHero';
 import { Avatar, Bar, Button, Card, Empty, Screen, Text } from '../../ui/primitives';
 import { MonthSwitcher } from '../../ui/sales';
 import { errText, SalesMonthBody } from '../../ui/sales-month';
+import { gated } from '../../ui/modules';
 
 /**
  * Мои продажи: выплата за месяц, показатели плана, продажи, записанные вручную,
  * и загрузка отчёта 1С. У руководителя — вкладка «Команда», а показатели
  * плана и правила выплат он меняет прямо здесь. Файлы KPI — на сайте.
  */
-export default function SalesScreen() {
+function SalesScreen() {
   const params = useLocalSearchParams<{ month?: string; view?: string }>();
   const today = salesToday();
   const current = today.slice(0, 7);
@@ -108,3 +109,6 @@ function Team({ month, team, loading }: { month: string; team: SalesTeam | undef
     </Card>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('sales', SalesScreen);

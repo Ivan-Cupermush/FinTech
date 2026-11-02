@@ -16,11 +16,12 @@ export const kk = {
 
 type SessionData = { session: KnowledgeSession; messages: KnowledgeMessage[] };
 
-export const useKnowledgeStatus = () => useQuery({ queryKey: kk.status, queryFn: () => api<KnowledgeStatus>('/knowledge/status'), staleTime: 30_000 });
+export const useKnowledgeStatus = (enabled = true) => useQuery({ queryKey: kk.status, queryFn: () => api<KnowledgeStatus>('/knowledge/status'), staleTime: 30_000, enabled });
 
 /** Пока документ читается, список обновляем — статус сменится сам. */
-export const useKnowledgeDocs = (goalId?: string) =>
+export const useKnowledgeDocs = (goalId?: string, enabled = true) =>
   useQuery({
+    enabled,
     queryKey: kk.docs(goalId),
     queryFn: () => api<KnowledgeDoc[]>(`/knowledge/docs${goalId ? `?goal_id=${goalId}` : ''}`),
     refetchInterval: (q) => (q.state.data?.some(knowledgeDocBusy) ? 2500 : false),

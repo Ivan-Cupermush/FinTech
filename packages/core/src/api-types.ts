@@ -8,6 +8,7 @@ import type { Checkpoint, CheckpointStatus, InboxTaskState, TaskKind } from './t
 import type { UnitId } from './units';
 import type { UnitType } from './org';
 import type { ProductMetrics } from './metrics';
+import type { CompanyModules } from './modules';
 
 /** Формы ответов API /api/v1 — общие для сайта и приложения. */
 
@@ -166,6 +167,25 @@ export interface Me {
   company_name: string;
   setup_mode: 'quick' | 'structured';
   units: { id: string; name: string; unit_type: UnitType; is_manager: boolean; is_primary: boolean }[];
+  /** Включённые разделы компании. Нет поля (старый сервер) — включено всё. */
+  modules?: CompanyModules;
+}
+
+/** Песочница для жюри: на странице входа — готовые сотрудники с логинами. */
+export interface SandboxPerson {
+  login: string;
+  password: string;
+  display_name: string;
+  position: string;
+  role: CompanyRole;
+  /** Что интересно посмотреть под этим входом. */
+  blurb: string;
+}
+
+export interface SandboxInfo {
+  enabled: boolean;
+  company_name: string | null;
+  people: SandboxPerson[];
 }
 
 export interface Member {

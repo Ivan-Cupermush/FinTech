@@ -318,7 +318,8 @@ describe('продажи: руководитель', () => {
     const calls = mockApi({ ...base, 'GET /sales/people/u-pavel': EMPLOYEE, 'GET /sales/groups': [{ path: 'КУРСЫ', name: 'КУРСЫ', depth: 0, revenue: 1 }], 'POST /sales/plans': plan('p-new') });
     renderApp('/app/sales/people/u-pavel?month=2026-10');
     expect(await screen.findByRole('heading', { name: 'Павел Соколов' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Команда/ }).map((a) => a.getAttribute('href'))).toContain('/app/sales?tab=team');
+    // Назад — к команде за тот же месяц (если месяц не текущий, он в адресе).
+    expect(screen.getAllByRole('link', { name: /Команда/ }).some((a) => /^\/app\/sales\?tab=team(&month=2026-10)?$/.test(a.getAttribute('href') ?? ''))).toBe(true);
     const tasks = screen.getByRole('region', { name: 'Задачи сотрудника' });
     expect(within(tasks).getByText('7')).toBeInTheDocument();
     expect(screen.getByText('Курс «Python для аналитиков»')).toBeInTheDocument();

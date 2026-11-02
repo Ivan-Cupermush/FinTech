@@ -25,6 +25,7 @@ import { ApiError, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { claimDrafts, copyAttachments, deleteAttachments, loadAttachments, serializeAll } from '../services/attachments';
 import { MSG_SELECT, broadcastMessage, hydrate, insertMessage, openChat, resolveTopic, type MessageRow } from '../services/chats';
+import { requireModule } from '../services/modules';
 import { notify } from '../services/notify';
 import { renderNotePdf } from '../services/note-pdf';
 import { canViewShare, contentDisposition } from './files';
@@ -502,7 +503,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
    * в том же сообщении, под карточкой заметки. Повтор с тем же client_id —
    * то же сообщение.
    */
-  r.post('/:id/share', async (req, res) => {
+  r.post('/:id/share', requireModule(db, 'chats'), async (req, res) => {
     const actor = actorOf(req);
     const id = idParam(req.params.id);
     const body = parseBody(shareSchema, req.body);

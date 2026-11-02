@@ -10,13 +10,13 @@ import { audit } from '../services/audit';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean } = {}): Router {
+export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean; loginLimit?: number } = {}): Router {
   const r = Router();
   if (opts.rateLimit !== false) {
     r.use(
       rateLimit({
         windowMs: 15 * 60_000,
-        limit: 30,
+        limit: opts.loginLimit ?? 30,
         standardHeaders: 'draft-8',
         legacyHeaders: false,
         handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Слишком много попыток. Попробуйте через несколько минут' } }),

@@ -275,9 +275,11 @@ export const serializeRun = (r: RunResult): RunResult => ({ ...r, started_at: is
 /** Подключения, которым пора синхронизироваться. */
 export async function dueIntegrations(q: Queryable, now: Date): Promise<{ id: string; company_id: string }[]> {
   const { rows } = await q.query<{ id: string; company_id: string }>(
-    `SELECT id, company_id FROM integrations
-      WHERE enabled AND (last_sync_at IS NULL OR last_sync_at + make_interval(hours => interval_hours) <= $1)
-      ORDER BY last_sync_at NULLS FIRST LIMIT 20`,
+    // Раздел «Интеграции» выключен в компании — по расписанию не ходим, настройки остаются.
+    `SELECT i.id, i.company_id FROM integrations i JOIN companies c ON c.id = i.company_id
+      WHERE i.enabled AND NOT ('integrations' = ANY(c.disabled_modules))
+        AND (i.last_sync_at IS NULL OR i.last_sync_at + make_interval(hours => i.interval_hours) <= $1)
+      ORDER BY i.last_sync_at NULLS FIRST LIMIT 20`,
     [now.toISOString()],
   );
   return rows;

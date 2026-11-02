@@ -1,0 +1,281 @@
+/* ——— Функции компании ——— */
+.cf-section {
+  margin-top: 26px;
+}
+.cf-h {
+  font-size: 15px;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+.cf-h-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 2px;
+}
+.cf-note,
+.cf-core {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.cf-note {
+  margin-top: 18px;
+}
+.cf-note svg,
+.cf-core svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+.cf-core {
+  margin-top: 18px;
+  background: var(--surface-2);
+  border-color: transparent;
+}
+.cf-core b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Готовые наборы: две большие кнопки. */
+.cf-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.cf-preset {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  font-size: 14px;
+  transition:
+    border-color var(--dur),
+    box-shadow var(--dur),
+    transform var(--dur) var(--ease);
+}
+.cf-preset:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+.cf-preset:disabled {
+  cursor: default;
+}
+.cf-preset b {
+  font-weight: 620;
+  font-size: 15px;
+}
+.cf-preset .faint {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cf-preset-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.cf-preset-state {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.cf-preset.is-active {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* Разделы: стеклянная карточка на градиенте своего раздела. */
+.cf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* Карточка по высоте своего стекла: без пустой полосы градиента снизу. */
+  align-items: start;
+  gap: 14px;
+}
+.cf-tile {
+  position: relative;
+  border-radius: var(--radius-xl);
+  padding: 8px;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    filter 360ms var(--ease),
+    opacity 360ms var(--ease);
+}
+/* Выключенный раздел гаснет: цвет уходит, карточка остаётся читаемой. */
+.cf-tile.is-off {
+  filter: grayscale(0.92) brightness(0.9);
+  opacity: 0.86;
+}
+.cf-glass,
+.cf-glass .glass,
+.cf-glass .glass-body {
+  width: 100%;
+}
+.cf-glass .glass-body,
+.cf-card {
+  color: #fff;
+}
+.cf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  min-height: 236px;
+}
+.cf-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cf-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
+}
+.cf-title {
+  font-size: 16.5px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.cf-state {
+  font-size: 12.5px;
+  font-weight: 560;
+  opacity: 0.78;
+}
+.cf-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgb(255 255 255 / 0.9);
+}
+.cf-impact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.16);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cf-impact-h {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+.cf-impact ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.cf-related {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  opacity: 0.82;
+}
+.cf-related svg {
+  flex: none;
+  margin-top: 2px;
+}
+/* Переключатель на стекле: светлый трек, включено — белым. */
+.cf-switch {
+  width: 48px;
+  height: 28px;
+  background: rgb(255 255 255 / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+}
+.cf-switch::after {
+  width: 22px;
+  height: 22px;
+  background: #fff;
+}
+.cf-switch:checked {
+  background: #fff;
+}
+.cf-switch:checked::after {
+  transform: translateX(20px);
+  background: #1b2bd6;
+}
+.cf-switch:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Журнал изменений. */
+.cf-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cf-history li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.cf-history li:first-child {
+  border-top: 0;
+}
+.cf-history .faint {
+  font-size: 13px;
+}
+.cf-history-empty {
+  margin: 0;
+  padding: 6px 8px 10px;
+  font-size: 14px;
+}
+
+/* «Раздел выключен» — по прямой ссылке. */
+.module-off {
+  margin-top: 24px;
+}
+
+@media (max-width: 560px) {
+  .cf-grid {
+    grid-template-columns: 1fr;
+  }
+  .cf-card {
+    min-height: 0;
+  }
+  .cf-preset {
+    padding: 12px 14px;
+  }
+}

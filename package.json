@@ -15,6 +15,7 @@
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
     "dev:demo": "npm run dev:memory -w server",
+    "sandbox": "npm run start:sandbox -w server",
     "mobile:install": "npm install --prefix mobile",
     "mobile:start": "npm start --prefix mobile",
     "mobile:test": "npm test --prefix mobile",
