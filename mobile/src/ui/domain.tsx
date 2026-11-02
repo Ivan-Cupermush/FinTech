@@ -1,5 +1,5 @@
 import { Ban, Check, Circle, CircleDot, CornerDownRight, Eye, Flag, HandHelping } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 import {
   BLOCKER_LABELS,
@@ -10,6 +10,10 @@ import {
   GOAL_TYPE_LABELS,
   isOverdue,
   KPI_STATE_LABELS,
+  lastDelta,
+  RISK_GRADE,
+  RISK_TONE_LABELS,
+  riskTone,
   lightOf,
   TASK_LIGHT_LABELS,
   plural,
@@ -28,7 +32,9 @@ import {
 import { dueText } from '../lib/logic';
 import { useMe } from '../lib/queries';
 import { font, usePalette, type Tone } from '../lib/theme';
-import { Avatar, Bar, Card, Pill, Text } from './primitives';
+import { Avatar, Card, Pill, Text } from './primitives';
+import { Odometer } from './fx/Odometer';
+import { RiskCard } from './fx/RiskCard';
 
 /** Фирменный элемент: «40 → 36,5 → 30 мин». Нет замера — штриховка и «Нет данных». */
 export function KpiTrack({ baseline, target, current, unit, progress, size = 'md', legend = true }: { baseline: number; target: number; current: number | null; unit: UnitId; progress: KpiProgress; size?: 'md' | 'lg' | 'xl'; legend?: boolean }) {
@@ -91,51 +97,77 @@ export function KpiTrack({ baseline, target, current, unit, progress, size = 'md
   );
 }
 
-export function GoalTile({ goal, today, onPress }: { goal: { id: string; title: string; type: GoalType; due_at: string | null; primary_metric: Metric | null; task_progress: { done: number; total: number }; risk_level?: 'critical' | 'warning' | 'ok'; status?: string }; today: string; onPress: () => void }) {
+/**
+ * Карточка цели — Risk Radar: жидкость цвета риска (та же модель, что на
+ * сайте), главный KPI крупно одометром, линия последних замеров, ход работ.
+ */
+export function GoalTile({ goal, today, onPress }: { goal: { id: string; title: string; type: GoalType; due_at: string | null; primary_metric: Metric | null; task_progress: { done: number; total: number }; risk_level?: 'critical' | 'warning' | 'ok'; status?: string; blocked?: number; overdue?: number }; today: string; onPress: () => void }) {
   const m = goal.primary_metric;
   const due = dueText(goal.due_at, today);
   const pct = goal.task_progress.total ? (goal.task_progress.done / goal.task_progress.total) * 100 : 0;
+  const tone = riskTone({ risk_level: goal.risk_level, blocked: goal.blocked, overdue: goal.overdue, kpi: m?.progress.state ?? null, status: goal.status });
+  const unit = m ? UNITS[m.unit] : null;
+  const f = (v: number) => formatNumber(v, unit?.decimals ?? 0);
+  const value = m?.current_value != null ? f(m.current_value) : null;
+  const delta = lastDelta(m?.trend ?? []);
+  const white = { color: '#fff' };
+  const soft = { color: 'rgba(255,255,255,0.85)' };
   return (
-    <Card onPress={onPress} style={{ gap: 14 }}>
-      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-        <Pill>{GOAL_TYPE_LABELS[goal.type]}</Pill>
-        {goal.status === 'draft' && <Pill>Черновик</Pill>}
-        {goal.risk_level === 'critical' && (
-          <Pill tone="bad" dot>
-            Под угрозой
-          </Pill>
-        )}
-        {goal.risk_level === 'warning' && (
-          <Pill tone="warn" dot>
-            Есть риски
-          </Pill>
-        )}
-      </View>
-      <Text variant="title">{goal.title}</Text>
-      {m ? (
-        <View style={{ gap: 6 }}>
-          <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} size="lg" legend={false} />
-          <Text variant="caption" tone="faint">
-            {m.name}
+    <RiskCard tone={tone} spark={m?.trend} onPress={onPress} accessibilityLabel={`${goal.title}: ${RISK_TONE_LABELS[tone].toLowerCase()}`}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <Text variant="eyebrow" style={{ color: 'rgba(255,255,255,0.8)', flexShrink: 1 }} numberOfLines={1}>
+          {GOAL_TYPE_LABELS[goal.type]}
+          {goal.status === 'draft' ? ' · черновик' : ''}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.45)' }}>
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' }} />
+          <Text variant="caption" style={white}>
+            {RISK_GRADE[tone]} · {RISK_TONE_LABELS[tone]}
           </Text>
         </View>
+      </View>
+      <Text variant="title" style={white} numberOfLines={2}>
+        {goal.title}
+      </Text>
+      {m ? (
+        <>
+          {value !== null ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              <Odometer value={value} style={{ fontSize: value.length > 7 ? 34 : 42, fontFamily: font.bold, letterSpacing: -1.6, color: '#fff' }} />
+              <Text variant="small" style={[white, { marginBottom: 6 }]}>
+                {unit!.short}
+              </Text>
+            </View>
+          ) : (
+            <Text variant="h2" style={white}>
+              Нет замеров
+            </Text>
+          )}
+          <Text variant="caption" style={soft}>
+            {m.name} · цель {f(m.target)}
+            {m.progress.raw !== null ? ` · ${Math.round(m.progress.raw)} % пути` : ''}
+            {delta ? ` · ${delta > 0 ? '+' : '−'}${f(Math.abs(delta))} к прошлому замеру` : ''}
+          </Text>
+        </>
       ) : (
-        <Text variant="small" tone="faint">
-          KPI не задан — цель пока не измерима
+        <Text variant="title" style={white}>
+          KPI не задан
         </Text>
       )}
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: 8, marginTop: 'auto', paddingTop: 60 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-          <Text variant="caption" tone="faint">
+          <Text variant="caption" style={soft}>
             {goal.task_progress.total ? `Задачи ${goal.task_progress.done} из ${goal.task_progress.total}` : 'Задач пока нет'}
           </Text>
-          <Text variant="caption" tone={due.overdue ? 'bad' : 'faint'}>
+          <Text variant="caption" style={soft}>
             {due.text}
           </Text>
         </View>
-        <Bar percent={pct} />
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+          <View style={{ width: `${pct}%`, height: 4, borderRadius: 2, backgroundColor: '#fff' }} />
+        </View>
       </View>
-    </Card>
+    </RiskCard>
   );
 }
 

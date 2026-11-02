@@ -304,3 +304,25 @@
 .spark-ink {
   --spark: var(--ink-2);
 }
+
+/* Цели за период — карточки Risk Radar: цвет жидкости — как сдвинулся KPI. */
+.effect-goal-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 12px;
+}
+.effect-goal-card {
+  min-height: 168px;
+  padding: 16px 18px;
+}
+.effect-goal-card .rr-num {
+  margin-top: auto;
+}
+.effect-goal-card .rr-title {
+  font-size: 15px;
+}
+.effect-goal-none {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  opacity: 0.9;
+}

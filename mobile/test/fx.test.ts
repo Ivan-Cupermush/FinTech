@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { glassKind, glassTint, heroColors, heroStatColor, SECTION_VARIANTS, heroMarkPlacement, heroVariantForKpi, hexToRgb, HERO_COLORS, tabBarSpace, tabIndicator } from '../src/lib/fx';
+import { glassKind, glassTint, heroColors, heroStatColor, SECTION_VARIANTS, heroMarkPlacement, heroVariantForKpi, heroVariantForTone, hexToRgb, HERO_COLORS, tabBarSpace, tabIndicator } from '../src/lib/fx';
 
 describe('hexToRgb', () => {
   it('переводит цвет в доли единицы для шейдера', () => {
@@ -112,5 +112,14 @@ describe('шапки разделов', () => {
       expect(r).toBeGreaterThan(0.9);
       expect((r + g + b) / 3).toBeGreaterThan(0.7);
     }
+  });
+});
+
+describe('heroVariantForTone', () => {
+  it('шапка цели в цвет риска, как на сайте', () => {
+    expect(heroVariantForTone('critical', 'progress')).toBe('bad');
+    expect(heroVariantForTone('safe', 'progress')).toBe('good');
+    expect(heroVariantForTone('warning', 'regress')).toBe('bad');
+    expect(heroVariantForTone('steady', 'no_data')).toBe('hero');
   });
 });

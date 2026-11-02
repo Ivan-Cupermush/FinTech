@@ -1,10 +1,11 @@
 import { Archive, ArchiveRestore, Ban, Check, CircleDot, Eye, Flag, HandHeart, HandHelping, Link2, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BLOCKER_LABELS, BLOCKER_REASONS, TASK_LIGHT_LABELS, archiveNote, canArchive, canThank, canTransitionKind, formatDate, requestBadge, isOverdue, lightOf, TASK_ROLE_LABELS, TASK_STATUS_LABELS, todayIso, type BlockerReason, type TaskRole, type TaskStatus } from '@offix/core';
 import { ApiError } from '../../lib/api';
 import { useMe, useTask, useTaskStatus } from '../../lib/queries';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
+import { burst, burstPoint } from '../../ui/fx/burst';
 import { Field } from '../../ui/Field';
 import { Dialog, Panel, Skeleton } from '../../ui/Misc';
 import { TaskStatusPill } from '../../ui/Pill';
@@ -90,11 +91,15 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
   const myId = me.data?.id ?? '';
   const failed = (e: unknown) => toast(e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз', 'error');
 
+  // Точка нажатия «Выполнено»: из неё после ответа сервера вылетают частицы.
+  const doneAt = useRef<{ x: number; y: number } | null>(null);
   const change = (to: TaskStatus, extra: { blocked_reason?: string; blocked_note?: string; next_step?: string } = {}) =>
     status.mutate(
       { id, status: to, ...extra },
       {
         onSuccess: () => {
+          if (to === 'done' && doneAt.current) burst(doneAt.current.x, doneAt.current.y, 'good');
+          doneAt.current = null;
           setBlocking(false);
           setErr(null);
           toast(to === 'blocked' ? 'Руководитель увидит блокировку' : `Статус: ${TASK_STATUS_LABELS[to].toLowerCase()}`);
@@ -188,7 +193,12 @@ export function TaskPanel({ id, onClose }: { id: string; onClose: () => void }) 
                 </Button>
               ) : (
                 ACTIONS.filter((a) => canTransitionKind(t.kind, t.status, a.to)).map((a) => (t.status === 'done' && a.to === 'in_progress' ? { ...a, label: 'Вернуть в работу', icon: <RotateCcw size={16} />, variant: 'secondary' as const } : a)).map((a) => (
-                  <Button key={a.to} variant={a.variant} icon={a.icon} loading={status.isPending && status.variables?.status === a.to} onClick={() => (a.to === 'blocked' ? setBlocking(true) : change(a.to))}>
+                  <Button key={a.to} variant={a.variant} icon={a.icon} loading={status.isPending && status.variables?.status === a.to} onClick={(e) => {
+                      if (a.to === 'done') doneAt.current = burstPoint(e);
+                      if (a.to === 'blocked') setBlocking(true);
+                      else change(a.to);
+                    }}
+                  >
                     {a.label}
                   </Button>
                 ))

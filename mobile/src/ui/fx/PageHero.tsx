@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { Odometer } from './Odometer';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
@@ -15,10 +16,10 @@ export function HeroStats({ stats }: { stats: HeroStat[] }) {
       {stats.map((s) => (
         <Glass key={s.label} radius={18} style={{ flex: 1 }}>
           <View style={{ paddingVertical: 10, paddingHorizontal: 12 }} accessible accessibilityLabel={`${s.label}: ${s.value}${s.unit ? ` ${s.unit}` : ''}`}>
-            <Text style={{ color: heroStatColor(s.tone), fontFamily: font.bold, fontSize: 22, lineHeight: 26 }}>
-              {s.value}
-              {s.unit ? <Text style={{ color: heroStatColor(s.tone), fontFamily: font.semibold, fontSize: 13 }}>{` ${s.unit}`}</Text> : null}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              <Odometer value={String(s.value)} style={{ color: heroStatColor(s.tone), fontFamily: font.bold, fontSize: 22 }} />
+              {s.unit ? <Text style={{ color: heroStatColor(s.tone), fontFamily: font.semibold, fontSize: 13, marginBottom: 3 }}>{` ${s.unit}`}</Text> : null}
+            </View>
             <Text variant="caption" style={{ color: 'rgba(255,255,255,0.72)' }}>
               {s.label}
             </Text>

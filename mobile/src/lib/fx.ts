@@ -108,6 +108,13 @@ export function heroVariantForKpi(state: string | null | undefined): HeroVariant
   return 'hero';
 }
 
+/** Шапка цели в цвет риска, как на сайте: гранат — «плохая» волна, мята — «хорошая». */
+export function heroVariantForTone(tone: 'safe' | 'steady' | 'warning' | 'critical', kpi: string | null | undefined): HeroVariant {
+  if (tone === 'critical') return 'bad';
+  if (tone === 'safe') return 'good';
+  return heroVariantForKpi(kpi);
+}
+
 /** unit — единица мельче числа: «563» и «тыс. ₽», чтобы длинная сумма не рвалась посередине слова. */
 export type HeroStat = { label: string; value: number | string; unit?: string; tone?: 'bad' | 'warn' | 'good' };
 

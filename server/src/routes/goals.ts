@@ -12,6 +12,7 @@ import {
   IMPORT_MAX_ROWS,
   kpiProgress,
   observationDay,
+  riskLevelOf,
   todayIso,
   validateGoal,
   validateMetric,
@@ -35,11 +36,13 @@ import {
   insertMetrics,
   loadGoals,
   loadMetrics,
+  loadTrends,
   serializeMetric,
   type LoadedGoal,
 } from '../services/goals';
 import { allowedByFunction } from '../services/functions';
 import { withIdempotency } from '../services/idempotency';
+import { goalRisks } from './roadmap';
 import { notify } from '../services/notify';
 import { addObservations } from '../services/observations';
 import { loadOrg } from '../services/org';
@@ -132,9 +135,14 @@ export function goalsRouter(db: Db, now: () => Date): Router {
     ]);
     const ownerMap = new Map(owners.rows.map((o) => [o.id, o]));
     const t = today();
+    const primaryIds = list.map((g) => metrics.find((m) => m.goal_id === g.row.id)?.id).filter((id): id is string => !!id);
+    const trends = await loadTrends(db, primaryIds);
+    // Уровень риска — та же модель, что на Пульсе: одна цель везде одного цвета.
+    const levels = new Map<string, 'critical' | 'warning' | 'ok'>();
+    for (const g of list) if (g.row.status === 'active') levels.set(g.row.id, riskLevelOf((await goalRisks(db, actor.company_id, g, t)).risks));
     res.json({
       data: list.map((g) => {
-        const ms = metrics.filter((m) => m.goal_id === g.row.id).map(serializeMetric);
+        const ms = metrics.filter((m) => m.goal_id === g.row.id).map((m, i) => (i === 0 ? { ...serializeMetric(m), trend: trends.get(m.id) ?? [] } : serializeMetric(m)));
         const ts = tasks.rows.filter((x) => x.goal_id === g.row.id);
         const done = ts.filter((x) => x.status === 'done').length;
         const counted = ts.filter((x) => x.status !== 'cancelled').length;
@@ -151,6 +159,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
           task_progress: { done, total: counted, percent: counted ? Math.round((done / counted) * 100) : null },
           blocked: ts.filter((x) => x.status === 'blocked').length,
           overdue: ts.filter((x) => x.due_at && x.due_at < t && x.status !== 'done' && x.status !== 'cancelled').length,
+          ...(levels.has(g.row.id) ? { risk_level: levels.get(g.row.id) } : {}),
           updated_at: g.row.updated_at,
         };
       }),

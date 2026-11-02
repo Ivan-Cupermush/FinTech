@@ -125,6 +125,7 @@ describe('обсуждение задачи', () => {
       'POST /discussions/task/t3': comment('k2'),
     });
     renderApp('/app/goals/g1');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Список' }));
     await userEvent.click((await screen.findAllByText('Обучить сотрудников'))[0]!);
     const region = await screen.findByRole('region', { name: 'Обсуждение' });
     expect(await within(region).findByText('Материалы готовы')).toBeInTheDocument();

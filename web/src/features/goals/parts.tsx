@@ -1,10 +1,10 @@
 import { CalendarDays, CircleAlert, CornerDownRight, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { diffDays, formatDate, GOAL_TYPE_LABELS, plural, type Risk } from '@offix/core';
+import { diffDays, formatDate, formatNumber, GOAL_TYPE_LABELS, lastDelta, plural, RISK_GRADE, RISK_TONE_LABELS, riskTone, UNITS, type Risk } from '@offix/core';
 import type { Metric, UserBrief } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
-import { KpiTrack } from '../../ui/KpiTrack';
-import { Pill } from '../../ui/Pill';
+import { Odometer } from '../../ui/fx/Odometer';
+import { RiskBadge, RiskCard } from '../../ui/fx/RiskCard';
 
 export function DueLabel({ due, today }: { due: string | null; today: string }) {
   if (!due) return <span className="faint">Без срока</span>;
@@ -20,7 +20,16 @@ export function DueLabel({ due, today }: { due: string | null; today: string }) 
   );
 }
 
-/** Карточка цели в списках: главный KPI крупно, ход работ — тонкой полосой. */
+/** Изменение к прошлому замеру с учётом направления KPI: «−1,5 мин» хорошо, если цель — уменьшить. */
+export function deltaTone(delta: number, direction: Metric['direction']): 'good' | 'bad' | 'flat' {
+  if (!delta || direction === 'maintain') return 'flat';
+  return (direction === 'decrease' ? delta < 0 : delta > 0) ? 'good' : 'bad';
+}
+
+/**
+ * Карточка цели в списках — Risk Radar: жидкость цвета риска, главный KPI
+ * крупно одометром, линия последних замеров и ход работ тонкой полосой.
+ */
 export function GoalTile({
   goal,
   today,
@@ -35,49 +44,70 @@ export function GoalTile({
     task_progress: { done: number; total: number };
     risk_level?: 'critical' | 'warning' | 'ok';
     blocked?: number;
+    overdue?: number;
     status?: string;
   };
   today: string;
 }) {
   const m = goal.primary_metric;
   const pct = goal.task_progress.total ? Math.round((goal.task_progress.done / goal.task_progress.total) * 100) : 0;
+  const tone = riskTone({ risk_level: goal.risk_level, blocked: goal.blocked, overdue: goal.overdue, kpi: m?.progress.state ?? null, status: goal.status });
+  const unit = m ? UNITS[m.unit] : null;
+  const f = (v: number) => formatNumber(v, unit?.decimals ?? 0);
+  const value = m?.current_value != null ? f(m.current_value) : null;
+  const trend = m?.trend ?? [];
+  const delta = lastDelta(trend);
+  const left = goal.due_at ? diffDays(today, goal.due_at) : null;
   return (
-    <Link to={`/app/goals/${goal.id}`} className="card card-hover stack" style={{ '--gap': '16px' } as React.CSSProperties}>
-      <div className="spread" style={{ alignItems: 'flex-start' }}>
-        <div className="stack" style={{ '--gap': '6px', minWidth: 0 } as React.CSSProperties}>
-          <div className="row wrap" style={{ gap: 6 }}>
-            <Pill tone="neutral" plain>
-              {GOAL_TYPE_LABELS[goal.type]}
-            </Pill>
-            {goal.status === 'draft' && <Pill plain>Черновик</Pill>}
-            {goal.risk_level === 'critical' && <Pill tone="bad">Под угрозой</Pill>}
-            {goal.risk_level === 'warning' && <Pill tone="warn">Есть риски</Pill>}
-            {!!goal.blocked && goal.risk_level === undefined && <Pill tone="bad">{goal.blocked} блок.</Pill>}
-          </div>
-          <h3 style={{ fontSize: 17 }}>{goal.title}</h3>
-        </div>
-        {goal.owner && <Avatar name={goal.owner.display_name} size={30} title={`Владелец: ${goal.owner.display_name}`} />}
+    <RiskCard to={`/app/goals/${goal.id}`} tone={tone} spark={trend} className="goal-tile" aria-label={`${goal.title}: ${RISK_TONE_LABELS[tone].toLowerCase()}`}>
+      <div className="spread" style={{ alignItems: 'flex-start', gap: 10 }}>
+        <span className="rr-eyebrow clip">
+          {GOAL_TYPE_LABELS[goal.type]}
+          {goal.status === 'draft' ? ' · черновик' : ''}
+        </span>
+        <RiskBadge grade={RISK_GRADE[tone]} label={RISK_TONE_LABELS[tone]} />
       </div>
+      <h3 className="rr-title">{goal.title}</h3>
       {m ? (
-        <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} name={m.name} size="lg" showLegend={false} />
+        <>
+          <div className={`rr-num ${value === null ? 'rr-num-empty' : value.length > 7 ? 'rr-num-long' : ''}`}>
+            {value === null ? 'Нет замеров' : <Odometer value={value} />}
+            {value !== null && <span className="unit">{unit!.short}</span>}
+          </div>
+          <div className="rr-sub">
+            <span>
+              {m.name} · цель <b className="num">{f(m.target)}</b>
+            </span>
+            {m.progress.raw !== null && <span className="num">{Math.round(m.progress.raw)}&nbsp;% пути</span>}
+            {delta !== null && delta !== 0 && (
+              <span className="rr-delta num" title="К прошлому замеру">
+                {deltaTone(delta, m.direction) === 'bad' ? '▼' : '▲'} {delta > 0 ? '+' : '−'}
+                {f(Math.abs(delta))}
+              </span>
+            )}
+          </div>
+        </>
       ) : (
-        <div className="row faint" style={{ gap: 8, fontSize: 14 }}>
-          <CircleAlert size={16} /> KPI не задан — цель пока не измерима
+        <div className="rr-num rr-num-empty">
+          <CircleAlert size={22} aria-hidden /> KPI не задан
         </div>
       )}
-      {m && <div className="faint" style={{ fontSize: 13, marginTop: -8 }}>{m.name}</div>}
-      <div className="stack" style={{ '--gap': '8px' } as React.CSSProperties}>
-        <div className="spread wrap" style={{ fontSize: 13, rowGap: 6 }}>
-          <span className="row faint" style={{ gap: 6 }}>
-            <ListChecks size={14} /> {goal.task_progress.total ? `Задачи ${goal.task_progress.done} из ${goal.task_progress.total}` : 'Задач пока нет'}
+      <div className="rr-foot">
+        <div className="rr-foot-row">
+          <span>
+            <ListChecks size={14} aria-hidden /> {goal.task_progress.total ? `Задачи ${goal.task_progress.done} из ${goal.task_progress.total}` : 'Задач пока нет'}
           </span>
-          <DueLabel due={goal.due_at} today={today} />
+          <span>
+            <CalendarDays size={14} aria-hidden />
+            {goal.due_at ? `до ${formatDate(goal.due_at, { today, short: true })}${left !== null && left < 0 ? ` · просрочено` : ''}` : 'без срока'}
+            {goal.owner && <Avatar name={goal.owner.display_name} size={22} title={`Владелец: ${goal.owner.display_name}`} />}
+          </span>
         </div>
-        <div className="bar" aria-hidden>
+        <div className="rr-bar" aria-hidden>
           <span style={{ width: `${pct}%` }} />
         </div>
       </div>
-    </Link>
+    </RiskCard>
   );
 }
 

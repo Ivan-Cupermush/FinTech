@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { Odometer } from './fx/Odometer';
 import { ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -66,7 +67,7 @@ export function EffectSummary({ r }: { r: MetricsReport }) {
   ].filter(Boolean);
   return (
     <Card onPress={() => router.push('/effect')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-      <Text style={{ fontSize: 40, lineHeight: 44, fontFamily: font.bold, letterSpacing: -2 }}>{formatPercent(r.north_star.value)}</Text>
+      <Odometer value={formatPercent(r.north_star.value)} style={{ fontSize: 40, fontFamily: font.bold, letterSpacing: -2, color: p.ink }} />
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ fontFamily: font.semibold }}>целей сдвинули KPI за {r.window_days} дней</Text>
         <Text variant="small" tone="muted">

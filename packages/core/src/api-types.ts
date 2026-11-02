@@ -32,6 +32,8 @@ export interface Metric {
   last_observed_at: string | null;
   planned_change: number | null;
   progress: KpiProgress;
+  /** Последние замеры по порядку, для спарклайна (Пульс и список целей). */
+  trend?: number[];
 }
 
 export interface GoalSummary {
@@ -47,6 +49,8 @@ export interface GoalSummary {
   task_progress: { done: number; total: number; percent: number | null };
   blocked: number;
   overdue: number;
+  /** Уровень риска по модели рисков — только у целей в работе. */
+  risk_level?: 'critical' | 'warning' | 'ok';
   updated_at: string;
 }
 

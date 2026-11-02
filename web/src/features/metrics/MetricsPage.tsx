@@ -2,12 +2,13 @@ import { Activity, ArrowRight, CircleGauge, Clock3, FileText, Rocket, Sparkles, 
 import type { ReactNode } from 'react';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Link, useNavigate } from 'react-router-dom';
-import { MOVEMENT_LABELS, MOVEMENT_TONES, formatDelta, formatHours, formatPercent as percent, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
+import { MOVEMENT_LABELS, formatDelta, movementTone, formatHours, formatPercent as percent, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
 import { useMetrics } from '../../lib/queries';
 import type { MetricsReport } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
-import { Pill } from '../../ui/Pill';
+import { Odometer } from '../../ui/fx/Odometer';
+import { RiskBadge, RiskCard } from '../../ui/fx/RiskCard';
 import { Sparkline } from '../../ui/Sparkline';
 import { effectActions } from './effect';
 import './metrics.css';
@@ -88,7 +89,7 @@ function Report({ r }: { r: MetricsReport }) {
           <div className="eyebrow" id="ns-h">
             Северная звезда
           </div>
-          <div className="effect-big num">{ns.value === null ? '—' : <>{ns.value}<span className="effect-big-unit">%</span></>}</div>
+          <div className="effect-big num">{ns.value === null ? '—' : <><Odometer value={ns.value} /><span className="effect-big-unit">%</span></>}</div>
           <p className="effect-caption">
             {northStarCaption(r)}
           </p>
@@ -108,14 +109,19 @@ function Report({ r }: { r: MetricsReport }) {
           <div className="section-title">
             <h3 id="ns-goals-h">Цели за {r.window_days} дней</h3>
           </div>
-          <div className="list">
-            {ns.items.map((i) => (
-              <Link key={i.id} to={`/app/goals/${i.id}`} className="list-row effect-goal">
-                <span className="grow clip">{i.title}</span>
-                {i.delta !== null && <span className={`num effect-delta ${i.delta < 0 ? 'bad' : i.delta > 0 ? 'good' : ''}`}>{formatDelta(i.delta)}</span>}
-                <Pill tone={MOVEMENT_TONES[i.movement]}>{MOVEMENT_LABELS[i.movement]}</Pill>
-              </Link>
-            ))}
+          <div className="effect-goal-cards">
+            {ns.items.map((i) => {
+              const tone = movementTone(i.movement);
+              return (
+                <RiskCard key={i.id} to={`/app/goals/${i.id}`} tone={tone} className="effect-goal-card" aria-label={`${i.title}: ${MOVEMENT_LABELS[i.movement].toLowerCase()}${i.delta !== null ? `, ${formatDelta(i.delta)}` : ''}`}>
+                  <div>
+                    <RiskBadge label={MOVEMENT_LABELS[i.movement]} />
+                  </div>
+                  <span className="rr-title">{i.title}</span>
+                  <div className="rr-num rr-num-long">{i.delta === null ? <span className="effect-goal-none">нет замеров</span> : <Odometer value={formatDelta(i.delta)} />}</div>
+                </RiskCard>
+              );
+            })}
           </div>
         </section>
       )}
@@ -243,7 +249,9 @@ function Tile({
         {icon}
         {title}
       </div>
-      <div className="effect-tile-value num">{value}</div>
+      <div className="effect-tile-value num">
+        <Odometer value={value} />
+      </div>
       <p className="effect-tile-caption">{caption}</p>
       {series && <Sparkline values={series} max={max} tone={tone} height={44} label={`${title} по неделям`} />}
       {trend && <div className="faint effect-tile-trend">{trend}</div>}

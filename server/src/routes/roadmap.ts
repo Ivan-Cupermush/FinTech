@@ -10,6 +10,7 @@ import {
   isValidIsoDate,
   onTimeShare,
   processSummary,
+  riskLevelOf,
   taskTimeline,
   todayIso,
   type Dependency,
@@ -21,7 +22,7 @@ import type { Db, Queryable } from '../db/db';
 import { forbidden, invalid } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
-import { effectiveAccess, getVisibleGoal, goalCard, loadGoals, loadMetrics, serializeMetric, type LoadedGoal } from '../services/goals';
+import { effectiveAccess, getVisibleGoal, goalCard, loadGoals, loadMetrics, loadTrends, serializeMetric, type LoadedGoal } from '../services/goals';
 import { notify } from '../services/notify';
 import { loadOrg } from '../services/org';
 import { loadTasks, serializeTask, taskPermissions, type TaskRow } from '../services/tasks';
@@ -187,13 +188,14 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
     const { org, visible } = await visibleGoals(db, actor);
     const active = visible.filter((g) => g.row.status === 'active' && !g.row.parent_goal_id);
     const metrics = await loadMetrics(db, active.map((g) => g.row.id));
+    const trends = await loadTrends(db, metrics.map((m) => m.id));
     const allRisks: (Risk & { goal_id: string; goal_title: string })[] = [];
     const goals = [];
     for (const g of active) {
       const { risks, tasks } = await goalRisks(db, actor.company_id, g, t);
       allRisks.push(...risks.map((x) => ({ ...x, goal_id: g.row.id, goal_title: g.row.title })));
       const counted = tasks.filter((x) => x.status !== 'cancelled');
-      const m = metrics.filter((x) => x.goal_id === g.row.id).map(serializeMetric)[0] ?? null;
+      const m = metrics.filter((x) => x.goal_id === g.row.id).map((x) => ({ ...serializeMetric(x), trend: trends.get(x.id) ?? [] }))[0] ?? null;
       goals.push({
         id: g.row.id,
         title: g.row.title,
@@ -202,7 +204,7 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
         primary_metric: m,
         progress: m?.progress.raw ?? null,
         task_progress: { done: counted.filter((x) => x.status === 'done').length, total: counted.length },
-        risk_level: risks.some((x) => x.severity === 'critical') ? 'critical' : risks.some((x) => x.severity === 'warning') ? 'warning' : 'ok',
+        risk_level: riskLevelOf(risks),
       });
     }
     const myTasks = await loadTasks(db, actor.company_id, `t.assignee_id = $2 AND t.status NOT IN ('done', 'cancelled')`, [actor.id]);

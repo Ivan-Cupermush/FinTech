@@ -151,6 +151,22 @@ export async function loadMetrics(q: Queryable, goalIds: string[]): Promise<Metr
   return rows;
 }
 
+/** Последние `n` замеров каждого KPI, от старых к новым: линия тренда на карточке цели. */
+export async function loadTrends(q: Queryable, metricIds: string[], n = 12): Promise<Map<string, number[]>> {
+  const out = new Map<string, number[]>();
+  if (!metricIds.length) return out;
+  const { rows } = await q.query<{ metric_id: string; value: string | number }>(
+    `SELECT metric_id, value FROM (
+       SELECT metric_id, value, observed_at, created_at,
+              ROW_NUMBER() OVER (PARTITION BY metric_id ORDER BY observed_at DESC, created_at DESC) AS rn
+         FROM goal_metric_observations WHERE metric_id = ANY($1::uuid[])
+     ) x WHERE rn <= $2 ORDER BY metric_id, observed_at, created_at`,
+    [metricIds, n],
+  );
+  for (const r of rows) out.set(r.metric_id, [...(out.get(r.metric_id) ?? []), Number(r.value)]);
+  return out;
+}
+
 export function serializeMetric(m: MetricRow) {
   const p = kpiProgress({ baseline: m.baseline, target: m.target_value, direction: m.direction, range_min: m.range_min, range_max: m.range_max }, m.current_value);
   return {
