@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { Backdrop } from './Backdrop';
 import { Glass } from './Glass';
+import { Odometer } from './Odometer';
 import type { SectionVariant } from './gradients';
 
 export interface HeroStat {
@@ -62,7 +63,7 @@ export function PageHero({
               {stats!.map((s) => (
                 <Glass key={s.label} className="app-hero-stat" radius={20} clip elasticity={0.06} displacement={40}>
                   <div className="app-hero-stat-body" data-tone={s.tone}>
-                    <span className="num">{s.value}</span>
+                    {typeof s.value === 'number' || typeof s.value === 'string' ? <Odometer value={s.value} /> : <span className="num">{s.value}</span>}
                     <span>{s.label}</span>
                   </div>
                 </Glass>

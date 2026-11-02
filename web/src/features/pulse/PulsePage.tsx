@@ -6,6 +6,7 @@ import { useDashboard, useMe } from '../../lib/queries';
 import type { Dashboard } from '../../lib/types';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
+import { Odometer } from '../../ui/fx/Odometer';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
@@ -59,7 +60,7 @@ export function PulsePage() {
             {pulseStats(d).map((s) => (
               <Glass key={s.label} className="app-hero-stat" radius={20} clip elasticity={0.06} displacement={40}>
                 <div className="app-hero-stat-body">
-                  <span className="num">{s.value}</span>
+                  <Odometer value={s.value} />
                   <span>{s.label}</span>
                 </div>
               </Glass>

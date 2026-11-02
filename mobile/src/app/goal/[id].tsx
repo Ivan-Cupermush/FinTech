@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, View } from 'react-native';
-import { BLOCKER_LABELS, checkUnitRange, formatDate, formatDuration, GOAL_STATUS_LABELS, KPI_STATE_LABELS, parseNumber, UNITS, type BlockerReason, type Metric, type Risk } from '@offix/core';
+import { BLOCKER_LABELS, checkUnitRange, formatDate, formatDuration, formatNumber, GOAL_STATUS_LABELS, KPI_STATE_LABELS, parseNumber, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type BlockerReason, type Metric, type Risk } from '@offix/core';
 import { dueText } from '../../lib/logic';
 import { useInvalidateWork, useRoadmap } from '../../lib/queries';
 import { api } from '../../lib/session';
@@ -13,7 +13,9 @@ import { DiscussionLink } from '../../ui/discussion';
 import { GoalDocsLink, NotesLink } from '../../ui/notes';
 import { Glass } from '../../ui/fx/Glass';
 import { Hero } from '../../ui/fx/Hero';
-import { heroVariantForKpi } from '../../lib/fx';
+import { heroVariantForTone } from '../../lib/fx';
+import { CapillaryMap } from '../../ui/fx/CapillaryMap';
+import { Odometer } from '../../ui/fx/Odometer';
 import { useModuleOn } from '../../ui/modules';
 
 export default function GoalScreen() {
@@ -35,6 +37,7 @@ export default function GoalScreen() {
   const m = g.metrics.find((x) => x.is_primary) ?? g.metrics[0] ?? null;
   const today = r.timeline.today;
   const due = dueText(g.due_at, today);
+  const tone = riskTone({ risk_level: g.status === 'active' ? riskLevelOf(r.risks) : undefined, kpi: m?.progress.state ?? null, status: g.status });
   const byId = new Map(r.tasks.map((t) => [t.id, t]));
   const groups = [
     ...r.subgoals.map((s) => ({ id: s.id, title: s.title, owner: s.owner?.display_name, tasks: s.task_ids.map((t) => byId.get(t)).filter((t) => !!t && t.status !== 'cancelled') })),
@@ -75,7 +78,7 @@ export default function GoalScreen() {
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <Stack.Screen options={{ title: g.parent_goal_id ? 'Подцель' : 'Цель' }} />
-      <Hero mark={false} variant={heroVariantForKpi(m?.progress.state)}>
+      <Hero mark={false} variant={heroVariantForTone(tone, m?.progress.state)}>
         <View style={{ padding: 16, gap: 16 }}>
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
@@ -105,9 +108,22 @@ export default function GoalScreen() {
             <View style={{ padding: 16, gap: 12 }}>
               {m ? (
                 <>
-                  <Text variant="eyebrow" tone="faint">
-                    {m.name}
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <Text variant="eyebrow" tone="faint" style={{ flexShrink: 1 }}>
+                      {m.name}
+                    </Text>
+                    <Pill tone={tone === 'critical' ? 'bad' : tone === 'warning' ? 'warn' : tone === 'safe' ? 'good' : 'neutral'} dot>
+                      {`${RISK_GRADE[tone]} · ${RISK_TONE_LABELS[tone]}`}
+                    </Pill>
+                  </View>
+                  {m.current_value !== null && (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+                      <Odometer value={formatNumber(m.current_value, UNITS[m.unit].decimals)} style={{ fontSize: 40, fontFamily: font.bold, letterSpacing: -1.5, color: '#fff' }} />
+                      <Text variant="small" style={{ marginBottom: 5 }}>
+                        {UNITS[m.unit].short}
+                      </Text>
+                    </View>
+                  )}
                   <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} size="lg" />
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <Text variant="caption" tone="faint" style={{ flex: 1 }}>
@@ -156,6 +172,7 @@ export default function GoalScreen() {
       {ai && <GoalDocsLink goalId={g.id} goalTitle={g.title} canUpload={g.permissions.edit} />}
 
       <SectionTitle title="Дорожная карта" />
+      <CapillaryMap roadmap={r} />
       {groups.length ? (
         groups.map((grp, i) => (
           <Card key={grp.id} style={{ gap: 0, paddingVertical: 8 }}>

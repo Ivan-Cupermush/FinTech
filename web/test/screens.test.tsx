@@ -235,6 +235,7 @@ describe('Карточка цели', () => {
     const tasks = base_.tasks.map((t) => (t.id === 't2' ? { ...t, blocker: fresh } : t));
     mockApi({ ...base, 'GET /goals/g1/roadmap': { ...base_, tasks } });
     renderApp('/app/goals/g1');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Список' }));
     expect(await screen.findByRole('img', { name: 'Критичный риск: Заблокирована 1 день: техническая проблема' })).toBeInTheDocument();
     // Без блокировки и просрочки критический путь цвет не меняет.
     expect(screen.getByRole('img', { name: /^Идёт по плану: Срок / })).toBeInTheDocument();

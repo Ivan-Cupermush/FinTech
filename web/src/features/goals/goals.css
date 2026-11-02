@@ -163,6 +163,31 @@
 .goal-hero-kpi-body {
   padding: 20px;
 }
+/* Главная цифра KPI крупно, одометром, — как на карточке Risk Radar. */
+.goal-hero-num {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 48px;
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.goal-hero-num .unit {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+/* Критичная цель: шапка дышит в такт пульсу 72 уд/мин. */
+.goal-hero.tone-critical .goal-hero-kpi .rr-badge-dot {
+  animation: rr-dot 833ms ease-out infinite;
+}
+@media (max-width: 720px) {
+  .goal-hero-num {
+    font-size: 40px;
+  }
+}
 .tree {
   display: flex;
   flex-direction: column;
@@ -621,4 +646,11 @@
   display: flex;
   gap: 10px;
   align-items: baseline;
+}
+
+/* Пока чанк карты грузится — то же ночное стекло, чтобы страница не прыгала. */
+.cap-pending {
+  min-height: 360px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(160deg, #0d1145 0%, #090b2a 55%, #120c33 100%);
 }

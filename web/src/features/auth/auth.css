@@ -133,7 +133,13 @@
   margin: 0;
   padding: 0;
   display: grid;
+  /* minmax(0, …) и min-width у строк: иначе длинная строка распирает
+     сетку по своей ширине и вылезает за край стекла. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
+}
+.sbx-people > li {
+  min-width: 0;
 }
 .sbx-person {
   width: 100%;
@@ -232,8 +238,8 @@
     padding: 14px;
   }
 }
-@media (max-width: 560px) {
-  /* Узко: логин и пароль — строкой под именем, чтобы ничего не обрезалось. */
+@media (max-width: 560px), (min-width: 901px) and (max-width: 1180px) {
+  /* Узко (телефон или узкая правая колонка): логин и пароль — строкой под именем, чтобы ничего не обрезалось. */
   .sbx-go {
     display: none;
   }
@@ -248,8 +254,22 @@
   .sbx-cred {
     flex: 1 0 100%;
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 4px 12px;
     padding-left: 48px;
+    min-width: 0;
   }
+}
+
+/* Пока сервер не ответил, песочница ли это, форма и правая карточка
+   прозрачны: иначе на секунду видны демо-люди обычного входа. */
+.auth-form,
+.auth-art > * {
+  transition: opacity 240ms var(--ease);
+}
+.auth.is-checking .auth-form,
+.auth.is-checking .auth-art > * {
+  opacity: 0;
+  pointer-events: none;
 }

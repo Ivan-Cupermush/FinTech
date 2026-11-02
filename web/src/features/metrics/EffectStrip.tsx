@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatHours, formatPercent as percent } from '@offix/core';
 import { useMetrics } from '../../lib/queries';
+import { Odometer } from '../../ui/fx/Odometer';
 import './metrics.css';
 
 /** Сводка эффекта на Пульсе: одна цифра и три факта, полная картина — по ссылке. */
@@ -11,7 +12,9 @@ export function EffectStrip() {
   if (!r || r.north_star.total === 0) return null;
   return (
     <Link to="/app/metrics" className="card card-hover effect-strip" aria-label={`Эффект: ${percent(r.north_star.value)} целей сдвинули KPI за ${r.window_days} дней`}>
-      <div className="effect-strip-value num">{percent(r.north_star.value)}</div>
+      <div className="effect-strip-value num">
+        <Odometer value={percent(r.north_star.value)} />
+      </div>
       <div className="stack" style={{ '--gap': '6px' } as React.CSSProperties}>
         <div style={{ fontWeight: 600 }}>целей сдвинули KPI к цели за {r.window_days} дней</div>
         <div className="effect-strip-facts">

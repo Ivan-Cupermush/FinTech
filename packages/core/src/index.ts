@@ -35,3 +35,5 @@ export * from './sales';
 export * from './sales-files';
 export * from './sales-form';
 export * from './modules';
+export * from './radar';
+export * from './capillary';

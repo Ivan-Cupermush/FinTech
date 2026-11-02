@@ -168,7 +168,8 @@ export async function seedDemoSales(db: Db, demo: DemoIds, now = new Date()): Pr
       ...monthEvents(month, 'Гусев Олег', 37 + k, 0.1, CLIENTS.slice(6)),
     ];
     const upload = async (month: string, list: SaleEvent[], to: number, name: string) => {
-      if (to < 1) return;
+      // В первые дни месяца (1-е — выходной) продаж ещё нет: пустой отчёт 1С не загружаем.
+      if (to < 1 || !list.some((e) => e.day <= to)) return;
       const sheet = buildSalesReportSheet(`01.${month.slice(5, 7)}.${month.slice(0, 4)} - ${dmy(`${month}-${String(to).padStart(2, '0')}`)}`, reportClients(list, to));
       const [back] = readXlsx(writeXlsx([sheet]));
       await importSalesReport(q, acc, { name, report: parseSalesReport(back!) }, at(`${month}-${String(to).padStart(2, '0')}`));

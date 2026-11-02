@@ -1,10 +1,12 @@
 import { ArrowLeft, Check, CirclePause, CirclePlay, Flag, Pencil, Plus, Rocket, Sheet, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Glass } from '../../ui/fx/Glass';
-import { gradientForKpi } from '../../ui/fx/gradients';
+import { gradientForKpi, type GradientVariant } from '../../ui/fx/gradients';
+import { Odometer } from '../../ui/fx/Odometer';
+import { RiskBadge } from '../../ui/fx/RiskCard';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { formatDate, GOAL_TYPE_LABELS, KPI_STATE_LABELS, type Risk } from '@offix/core';
+import { formatDate, formatNumber, GOAL_TYPE_LABELS, KPI_STATE_LABELS, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type Risk, type RiskTone } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
 import { useInvalidateWork, useMe, useRoadmap } from '../../lib/queries';
 import type { GoalCard, Roadmap } from '../../lib/types';
@@ -23,14 +25,24 @@ import { DueLabel, RiskList } from './parts';
 import { RoadmapAnalytics, RoadmapTimeline, RoadmapTree } from './roadmapViews';
 import './goals.css';
 
-type View = 'tree' | 'timeline' | 'analytics' | 'discussion' | 'notes';
+// Карта со своими стилями и анимациями грузится отдельным чанком, только когда её открыли.
+const CapillaryMap = lazy(() => import('./CapillaryMap').then((m) => ({ default: m.CapillaryMap })));
+
+type View = 'map' | 'tree' | 'timeline' | 'analytics' | 'discussion' | 'notes';
+
+/** Шапка цели в цвет её риска: гранат — «плохая» волна, мята — «хорошая», остальное — фирменная. */
+export function heroVariant(tone: RiskTone, kpi: string | null | undefined): GradientVariant {
+  if (tone === 'critical') return 'bad';
+  if (tone === 'safe') return 'good';
+  return gradientForKpi(kpi);
+}
 type DialogKind = 'observe' | 'import' | 'edit' | 'kpi' | 'task' | 'cancel' | null;
 
 /** Рабочее пространство цели: результат сверху, путь к нему ниже. */
 export function GoalPage() {
   const { id = '' } = useParams();
   const q = useRoadmap(id);
-  const [view, setView] = useState<View>('tree');
+  const [view, setView] = useState<View>('map');
   const [taskId, setTaskId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const summary = useDiscussionSummary('goal', id);
@@ -61,6 +73,8 @@ export function GoalPage() {
   const r = q.data;
   const g = r.goal;
   const primary = g.metrics.find((m) => m.is_primary) ?? g.metrics[0] ?? null;
+  const tone = riskTone({ risk_level: g.status === 'active' ? riskLevelOf(r.risks) : undefined, kpi: primary?.progress.state ?? null, status: g.status });
+  const unit = primary ? UNITS[primary.unit] : null;
 
   return (
     <div className="page">
@@ -68,7 +82,7 @@ export function GoalPage() {
         <ArrowLeft size={15} /> {g.parent_goal_id ? 'К родительской цели' : 'Все цели'}
       </Link>
 
-      <Backdrop variant={gradientForKpi(primary?.progress.state)} className="goal-hero on-color">
+      <Backdrop variant={heroVariant(tone, primary?.progress.state)} className={`goal-hero on-color tone-${tone}`}>
         <div className="stack" style={{ '--gap': '12px', minWidth: 0 } as React.CSSProperties}>
           <div className="row wrap" style={{ gap: 6 }}>
             <GoalStatusPill status={g.status} />
@@ -98,7 +112,16 @@ export function GoalPage() {
           <div className="stack goal-hero-kpi-body" style={{ '--gap': '10px' } as React.CSSProperties}>
             {primary ? (
               <>
-                <div className="eyebrow">{primary.name}</div>
+                <div className="spread" style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <div className="eyebrow">{primary.name}</div>
+                  <RiskBadge grade={RISK_GRADE[tone]} label={RISK_TONE_LABELS[tone]} />
+                </div>
+                {primary.current_value !== null && (
+                  <div className="goal-hero-num">
+                    <Odometer value={formatNumber(primary.current_value, unit!.decimals)} />
+                    <span className="unit">{unit!.short}</span>
+                  </div>
+                )}
                 <KpiTrack baseline={primary.baseline} target={primary.target} current={primary.current_value} unit={primary.unit} progress={primary.progress} name={primary.name} size="lg" />
                 <div className="spread" style={{ fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
                   <span className="faint">
@@ -151,20 +174,26 @@ export function GoalPage() {
           value={view}
           onChange={setView}
           options={[
-            { value: 'tree', label: 'Карта' },
+            { value: 'map', label: 'Карта' },
+            { value: 'tree', label: 'Список' },
             { value: 'timeline', label: 'Таймлайн' },
             { value: 'analytics', label: 'Аналитика' },
             { value: 'discussion', label: <>Обсуждение{!!summary.data?.unread && view !== 'discussion' && <span className="tab-badge" aria-label={`новых: ${summary.data.unread}`}>{summary.data.unread}</span>}</> },
             { value: 'notes', label: 'База знаний' },
           ]}
         />
-        {g.permissions.edit && (view === 'tree' || view === 'timeline') && (
+        {g.permissions.edit && (view === 'map' || view === 'tree' || view === 'timeline') && (
           <Button size="sm" icon={<Plus size={14} />} onClick={() => setDialog('task')}>
             Задача
           </Button>
         )}
       </div>
 
+      {view === 'map' && (r.tasks.some((t) => t.status !== 'cancelled') ? (
+          <Suspense fallback={<div className="cap cap-pending" aria-busy="true" />}>
+            <CapillaryMap roadmap={r} onTask={setTaskId} />
+          </Suspense>
+        ) : <RoadmapTree roadmap={r} onTask={setTaskId} />)}
       {view === 'tree' && <RoadmapTree roadmap={r} onTask={setTaskId} />}
       {view === 'timeline' && <RoadmapTimeline roadmap={r} onTask={setTaskId} />}
       {view === 'analytics' && <RoadmapAnalytics roadmap={r} />}

@@ -203,6 +203,26 @@ describe('Пульс', () => {
     expect(d.drafts.length).toBeGreaterThan(0);
   });
 
+  it('Risk Radar: у главного KPI — линия последних замеров, список целей того же цвета, что Пульс', async () => {
+    const olga = await ctx.as('olga');
+    const d = (await olga.get('/api/v1/dashboard')).body.data;
+    const main = d.goals.find((g: { id: string }) => g.id === ctx.demo.goals.main);
+    const trend: number[] = main.primary_metric.trend;
+    expect(trend.length).toBeGreaterThan(0);
+    expect(trend.length).toBeLessThanOrEqual(12);
+    // Последняя точка линии — текущее значение KPI.
+    expect(trend[trend.length - 1]).toBe(main.primary_metric.current_value);
+    const list = (await olga.get('/api/v1/goals?status=active')).body.data;
+    for (const g of d.goals) {
+      const same = list.find((x: { id: string }) => x.id === g.id);
+      if (same) expect(same.risk_level).toBe(g.risk_level);
+    }
+    expect(list.find((x: { id: string }) => x.id === ctx.demo.goals.main).primary_metric.trend).toEqual(trend);
+    // Черновикам уровень риска не считаем.
+    const drafts = (await olga.get('/api/v1/goals?status=draft')).body.data;
+    for (const g of drafts) expect(g.risk_level).toBeUndefined();
+  });
+
   it('сотрудник видит свои задачи', async () => {
     const dima = await ctx.as('dima');
     const d = (await dima.get('/api/v1/dashboard')).body.data;

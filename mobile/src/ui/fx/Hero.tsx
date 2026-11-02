@@ -6,7 +6,7 @@ import { GradientBackdrop } from './GradientBackdrop';
 import HeroScene from './HeroScene';
 import { OnColor } from './OnColor';
 
-function useReduceMotion(): boolean {
+export function useReduceMotion(): boolean {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
     let alive = true;
