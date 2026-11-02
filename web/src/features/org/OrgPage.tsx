@@ -1,4 +1,4 @@
-import { Building2, Copy, KeyRound, Network, Plus, UserPlus, Users } from 'lucide-react';
+import { Building2, Copy, Eraser, KeyRound, Network, Plus, UserCheck, UserPlus, UserRoundX, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { buildTree, plural, COMPANY_ROLE_HINTS, COMPANY_ROLE_LABELS, COMPANY_ROLES, UNIT_TYPE_LABELS, UNIT_TYPES, type CompanyRole, type FieldErrors, type TreeNode, type UnitType } from '@offix/core';
@@ -123,9 +123,21 @@ function UnitNode({ node, depth }: { node: TreeNode<OrgUnitRow>; depth: number }
 function People({ admin, myRole, meId }: { admin: boolean; myRole?: CompanyRole; meId?: string }) {
   const [search, setSearch] = useState('');
   const [reset, setReset] = useState<{ id: string; name: string } | null>(null);
-  const users = useUsers(search);
+  const [leave, setLeave] = useState<{ id: string; name: string } | null>(null);
+  const users = useUsers(search, admin);
   const qc = useQueryClient();
   const toast = useToast();
+  const setActive = async (id: string, active: boolean) => {
+    try {
+      await api(`/users/${id}`, { method: 'PATCH', body: { active } });
+      await qc.invalidateQueries({ queryKey: ['users'] });
+      void qc.invalidateQueries({ queryKey: ['security'] });
+      toast(active ? 'Сотрудник снова может войти' : 'Сотрудник отключён: все его сеансы закрыты');
+      setLeave(null);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
   const changeRole = async (id: string, role: CompanyRole) => {
     try {
       await api(`/users/${id}`, { method: 'PATCH', body: { role } });
@@ -150,7 +162,7 @@ function People({ admin, myRole, meId }: { admin: boolean; myRole?: CompanyRole;
                   <Link to={`/app/people/${m.id}`} className="org-person">
                     {m.display_name}
                   </Link>{' '}
-                  {!m.active && <span className="faint">· отключён</span>}
+                  {m.anonymized ? <span className="faint">· данные обезличены</span> : !m.active && <span className="faint">· отключён</span>}
                 </span>
                 <span className="faint clip" style={{ fontSize: 12.5 }}>
                   {[m.position, m.units.map((u) => `${u.name}${u.is_manager ? ' (рук.)' : ''}`).join(', '), m.email].filter(Boolean).join(' · ')}
@@ -170,11 +182,40 @@ function People({ admin, myRole, meId }: { admin: boolean; myRole?: CompanyRole;
               {admin && m.id !== meId && m.active && (m.role !== 'owner' || myRole === 'owner') && (
                 <Button size="sm" variant="ghost" icon={<KeyRound size={15} />} aria-label={`Сбросить пароль: ${m.display_name}`} title="Сбросить пароль" onClick={() => setReset({ id: m.id, name: m.display_name })} />
               )}
+              {admin && m.id !== meId && m.active && m.role !== 'owner' && (
+                <Button size="sm" variant="ghost" icon={<UserRoundX size={15} />} aria-label={`Отключить: ${m.display_name}`} title="Сотрудник ушёл — отключить" onClick={() => setLeave({ id: m.id, name: m.display_name })} />
+              )}
+              {admin && !m.active && !m.anonymized && (
+                <>
+                  <Button size="sm" variant="ghost" icon={<UserCheck size={15} />} aria-label={`Вернуть доступ: ${m.display_name}`} title="Вернуть доступ" onClick={() => setActive(m.id, true)} />
+                  <Link to="/app/security" className="btn btn-ghost btn-sm btn-icon" aria-label={`Обезличить: ${m.display_name}`} title="Обезличить в разделе «Безопасность»">
+                    <Eraser size={15} aria-hidden />
+                  </Link>
+                </>
+              )}
             </div>
           ))}
         </div>
       )}
       {reset && <ResetPasswordDialog person={reset} onClose={() => setReset(null)} />}
+      {leave && (
+        <Dialog
+          title={`Отключить ${leave.name}?`}
+          onClose={() => setLeave(null)}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setLeave(null)}>
+                Отмена
+              </Button>
+              <Button variant="danger" icon={<UserRoundX size={15} />} onClick={() => setActive(leave.id, false)}>
+                Отключить
+              </Button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>Сотрудник сразу выйдет на всех устройствах и не сможет войти. Его задачи и сообщения останутся. Доступ можно вернуть, а когда данные больше не нужны — обезличить в разделе «Безопасность».</p>
+        </Dialog>
+      )}
     </section>
   );
 }

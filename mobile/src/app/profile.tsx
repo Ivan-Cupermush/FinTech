@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
-import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, SlidersHorizontal, Sparkles, UserRound, Wallet } from 'lucide-react-native';
+import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Wallet } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, Share, View } from 'react-native';
 import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, passwordError, passwordStrength, profileUrl } from '@offix/core';
@@ -33,13 +33,14 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
   );
 }
 
-const MENU_ROWS: Record<MenuKey, { label: string; Icon: typeof Wallet; href: '/my-notes' | '/notes' | '/effect' | '/report' | '/sales' | '/company' | '/push-settings' }> = {
+const MENU_ROWS: Record<MenuKey, { label: string; Icon: typeof Wallet; href: '/my-notes' | '/notes' | '/effect' | '/report' | '/sales' | '/company' | '/security' | '/push-settings' }> = {
   'my-notes': { label: 'Мои заметки', Icon: NotebookPen, href: '/my-notes' },
   notes: { label: 'База знаний', Icon: BookOpen, href: '/notes' },
   effect: { label: 'Эффект', Icon: Sparkles, href: '/effect' },
   report: { label: 'Отчёт', Icon: BarChart3, href: '/report' },
   sales: { label: 'Продажи и KPI', Icon: Wallet, href: '/sales' },
   company: { label: 'Функции компании', Icon: SlidersHorizontal, href: '/company' },
+  security: { label: 'Безопасность и мои данные', Icon: ShieldCheck, href: '/security' },
   push: { label: 'Push-уведомления', Icon: BellRing, href: '/push-settings' },
 };
 

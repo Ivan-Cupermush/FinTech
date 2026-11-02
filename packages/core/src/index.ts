@@ -37,3 +37,5 @@ export * from './sales-form';
 export * from './modules';
 export * from './radar';
 export * from './capillary';
+export * from './security';
+export * from './privacy';

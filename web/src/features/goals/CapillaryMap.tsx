@@ -6,11 +6,13 @@ import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
 import './capillary.css';
 
-const LANE = 104;
+// Ряд с запасом под подпись в две строки и дату: она не задевает узел ряда ниже.
+const LANE = 116;
 const PAD_X = 84;
 const PAD_TOP = 56;
 const PAD_BOTTOM = 136;
 const NARROW = 640;
+const LABEL_GAP = 164;
 
 const STATE_LABEL: Record<CapNode['state'], string> = {
   done: 'готово',
@@ -60,12 +62,14 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
         critical_path: roadmap.critical_path,
         today,
         goal: { id: goal.id, title: goal.title, due_at: goal.due_at },
-        minGap: Math.min(0.25, 164 / Math.max(W0 - PAD_X * 2, 300)),
+        // Подпись — 148 px, плюс воздух: соседи в ряду не ближе 164 px.
+        minGap: LABEL_GAP / Math.max(W0 - PAD_X * 2, 300),
       }),
     [roadmap, today, goal.id, goal.title, goal.due_at, W0],
   );
   const taskCount = layout.nodes.length - 1;
-  const W = W0;
+  // Узлы не поместились в ряды — карта шире окна и прокручивается: подписи не наезжают.
+  const W = Math.round(PAD_X * 2 + (Math.max(W0 - PAD_X * 2, 300)) * layout.stretch);
   const lanes = layout.laneMax - layout.laneMin;
   const H = PAD_TOP + lanes * LANE + PAD_BOTTOM;
   const px = (x: number) => PAD_X + x * (W - PAD_X * 2);

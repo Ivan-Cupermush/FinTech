@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, SlidersHorizontal, Sun, Target, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
+import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, ShieldCheck, SlidersHorizontal, Sun, Target, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS, isModuleOn, type ModuleKey } from '@offix/core';
@@ -44,6 +44,8 @@ const NAV: NavItem[] = [
   { to: '/app/notifications', label: 'Уведомления', icon: Bell },
   // Что включено в компании — решает владелец или администратор.
   { to: '/app/company', label: 'Функции компании', icon: SlidersHorizontal, tab: false, admin: true },
+  // Журнал событий и входов, обезличивание ушедших — владельцу и администратору.
+  { to: '/app/security', label: 'Безопасность', icon: ShieldCheck, tab: false, admin: true },
 ];
 
 export function Shell() {
@@ -57,7 +59,9 @@ export function Shell() {
   const chatsOn = isModuleOn(me.data?.modules, 'chats');
   const chatsUnread = useChatsUnread(!!me.data && chatsOn).data?.unread ?? 0;
   const admin = me.data?.role === 'owner' || me.data?.role === 'admin';
-  const nav = NAV.filter((n) => (!n.admin || admin) && (!n.module || isModuleOn(me.data?.modules, n.module)));
+  // Пока не знаем, какие разделы включены в компании, их пунктов нет: иначе
+  // выключенные «Продажи» мелькают в меню сразу после входа.
+  const nav = NAV.filter((n) => (!n.admin || admin) && (!n.module || (!!me.data && isModuleOn(me.data.modules, n.module))));
   const { pathname } = useLocation();
   // Открытый чат на телефоне занимает весь экран — нижняя панель прячется.
   const inChat = /^\/app\/chats\/[^/]+/.test(pathname);

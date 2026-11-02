@@ -68,11 +68,13 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
   const scrolled = useRef(false);
   const goal = roadmap.goal;
   const open = roadmap.tasks.filter((t) => t.status !== 'cancelled');
-  const W = Math.max(screenW - 32, open.length * 96 + PAD_X * 2);
+  const W0 = Math.max(screenW - 32, open.length * 96 + PAD_X * 2);
   const layout = useMemo(
-    () => layoutCapillary({ tasks: roadmap.tasks, edges: roadmap.edges, critical_path: roadmap.critical_path, today: roadmap.timeline.today, goal: { id: goal.id, title: goal.title, due_at: goal.due_at }, minGap: 128 / (W - PAD_X * 2), maxLanes: 2 }),
-    [roadmap, goal.id, goal.title, goal.due_at, W],
+    () => layoutCapillary({ tasks: roadmap.tasks, edges: roadmap.edges, critical_path: roadmap.critical_path, today: roadmap.timeline.today, goal: { id: goal.id, title: goal.title, due_at: goal.due_at }, minGap: 128 / (W0 - PAD_X * 2), maxLanes: 2 }),
+    [roadmap, goal.id, goal.title, goal.due_at, W0],
   );
+  // Узлы не поместились в ряды — карта шире, чтобы подписи соседей не наезжали.
+  const W = Math.round(PAD_X * 2 + (W0 - PAD_X * 2) * layout.stretch);
   if (!open.length) return null;
   const H = PAD_TOP + (layout.laneMax - layout.laneMin) * LANE + PAD_BOTTOM;
   const px = (x: number) => PAD_X + x * (W - PAD_X * 2);

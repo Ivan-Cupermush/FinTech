@@ -201,6 +201,8 @@ export interface Member {
   avatar_url?: string | null;
   role: CompanyRole;
   units: { id: string; name: string; is_manager: boolean }[];
+  /** Данные ушедшего сотрудника обезличены (152-ФЗ, ст. 21). */
+  anonymized?: boolean;
 }
 
 export interface OrgUnitRow {

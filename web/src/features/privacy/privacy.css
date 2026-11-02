@@ -1,0 +1,73 @@
+.privacy {
+  max-width: 820px;
+}
+.pv-toc {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 8px;
+  margin: 28px 0 8px;
+}
+.pv-toc a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--surface) 70%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 550;
+  text-decoration: none;
+  transition:
+    border-color var(--dur),
+    transform var(--dur);
+}
+.pv-toc a:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+.pv-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #5b6cff, #a35bff);
+  box-shadow: 0 4px 14px rgba(91, 108, 255, 0.35);
+}
+.pv-section {
+  margin-top: 34px;
+  scroll-margin-top: 24px;
+}
+.pv-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+.pv-section p,
+.pv-section li {
+  color: var(--ink-2);
+  font-size: 15.5px;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+.pv-section p {
+  margin: 0;
+}
+.pv-section p + p {
+  margin-top: 10px;
+}
+.pv-section ul {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}

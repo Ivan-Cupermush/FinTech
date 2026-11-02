@@ -13,6 +13,7 @@ import { fakeSystemsFetch } from './seed/fake-systems';
 import { SANDBOX_SEATS, seedSandbox } from './seed/sandbox';
 import { createMediaStore } from './services/media';
 import { startStorageLoop } from './services/storage-jobs';
+import { startRetentionLoop } from './services/security';
 import { loadKusok } from './services/blobs';
 import { aiProviderFromEnv } from './services/ai';
 import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
@@ -68,6 +69,8 @@ startStorageLoop(db, media, {
     }
   },
 });
+// Журнал входов дольше полугода не храним.
+startRetentionLoop(db, { onError: (e) => console.error('retention:', e) });
 startScheduledLoop(db, realtime, { store: media, now: () => new Date() }, { onMessage: pushSender ? messagePushHook(db, pushSender, realtime, () => new Date()) : undefined, onError: (e) => console.error('scheduled:', e) });
 // Один HTTP-сервер на API и сокет: тот же порт и тот же прокси.
 const server = createServer(app);

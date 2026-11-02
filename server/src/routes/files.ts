@@ -309,7 +309,7 @@ export function filesRouter(db: Db, { store, now }: MediaCtx, rt: Realtime): Rou
   return r;
 }
 
-async function removeAvatar(store: MediaStore, url: string | null | undefined) {
+export async function removeAvatar(store: MediaStore, url: string | null | undefined) {
   const m = url ? /\/files\/(avatars\/[0-9a-f]{32}\.jpg)$/.exec(url) : null;
   if (m) await store.remove([m[1]]);
 }

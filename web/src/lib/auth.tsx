@@ -5,7 +5,7 @@ import { api, onUnauthorized, tokenStore } from './api';
 interface AuthState {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { company_name: string; display_name: string; email: string; password: string }) => Promise<void>;
+  register: (data: { company_name: string; display_name: string; email: string; password: string; consent: boolean }) => Promise<void>;
   logout: () => void;
   /** Вход по QR и новый токен после смены пароля: сеанс уже выдан сервером. */
   applyToken: (token: string) => void;

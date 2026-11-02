@@ -9,6 +9,7 @@ import {
   type AccountProfile,
   type ChatMessage,
   type ContactName,
+  type LoginEvent,
   type MyNote,
   type MyNoteDay,
   type MyNoteSummary,
@@ -34,6 +35,7 @@ export const mk = {
   names: ['contact-names'] as const,
   person: (id: string) => ['person', id] as const,
   groups: (id: string) => ['person-groups', id] as const,
+  logins: ['account', 'logins'] as const,
 };
 
 export const useMyNotes = (qs: string) => useQuery({ queryKey: mk.list(qs), queryFn: () => api<MyNoteSummary[]>(`/my-notes${qs ? `?${qs}` : ''}`), placeholderData: keepPreviousData });
@@ -83,20 +85,24 @@ export const accountApi = {
   qrInfo: (token: string) => api<QrLoginInfo>(`/account/qr/${token}`),
   qrApprove: (token: string) => api<QrLoginInfo>(`/account/qr/${token}/approve`, { body: {} }),
   qrDecline: (token: string) => api<QrLoginInfo>(`/account/qr/${token}/decline`, { body: {} }),
+  logins: () => api<LoginEvent[]>('/account/logins'),
 };
 
 /**
  * PDF заметки: качаем с токеном в заголовке (ссылкой его не передать)
  * и отдаём системе — «Сохранить в Файлы», почта, мессенджер.
  */
-export async function shareNotePdf(note: Pick<MyNote, 'id' | 'title'>) {
+/**
+ * Скачать файл с токеном в заголовке (ссылкой его не передать) и отдать
+ * системе — «Сохранить в Файлы», почта, мессенджер. В веб-сборке — обычная загрузка.
+ */
+export async function shareDownload(path: string, name: string, o: { mimeType: string; UTI: string; error: string }) {
   const { token, server } = currentSession();
-  const url = `${server}/my-notes/${note.id}/pdf?download=1`;
-  const name = notePdfName(note.title);
+  const url = `${server}${path}`;
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   if (Platform.OS === 'web') {
     const res = await fetch(url, { headers });
-    if (!res.ok) throw new ApiError(res.status, 'PDF', 'PDF не получился, попробуйте ещё раз');
+    if (!res.ok) throw new ApiError(res.status, 'DOWNLOAD', o.error);
     const href = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
     a.href = href;
@@ -106,6 +112,14 @@ export async function shareNotePdf(note: Pick<MyNote, 'id' | 'title'>) {
     return;
   }
   const file = await FsFile.downloadFileAsync(url, new FsFile(Paths.cache, name), { headers, idempotent: true });
-  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
+  if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: o.mimeType, dialogTitle: name, UTI: o.UTI });
   else await Linking.openURL(file.uri);
 }
+
+/** PDF заметки. */
+export const shareNotePdf = (note: Pick<MyNote, 'id' | 'title'>) =>
+  shareDownload(`/my-notes/${note.id}/pdf?download=1`, notePdfName(note.title), { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', error: 'PDF не получился, попробуйте ещё раз' });
+
+/** «Мои данные» (152-ФЗ, ст. 14): всё, что offix хранит обо мне, одним JSON. */
+export const shareMyData = (today: string) =>
+  shareDownload('/account/export', `offix-moi-dannye-${today}.json`, { mimeType: 'application/json', UTI: 'public.json', error: 'Не удалось скачать данные' });

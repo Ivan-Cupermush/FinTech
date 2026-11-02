@@ -10,7 +10,7 @@ export type GradientVariant = 'hero' | 'login' | 'good' | 'bad' | 'wallpaper' | 
  * раздела свой третий цвет и свой разворот волны: разделы узнаются с первого
  * взгляда и при этом остаются одной семьёй.
  */
-export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'assistant', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile', 'sales'] as const;
+export const SECTION_VARIANTS = ['goals', 'tasks', 'report', 'knowledge', 'assistant', 'integrations', 'inbox', 'org', 'create', 'chats', 'notes', 'profile', 'sales', 'security'] as const;
 export type SectionVariant = (typeof SECTION_VARIANTS)[number];
 
 const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; rotationZ: number; positionX: number; polar: number }> = {
@@ -42,6 +42,8 @@ const SECTION_LOOKS: Record<SectionVariant, { colors: [string, string, string]; 
   // Продажи — синий с золотом монеты на изумрудной ночи: про деньги и выплаты.
   // Золото — тёмное, старое: под белым текстом и плитками светлый жёлтый не читался.
   sales: { colors: ['#2f4bff', '#071c18', '#c8901c'], rotationZ: 255, positionX: -0.65, polar: 119 },
+  // Безопасность — синий с холодной мятой на почти чёрной стали: про защиту, без тревоги.
+  security: { colors: ['#2a46ff', '#050d1c', '#36d6c3'], rotationZ: 238, positionX: -0.5, polar: 116 },
 };
 
 export function isSectionVariant(v: string): v is SectionVariant {

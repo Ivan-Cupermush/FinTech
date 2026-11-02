@@ -15,6 +15,8 @@ import { GoalsPage } from './features/goals/GoalsPage';
 import { IntegrationPage, IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { LicensesPage } from './features/credits/LicensesPage';
+import { PrivacyPage } from './features/privacy/PrivacyPage';
+import { SecurityPage } from './features/security/SecurityPage';
 import { ChatsPage } from './features/chats/ChatsPage';
 import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
@@ -55,6 +57,7 @@ export function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/licenses" element={<LicensesPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/qr/:token" element={<QrConfirmPage />} />
       <Route
         path="/app"
@@ -87,6 +90,7 @@ export function AppRoutes() {
         <Route path="my-notes" element={<ModuleGate module="my_notes"><MyNotesPage /></ModuleGate>} />
         <Route path="my-notes/:id" element={<ModuleGate module="my_notes"><MyNotePage /></ModuleGate>} />
         <Route path="company" element={<CompanyFunctionsPage />} />
+        <Route path="security" element={<SecurityPage />} />
         <Route path="profile" element={<AccountPage />} />
         <Route path="people/:id" element={<PersonPage />} />
       </Route>

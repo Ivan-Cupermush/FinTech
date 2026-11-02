@@ -36,6 +36,7 @@ export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [byQr, setByQr] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', company_name: '', display_name: '' });
+  const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -74,7 +75,8 @@ export function LoginPage() {
       if (Object.keys(local).length) return setErrors(local);
       void run('form', () => login(form.email, form.password));
     } else {
-      void run('form', () => register({ company_name: form.company_name, display_name: form.display_name, email: form.email, password: form.password }));
+      if (!consent) return setErrors({ consent: 'Подтвердите согласие на обработку персональных данных' });
+      void run('form', () => register({ company_name: form.company_name, display_name: form.display_name, email: form.email, password: form.password, consent }));
     }
   };
 
@@ -140,6 +142,24 @@ export function LoginPage() {
           <Field label="Пароль" error={errors.password} hint={mode === 'register' ? 'Не короче 8 символов' : undefined}>
             {(p) => <input className="input" {...p} type="password" value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />}
           </Field>
+          {mode === 'register' && (
+            <div className="auth-consent">
+              <label className="row">
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} aria-invalid={!!errors.consent || undefined} aria-describedby={errors.consent ? 'consent-error' : undefined} />
+                <span>
+                  Соглашаюсь на обработку персональных данных по{' '}
+                  <Link to="/privacy" target="_blank" rel="noreferrer">
+                    политике offix
+                  </Link>
+                </span>
+              </label>
+              {errors.consent && (
+                <div className="field-error" id="consent-error" role="alert">
+                  {errors.consent}
+                </div>
+              )}
+            </div>
+          )}
           {message && (
             <div className="field-error" role="alert">
               {message}

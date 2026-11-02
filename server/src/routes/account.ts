@@ -8,13 +8,15 @@ import { parseBody } from '../http/validate';
 import type { Realtime } from '../realtime/hub';
 import { audit } from '../services/audit';
 import { isExpired, phoneView, qrForPhone } from '../services/qr';
+import { exportPersonalData } from '../services/data-export';
+import { loginView, type LoginRow } from '../services/security';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function loadProfile(q: Queryable, userId: string, companyId: string): Promise<AccountProfile> {
   const { rows } = await q.query<AccountProfile>(
     `SELECT u.id, u.email, u.display_name, u.position, u.avatar_url, m.role, c.name AS company_name,
-            u.last_login_at, u.password_changed_at, m.joined_at
+            u.last_login_at, u.password_changed_at, m.joined_at, u.consent_version, u.consent_at
        FROM users u JOIN company_members m ON m.user_id = u.id AND m.company_id = $2 JOIN companies c ON c.id = m.company_id
       WHERE u.id = $1`,
     [userId, companyId],
@@ -151,6 +153,30 @@ export function accountRouter(db: Db, secret: string, now: () => Date, rt: Realt
       return row;
     });
     res.json({ data: phoneView(row, at) });
+  });
+
+  // ------------------------------------------------------------ безопасность и мои данные
+
+  /** Где и когда входили в мою учётную запись — и неудачные попытки тоже. */
+  r.get('/logins', async (req, res) => {
+    const actor = actorOf(req);
+    const { rows } = await db.query<LoginRow>(
+      `SELECT id, created_at, ok, method, failure, ip, user_agent FROM login_events WHERE user_id = $1 ORDER BY created_at DESC, id DESC LIMIT 30`,
+      [actor.id],
+    );
+    res.json({ data: rows.map(loginView) });
+  });
+
+  /** «Мои данные»: всё, что offix хранит обо мне, одним файлом JSON. */
+  r.get('/export', async (req, res) => {
+    const actor = actorOf(req);
+    const at = now();
+    const data = await exportPersonalData(db, actor, at);
+    await audit(db, { company_id: actor.company_id, entity_type: 'member', entity_id: actor.id, actor_id: actor.id, event_type: 'account.data_exported' });
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="offix-moi-dannye-${at.toISOString().slice(0, 10)}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(JSON.stringify(data, null, 2));
   });
 
   return r;

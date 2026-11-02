@@ -25,7 +25,7 @@ describe('вход и регистрация', () => {
   });
 
   it('быстрый старт: компания и владелец за один шаг', async () => {
-    const r = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'Кафедра цифровой экономики', display_name: 'Иван', email: 'ivan@example.com', password: 'very-secret' });
+    const r = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'Кафедра цифровой экономики', display_name: 'Иван', email: 'ivan@example.com', password: 'very-secret', consent: true });
     expect(r.status).toBe(201);
     const me = await request(ctx.app).get('/api/v1/users/me').set('Authorization', `Bearer ${r.body.data.token}`);
     expect(me.body.data).toMatchObject({ role: 'owner', company_name: 'Кафедра цифровой экономики', setup_mode: 'quick', units: [] });
@@ -37,8 +37,8 @@ describe('вход и регистрация', () => {
   it('регистрация: проверка полей и занятая почта', async () => {
     const bad = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: '', display_name: '', email: 'x', password: '123' });
     expect(bad.status).toBe(422);
-    expect(Object.keys(bad.body.error.fields).sort()).toEqual(['company_name', 'display_name', 'email', 'password']);
-    const dup = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'X', display_name: 'Y', email: 'olga@offix.demo', password: 'sunny-orbit-42' });
+    expect(Object.keys(bad.body.error.fields).sort()).toEqual(['company_name', 'consent', 'display_name', 'email', 'password']);
+    const dup = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'X', display_name: 'Y', email: 'olga@offix.demo', password: 'sunny-orbit-42', consent: true });
     expect(dup.body.error.fields.email).toMatch(/уже зарегистрирована/);
   });
 

@@ -6,9 +6,11 @@ const UNI = companyModules(['sales']);
 
 describe('функции компании в приложении', () => {
   it('меню профиля: без продаж — без «Продаж», «Функции компании» — только администратору', () => {
-    expect(profileMenu(UNI, 'owner')).toEqual(['my-notes', 'notes', 'effect', 'report', 'company', 'push']);
-    expect(profileMenu(companyModules([]), 'member')).toEqual(['my-notes', 'notes', 'effect', 'report', 'sales', 'push']);
-    expect(profileMenu(companyModules(['my_notes', 'sales']), 'admin')).toEqual(['notes', 'effect', 'report', 'company', 'push']);
+    expect(profileMenu(UNI, 'owner')).toEqual(['my-notes', 'notes', 'effect', 'report', 'company', 'security', 'push']);
+    expect(profileMenu(companyModules([]), 'member')).toEqual(['my-notes', 'notes', 'effect', 'report', 'sales', 'security', 'push']);
+    expect(profileMenu(companyModules(['my_notes', 'sales']), 'admin')).toEqual(['notes', 'effect', 'report', 'company', 'security', 'push']);
+    // Разделы ещё не загрузились — пунктов разделов нет, остальное на месте.
+    expect(profileMenu(undefined, 'member')).toEqual(['notes', 'effect', 'report', 'security', 'push']);
   });
 
   it('нижняя панель без скрытой вкладки: «капля» встаёт на видимую', () => {

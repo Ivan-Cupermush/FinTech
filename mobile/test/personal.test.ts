@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inboxTarget, lastLoginText, myNotesEmpty, myNotesQuery, myNotesStats, requestOutcome, scanTarget, siteOrigin, STRENGTH_COLORS } from '../src/lib/personal';
+import { inboxTarget, lastLoginText, loginRow, loginsNote, myNotesEmpty, myNotesQuery, myNotesStats, requestOutcome, scanTarget, siteOrigin, STRENGTH_COLORS } from '../src/lib/personal';
 
 const TOKEN = 'A'.repeat(32);
 const UID = '0b5f1f0e-1c1d-4f6a-9a3b-2a8d9e7c6b5a';
@@ -87,5 +87,22 @@ describe('профиль', () => {
   });
   it('полоска надёжности — четыре цвета на четыре уровня', () => {
     expect(STRENGTH_COLORS).toHaveLength(4);
+  });
+});
+
+describe('журнал входов в профиле', () => {
+  const now = new Date('2026-11-02T18:00:00');
+  it('удачный вход — способ, неудачный — причина; устройство и IP в строке', () => {
+    const ok = loginRow({ id: '1', at: new Date('2026-11-02T09:05:00').toISOString(), ok: true, method: 'qr', failure: null, ip: '10.0.0.1', device: 'Chrome на Windows' }, now);
+    expect(ok.title).toBe('QR-код');
+    expect(ok.meta).toMatch(/^сегодня в 09:05 · Chrome на Windows · 10\.0\.0\.1$/);
+    const bad = loginRow({ id: '2', at: new Date('2026-10-30T23:10:00').toISOString(), ok: false, method: 'password', failure: 'bad_password', ip: null, device: 'Приложение offix' }, now);
+    expect(bad.title).toBe('Неверный пароль');
+    expect(bad.meta).toContain('30 октября');
+    expect(bad.meta).not.toContain('null');
+  });
+  it('подсказка над списком считает неудачные попытки', () => {
+    expect(loginsNote([{ ok: true }])).toContain('Не узнаёте вход');
+    expect(loginsNote([{ ok: false }, { ok: true }, { ok: false }])).toBe('2 неудачные попытки входа. Если это были не вы — смените пароль и выйдите на всех устройствах.');
   });
 });

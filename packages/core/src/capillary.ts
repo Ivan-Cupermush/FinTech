@@ -57,6 +57,12 @@ export interface CapLayout {
   from: string;
   to: string;
   months: { label: string; x: number }[];
+  /**
+   * Во сколько раз шкалу пришлось растянуть, чтобы узлы одного ряда не
+   * наезжали друг на друга (≥ 1). Рисующий умножает на это ширину карты:
+   * x остаются в 0…1, а зазор между соседями в пикселях — не меньше minGap.
+   */
+  stretch: number;
 }
 
 export interface CapInput {
@@ -186,7 +192,9 @@ export function layoutCapillary(input: CapInput): CapLayout {
     const preferred = anchor ? (anchor.lane === 0 ? -1 : anchor.lane) : -1;
     place(t.id, x, preferred);
   }
-  // Сдвиги вправо могли вылезти за край — сжимаем всё обратно в 0…1.
+  // Сдвиги вправо могли вылезти за край — сжимаем всё обратно в 0…1, а
+  // во сколько раз сжали, отдаём рисующему: он сделает карту шире, и
+  // подписи соседних узлов не наедут друг на друга.
   const maxX = Math.max(...[...placed.values()].map((p) => p.x), 1);
   const k = 1 / maxX;
 
@@ -258,6 +266,7 @@ export function layoutCapillary(input: CapInput): CapLayout {
     from: lo,
     to: hi,
     months,
+    stretch: maxX,
   };
 }
 

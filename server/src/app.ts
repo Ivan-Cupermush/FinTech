@@ -34,6 +34,7 @@ import { requireModule } from './services/modules';
 import { sandboxGuard, sandboxInfo } from './seed/sandbox';
 import { templatesRouter } from './routes/templates';
 import { usersRouter } from './routes/users';
+import { securityRouter } from './routes/security';
 import { accountRouter } from './routes/account';
 import { contactsRouter } from './routes/contacts';
 import { myNotesRouter } from './routes/my-notes';
@@ -127,14 +128,16 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
     res.json({ data: config.sandbox ? await sandboxInfo(db) : { enabled: false, company_name: null, people: [] } });
   });
   // В песочнице жюри часто входит и выходит с одного адреса — лимит попыток выше.
-  v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit, loginLimit: config.sandbox ? 120 : 30 }));
+  // Общие входы песочницы не закрываем после неверных паролей: один гость не должен закрыть вход следующему.
+  v1.use('/auth', authRouter(db, config.jwtSecret, { rateLimit, loginLimit: config.sandbox ? 120 : 30, lockout: !config.sandbox, now }));
   // Файлы по подписанной ссылке и превью — без заголовка Authorization (<img>, <video>).
   v1.use('/files', filesPublicRouter(db, store, now));
   v1.use(requireAuth(db, config.jwtSecret));
   if (config.sandbox) v1.use(sandboxGuard(db));
   const mediaCtx = { store, now };
   v1.use('/files', filesRouter(db, mediaCtx, realtime));
-  v1.use('/users', usersRouter(db, realtime));
+  v1.use('/users', usersRouter(db, realtime, store));
+  v1.use('/security', securityRouter(db, now));
   v1.use('/company', companyRouter(db, realtime));
   v1.use('/functions', functionsRouter(db, realtime));
   v1.use('/account', accountRouter(db, config.jwtSecret, now, realtime));

@@ -7,12 +7,12 @@ import { Empty } from '../ui/Misc';
 import '../features/company/company.css';
 
 /**
- * Включён ли раздел в компании. Пока профиль грузится — считаем включённым:
- * пункты меню не мигают, а сервер всё равно не отдаст выключенное.
+ * Включён ли раздел в компании. Пока профиль грузится — считаем выключенным:
+ * кнопка раздела появится через миг, зато выключенный раздел не мелькнёт.
  */
 export function useModuleOn(key: ModuleKey): boolean {
   const me = useMe();
-  return isModuleOn(me.data?.modules, key);
+  return !!me.data && isModuleOn(me.data.modules, key);
 }
 
 /** Страница выключенного раздела: прямая ссылка или старая закладка. */
