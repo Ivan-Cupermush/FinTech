@@ -86,7 +86,7 @@ export function CompanyFunctionsPage() {
           mods
             ? [
                 { label: 'разделов включено', value: `${on} из ${MODULE_KEYS.length}` },
-                { label: 'набор', value: preset ? MODULE_PRESETS.find((p) => p.key === preset)!.title : 'Свой' },
+                { label: 'выключено, данные целы', value: MODULE_KEYS.length - on, tone: on < MODULE_KEYS.length ? 'warn' : undefined },
               ]
             : undefined
         }

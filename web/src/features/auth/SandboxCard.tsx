@@ -35,10 +35,12 @@ export function SandboxCard({ info, busy, onPick }: { info: SandboxInfo; busy: s
               <button type="button" className="sbx-person" onClick={() => onPick(p)} disabled={!!busy} aria-label={`Войти: ${p.display_name}, ${p.position}. Логин ${p.login}, пароль ${p.password}`}>
                 <Avatar name={p.display_name} size={38} />
                 <span className="grow sbx-who">
-                  <span className="sbx-name clip">{p.display_name}</span>
-                  <span className="sbx-pos clip">
-                    {p.position} · {COMPANY_ROLE_LABELS[p.role].toLowerCase()}
+                  <span className="sbx-name">
+                    <span className="clip">{p.display_name}</span>
+                    {/* Роль — уровень доступа; у наблюдателя она и есть должность. */}
+                    {COMPANY_ROLE_LABELS[p.role].toLowerCase() !== p.position.toLowerCase() && <span className="sbx-role">{COMPANY_ROLE_LABELS[p.role].toLowerCase()}</span>}
                   </span>
+                  <span className="sbx-pos">{p.position}</span>
                   <span className="sbx-blurb">{busy === p.login ? 'Входим…' : p.blurb}</span>
                 </span>
                 <span className="sbx-cred" aria-hidden>

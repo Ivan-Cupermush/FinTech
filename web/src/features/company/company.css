@@ -111,6 +111,8 @@
 .cf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* Карточка по высоте своего стекла: без пустой полосы градиента снизу. */
+  align-items: start;
   gap: 14px;
 }
 .cf-tile {

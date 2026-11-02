@@ -137,6 +137,7 @@
 }
 .sbx-person {
   width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -170,8 +171,21 @@
   gap: 1px;
 }
 .sbx-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-weight: 640;
   font-size: 14.5px;
+}
+.sbx-role {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .sbx-pos {
   font-size: 12.5px;
@@ -189,6 +203,9 @@
   align-items: flex-end;
   gap: 3px;
   font-size: 12px;
+}
+.sbx-cred > span {
+  white-space: nowrap;
 }
 .sbx-cred i {
   font-style: normal;
@@ -215,12 +232,24 @@
     padding: 14px;
   }
 }
-@media (max-width: 480px) {
+@media (max-width: 560px) {
+  /* Узко: логин и пароль — строкой под именем, чтобы ничего не обрезалось. */
   .sbx-go {
     display: none;
   }
   .sbx-person {
-    padding: 9px 10px;
-    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 6px 10px;
+  }
+  .sbx-who {
+    flex: 1 1 0;
+  }
+  .sbx-cred {
+    flex: 1 0 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding-left: 48px;
   }
 }
