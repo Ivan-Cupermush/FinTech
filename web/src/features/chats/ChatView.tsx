@@ -67,7 +67,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
   const chat = detail.data;
   const topic = chat?.is_supergroup ? (chat.topics.find((t) => t.id === topicId) ?? null) : null;
   return (
-    <Backdrop variant="wallpaper" className="chat-wall">
+    <Backdrop variant="wallpaper" framed className="chat-wall">
       {detail.isError ? (
         <div className="chat-missing">
           <h2>Чат не найден</h2>

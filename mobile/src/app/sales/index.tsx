@@ -14,8 +14,8 @@ import { errText, SalesMonthBody } from '../../ui/sales-month';
 
 /**
  * Мои продажи: выплата за месяц, показатели плана, продажи, записанные вручную,
- * и загрузка отчёта 1С. У руководителя — вкладка «Команда». План и правила
- * выплат ставят на сайте, здесь — смотреть, отмечать факт и записывать продажи.
+ * и загрузка отчёта 1С. У руководителя — вкладка «Команда», а показатели
+ * плана и правила выплат он меняет прямо здесь. Файлы KPI — на сайте.
  */
 export default function SalesScreen() {
   const params = useLocalSearchParams<{ month?: string; view?: string }>();
@@ -102,7 +102,7 @@ function Team({ month, team, loading }: { month: string; team: SalesTeam | undef
       ))}
       <View style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: p.line }}>
         <Text variant="caption" tone="faint">
-          План, файлы KPI и сопоставление менеджеров из отчётов — на сайте, в разделе «Продажи».
+          План и правила выплат меняются на экране сотрудника. Файлы KPI и сопоставление менеджеров из отчётов — на сайте, в разделе «Продажи».
         </Text>
       </View>
     </Card>

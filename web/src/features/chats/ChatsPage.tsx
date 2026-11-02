@@ -29,7 +29,7 @@ export function ChatsPage() {
 /** Пока чат не выбран — живая сцена раздела со стеклянным облачком. */
 function ChatsWelcome({ onCreate }: { onCreate: () => void }) {
   return (
-    <Backdrop variant="chats" glyph="chats" glyphIcon={MessagesSquare} className="chats-welcome on-color" role="region" aria-label="Чат не выбран">
+    <Backdrop variant="chats" framed glyph="chats" glyphIcon={MessagesSquare} className="chats-welcome on-color" role="region" aria-label="Чат не выбран">
       <div className="chats-welcome-text">
         <div className="eyebrow">Мессенджер offix</div>
         <h2>Пишите коллегам там же, где работаете</h2>

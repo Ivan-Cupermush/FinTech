@@ -2,9 +2,9 @@ import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from '@t
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
-import { mergeMessages, type Attachment, type ChatDetail, type ChatGallery, type ChatStats, type ContactCard, type GalleryTab, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary, type Me, type Member } from '@offix/core';
+import { mergeMessages, type Attachment, type ChatDetail, type ChatGallery, type ChatStats, type ContactCard, type GalleryTab, type ChatHistory, type ChatMessage, type ChatPoll, type ChatReaction, type ChatSummary, type Me, type Member, type PollVoters, type ScheduledMessage } from '@offix/core';
 import { avatarsKey } from './avatars';
-import { applyChatEvent, markFailed, optimisticMessage, socketOrigin } from './chat-logic';
+import { applyChatEvent, markFailed, optimisticMessage, socketOrigin, type ExternalReply } from './chat-logic';
 import { newIdempotencyKey } from './client';
 import { api, useSession } from './session';
 
@@ -17,6 +17,8 @@ export const ck = {
   pinned: (id: string, topic: string | null) => ['chat-pinned', id, topic ?? 'main'] as const,
   gallery: (id: string, tab: GalleryTab) => ['chat-gallery', id, tab] as const,
   stats: (id: string) => ['chat-stats', id] as const,
+  scheduled: (id: string) => ['chat-scheduled', id] as const,
+  voters: (messageId: string) => ['poll-voters', messageId] as const,
 };
 
 const topicQuery = (topic: string | null) => (topic ? `&topic_id=${topic}` : '');
@@ -35,6 +37,8 @@ export const useGallery = (id: string, tab: GalleryTab) =>
     getNextPageParam: (last) => last.next_before,
   });
 export const useChatStats = (id: string) => useQuery({ queryKey: ck.stats(id), queryFn: () => api<ChatStats>(`/chats/${id}/stats`), staleTime: 30_000 });
+export const useScheduled = (id: string) => useQuery({ queryKey: ck.scheduled(id), queryFn: () => api<ScheduledMessage[]>(`/chats/${id}/scheduled`) });
+export const useVoters = (messageId: string | null) => useQuery({ queryKey: ck.voters(messageId ?? ''), queryFn: () => api<PollVoters[]>(`/messages/${messageId}/voters`), enabled: !!messageId });
 export const usePeople = (search: string) => useQuery({ queryKey: ['users', search], queryFn: () => api<Member[]>(`/users?search=${encodeURIComponent(search)}`), staleTime: 30_000 });
 
 /** Подгрузка ранних сообщений при прокрутке вверх. */
@@ -53,14 +57,14 @@ export function patchHistory(qc: QueryClient, chatId: string, fn: (h: ChatHistor
 }
 
 /** Отправка: сообщение сразу в ленте, ответ сервера заменяет его по client_id. */
-export async function sendMessage(qc: QueryClient, o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; replyTo?: ChatMessage | null; clientId?: string; attachments?: Attachment[]; contact?: ContactCard | null }) {
+export async function sendMessage(qc: QueryClient, o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; replyTo?: ChatMessage | null; externalReply?: ExternalReply | null; clientId?: string; attachments?: Attachment[]; contact?: ContactCard | null }) {
   const clientId = o.clientId ?? newIdempotencyKey();
   const key = ck.history(o.chatId, o.topicId);
   const local = optimisticMessage({ ...o, clientId, now: new Date().toISOString() });
   qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [local]) } : h));
   try {
     const m = await api<ChatMessage>(`/chats/${o.chatId}/messages`, {
-      body: { text: o.text, client_id: clientId, topic_id: o.topicId, reply_to_id: o.replyTo?.id, attachment_ids: o.attachments?.length ? o.attachments.map((a) => a.id) : undefined, contact_user_id: o.contact?.id },
+      body: { text: o.text, client_id: clientId, topic_id: o.topicId, reply_to_id: o.replyTo?.id, external_reply_id: o.externalReply?.message.id, attachment_ids: o.attachments?.length ? o.attachments.map((a) => a.id) : undefined, contact_user_id: o.contact?.id },
     });
     qc.setQueryData<ChatHistory>(key, (h) => (h ? { ...h, messages: mergeMessages(h.messages, [m]) } : h));
     void qc.invalidateQueries({ queryKey: ck.list });
@@ -69,6 +73,12 @@ export async function sendMessage(qc: QueryClient, o: { chatId: string; topicId:
     throw e;
   }
 }
+
+/**
+ * «Ответить в другом чате»: выбранное сообщение ждёт, пока откроется чат,
+ * куда отвечаем, — экран забирает его при входе. Живёт в памяти приложения.
+ */
+export const pendingExternal = new Map<string, ExternalReply>();
 
 export const chatApi = {
   direct: (user_id: string) => api<ChatSummary>('/chats/direct', { body: { user_id } }),
@@ -89,6 +99,13 @@ export const chatApi = {
   listen: (messageId: string) => api(`/messages/${messageId}/listen`, { method: 'POST' }),
   vote: (messageId: string, option_ids: string[]) => api<ChatPoll>(`/messages/${messageId}/vote`, { body: { option_ids } }),
   unvote: (messageId: string) => api<ChatPoll>(`/messages/${messageId}/vote`, { method: 'DELETE' }),
+  closePoll: (messageId: string) => api<ChatPoll>(`/messages/${messageId}/close-poll`, { method: 'POST' }),
+  createPoll: (chatId: string, body: Record<string, unknown>) => api<ChatMessage>(`/chats/${chatId}/polls`, { body }),
+  forward: (message_ids: string[], to_chat_id: string) => api<ChatMessage[]>('/messages/forward', { body: { message_ids, to_chat_id } }),
+  schedule: (chatId: string, body: { text: string; send_at: string; topic_id?: string | null; reply_to_id?: string | null }) => api<ScheduledMessage>(`/chats/${chatId}/scheduled`, { body }),
+  editScheduled: (chatId: string, sid: string, body: { text?: string; send_at?: string }) => api<ScheduledMessage>(`/chats/${chatId}/scheduled/${sid}`, { method: 'PATCH', body }),
+  dropScheduled: (chatId: string, sid: string) => api(`/chats/${chatId}/scheduled/${sid}`, { method: 'DELETE' }),
+  sendScheduled: (chatId: string, sid: string) => api<ChatMessage>(`/chats/${chatId}/scheduled/${sid}/send`, { method: 'POST' }),
   enableTopics: (chatId: string) => api<ChatDetail>(`/chats/${chatId}/topics/enable`, { method: 'POST' }),
   createTopic: (chatId: string, body: { name: string; icon: string; color: string }) => api(`/chats/${chatId}/topics`, { body }),
   editTopic: (chatId: string, topicId: string, body: { closed?: boolean }) => api(`/chats/${chatId}/topics/${topicId}`, { method: 'PATCH', body }),
@@ -229,6 +246,8 @@ function ChatLiveProvider({ meId, children }: { meId: string | undefined; childr
       },
       // Сервер закрыл сеанс (сменили пароль, «выйти везде»): проверяем токен — старый получит 401 и выход.
       session_revoked: () => void setTimeout(() => void qc.invalidateQueries({ queryKey: ['me'] }), 1500),
+      // Отложенное ушло само — список «Отложенных» на экране обновится.
+      scheduled_changed: (p: { chat_id: string }) => void qc.invalidateQueries({ queryKey: ck.scheduled(p.chat_id) }),
       chat_deleted: (p: { chat_id: string }) => {
         qc.removeQueries({ queryKey: ck.detail(p.chat_id) });
         refreshList();

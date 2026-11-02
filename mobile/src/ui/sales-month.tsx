@@ -1,11 +1,11 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
-import { FileUp, ListPlus } from 'lucide-react-native';
+import { FileUp, ListPlus, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { formatRub, reportImportSummary, type SalesMonth } from '@offix/core';
 import { fromDocumentAsset } from '../lib/media';
-import { isSalesTable, planFactEditable, SALES_FILE_TYPES } from '../lib/sales';
+import { isSalesTable, planEditMode, planFactEditable, SALES_FILE_TYPES } from '../lib/sales';
 import { salesApi, useSalesEntries, useSalesMutation, useSalesRefresh } from '../lib/sales-api';
 import { usePalette } from '../lib/theme';
 import { Bar, Button, Card, Empty, SectionTitle, Text } from './primitives';
@@ -23,15 +23,24 @@ export function SalesMonthBody({ m, today, self }: { m: SalesMonth; today: strin
       {m.plans.length > 0 && <PayoutCard m={m} />}
       <SectionTitle title="План на месяц" />
       {m.plans.length ? (
-        m.plans.map((x) => <PlanCard key={x.id} plan={x} today={today} onFact={planFactEditable(m, x) ? () => router.push(`/sales/fact/${x.id}?${query}`) : undefined} />)
+        m.plans.map((x) => (
+          <PlanCard
+            key={x.id}
+            plan={x}
+            today={today}
+            onFact={planFactEditable(m, x) ? () => router.push(`/sales/fact/${x.id}?${query}`) : undefined}
+            onEdit={planEditMode(m, x) ? () => router.push(`/sales/plan?id=${x.id}&${query}`) : undefined}
+          />
+        ))
       ) : (
         <Card>
           <Empty
             title="План на месяц не задан"
-            text={m.can.edit ? 'Показатели, бонусы и правила выплат ставят на сайте, в разделе «Продажи», — вручную или из файла KPI.' : self ? 'Руководитель ещё не поставил план. Пока можно записывать продажи — они сохранятся за месяцем.' : 'Плана на этот месяц нет.'}
+            text={m.can.edit ? 'Добавьте показатели: план, бонус и правило выплаты по каждому. Файл KPI со всеми показателями сразу загружают на сайте.' : self ? 'Руководитель ещё не поставил план. Пока можно записывать продажи — они сохранятся за месяцем.' : 'Плана на этот месяц нет.'}
           />
         </Card>
       )}
+      {m.can.edit && <Button title="Добавить показатель" variant="secondary" icon={<Plus size={18} color={p.ink} />} onPress={() => router.push(`/sales/plan?${query}`)} />}
       {m.can.add_entry && <Button title="Записать продажу" variant="accent" icon={<ListPlus size={18} color={p.accentInk} />} onPress={() => router.push(`/sales/entry?${query}`)} />}
       {self && m.can.reports && <ReportUpload />}
       <Entries month={m.month} user={user} show={m.can.add_entry || m.entries.count > 0} />

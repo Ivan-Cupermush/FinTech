@@ -456,6 +456,8 @@
 }
 .page-hero-foot {
   justify-content: flex-start;
+  /* Правая треть шапки — 3D-знак раздела: плитки и кнопки до него не доходят и переносятся. */
+  max-width: 64%;
 }
 /* Кнопки — слева, сразу за плитками: правую часть шапки занимает знак раздела. */
 .page-hero-actions {
@@ -464,6 +466,11 @@
   gap: 8px;
   flex-wrap: wrap;
   align-self: center;
+}
+/* Тень под текстом шапки: слева, где заголовок и плитки, — гуще; справа знак раздела остаётся ярким. */
+.page-hero-scrim {
+  background: linear-gradient(90deg, rgba(6, 8, 34, 0.42) 0%, rgba(6, 8, 34, 0.22) 42%, rgba(6, 8, 34, 0) 68%);
+  pointer-events: none;
 }
 /* Плитки лежат на ярких местах градиента — лёгкая тень под стеклом держит белый текст читаемым. */
 .page-hero .app-hero-stat-body {
@@ -523,6 +530,13 @@
   .page-hero .app-hero-text {
     max-width: none;
     padding-right: 84px;
+  }
+  .page-hero-foot {
+    max-width: none;
+  }
+  /* На телефоне текст идёт во всю ширину — тень сверху вниз, под заголовком гуще. */
+  .page-hero-scrim {
+    background: linear-gradient(180deg, rgba(6, 8, 34, 0.4) 0%, rgba(6, 8, 34, 0.24) 55%, rgba(6, 8, 34, 0.1) 100%);
   }
   .page-hero .app-hero-stats {
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;

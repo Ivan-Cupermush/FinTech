@@ -47,6 +47,8 @@ export function PageHero({
   const showStats = !compact && !!stats?.length;
   return (
     <Backdrop variant={variant} glyph={variant} glyphIcon={icon} className={`app-hero page-hero on-color ${compact ? 'is-compact' : ''} ${className}`} aria-labelledby={id} role="region" data-section={variant}>
+      {/* Тень под текстом: живой градиент местами светлеет до белого, а знак справа остаётся ярким. */}
+      <div className="fx-layer page-hero-scrim" aria-hidden />
       <div className="app-hero-text">
         {back && <div className="page-hero-back">{back}</div>}
         {eyebrow && <div className="eyebrow">{eyebrow}</div>}

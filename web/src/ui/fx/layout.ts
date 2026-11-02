@@ -11,7 +11,8 @@ export function markPlacement(width: number, height: number, fovDeg = 45, distan
   const viewW = viewH * aspect;
   if (mode === 'side') {
     // Шапка экрана: знак сбоку и не спорит с текстом — справа по центру, на узком — в правом верхнем углу.
-    const scale = Math.min((viewW * 0.3) / 2.8, (viewH * 0.55) / 1.7);
+    // По высоте — не больше 46 %: у знаков с кольцами и наклоном сверху нужен запас, иначе их срезает край шапки.
+    const scale = Math.min((viewW * 0.3) / 2.8, (viewH * 0.46) / 1.7);
     const x = viewW / 2 - (2.8 * scale) / 2 - viewW * 0.05;
     const y = aspect >= 1.15 ? 0 : viewH / 2 - (1.7 * scale) / 2 - viewH * 0.06;
     return { x, y, distance, scale };

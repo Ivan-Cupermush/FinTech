@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
-import { useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { HeaderHeightContext } from 'expo-router/react-navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { initials } from '@offix/core';
 import { useAvatarUri } from '../lib/avatars';
@@ -36,11 +37,20 @@ export function Text({ variant = 'body', tone = 'ink', style, ...rest }: TextPro
 export function Screen({ children, refreshing, onRefresh, scroll = true, glow = true }: { children: ReactNode; refreshing?: boolean; onRefresh?: () => void; scroll?: boolean; glow?: boolean }) {
   const p = usePalette();
   const tabSpace = useTabBarSpace();
-  if (!scroll) return <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>{children}</SafeAreaView>;
+  // Под системной шапкой свечение уже началось (HeaderGlow) — продолжаем его, иначе на границе шов.
+  const headerH = useContext(HeaderHeightContext) ?? 0;
+  const showGlow = glow || headerH > 0;
+  if (!scroll)
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg, overflow: 'hidden' }} edges={['top']}>
+        {headerH > 0 && <AmbientGlow offset={headerH} />}
+        {children}
+      </SafeAreaView>
+    );
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(40, tabSpace), gap: 16 }} scrollIndicatorInsets={{ bottom: tabSpace }} refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={p.ink3} /> : undefined}>
-        {glow && <AmbientGlow />}
+        {showGlow && <AmbientGlow offset={headerH} />}
         {children}
       </ScrollView>
     </SafeAreaView>

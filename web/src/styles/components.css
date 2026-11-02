@@ -277,6 +277,14 @@
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
+/* На телефоне вкладки листаются вбок: край растворяем, чтобы обрезанная
+   вкладка читалась как «есть ещё», а отступ даёт докрутить последнюю целиком. */
+@media (max-width: 520px) {
+  .tabs {
+    padding-right: 28px;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  }
+}
 
 /* ───────── Карточки ───────── */
 .card {

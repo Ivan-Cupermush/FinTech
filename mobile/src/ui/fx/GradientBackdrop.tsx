@@ -19,7 +19,8 @@ export function GradientBackdrop({ style, variant = 'hero' }: { style?: ViewStyl
             <Stop offset="0" stopColor={a} />
             <Stop offset="1" stopColor={b} />
           </LinearGradient>
-          <RadialGradient id={`glow${uid}`} cx="18%" cy="12%" r="70%">
+          {/* Третий цвет — справа сверху, у значка раздела: под заголовком слева он светлел почти до белого. */}
+          <RadialGradient id={`glow${uid}`} cx="92%" cy="6%" r="72%">
             <Stop offset="0" stopColor={c} stopOpacity={0.9} />
             <Stop offset="1" stopColor={c} stopOpacity={0} />
           </RadialGradient>

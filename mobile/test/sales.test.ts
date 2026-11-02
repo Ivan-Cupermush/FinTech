@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateSaleEntry } from '@offix/core';
+import { emptyPlanForm, planFormOf, validateSaleEntry } from '@offix/core';
 import { heroColors, heroStatColor, SECTION_VARIANTS } from '../src/lib/fx';
 import {
   defaultSalesView,
@@ -7,14 +7,26 @@ import {
   employeeTaskFigures,
   entryBody,
   entryDayPresets,
+  addGroupLine,
   isSalesTable,
+  itemRows,
+  itemsTextOf,
+  nextStep,
+  payoutChoices,
   payoutScale,
+  planEditMode,
+  planEditorTitle,
   planFactEditable,
+  planSaveBody,
+  planServerErrors,
   salesHeroStats,
   salesQs,
   salesToday,
   sk,
+  stepRows,
+  stepsTextOf,
   teamHeroStats,
+  withFactType,
 } from '../src/lib/sales';
 
 const plain = (s: string | number) => String(s).replace(/ /g, ' ');
@@ -79,7 +91,10 @@ describe('шапка продаж', () => {
   });
   it('у раздела продаж своя шапка, хорошая цифра — светло-зелёная', () => {
     expect(SECTION_VARIANTS).toContain('sales');
-    expect(heroColors('sales')[2]).toBe('#ffd84a');
+    // Золото приглушённое: на ярко-жёлтом белые цифры шапки не читались.
+    const [r, g, b] = (heroColors('sales')[2]!.match(/\w\w/g) ?? []).map((h) => parseInt(h, 16) / 255);
+    expect(0.2126 * r! + 0.7152 * g! + 0.0722 * b!).toBeLessThan(0.65);
+    expect(heroColors('sales')[2]).toBe('#c8901c');
     expect(heroStatColor('good')).not.toBe(heroStatColor(undefined));
   });
 });
@@ -161,5 +176,73 @@ describe('с какой вкладки открыть продажи', () => {
     expect(defaultSalesView({ ...empty, stats: {} as never, can: can(true) })).toBe('month');
     expect(defaultSalesView({ ...empty, entries: { count: 1, amount: 10, quantity: 1 }, can: can(true) })).toBe('month');
     expect(defaultSalesView({ ...empty, can: can(false) })).toBe('month');
+  });
+});
+
+describe('показатель: план и правила выплаты с телефона', () => {
+  const can = (edit: boolean) => ({ can: { edit, fact: false, kpi_file: false, add_entry: true, team: false, reports: false } });
+  it('руководитель меняет показатель целиком, у файла KPI — только выплату', () => {
+    expect(planEditMode(can(true), { source: 'manual' })).toBe('full');
+    expect(planEditMode(can(true), { source: 'file' })).toBe('payout');
+    expect(planEditMode(can(false), { source: 'manual' })).toBeNull();
+    expect(['new', 'full', 'payout'].map((m) => planEditorTitle(m as never))).toEqual(['Новый показатель', 'Показатель', 'Правило выплаты']);
+  });
+
+  it('новый показатель: те же проверки, что на сайте и сервере', () => {
+    const r = planSaveBody(emptyPlanForm(), 'new');
+    expect(r.body).toBeNull();
+    expect(r.errors.name).toBe('Назовите показатель');
+    expect(r.errors.plan).toBe('Для выплаты по порогам нужен план больше нуля');
+    const ok = planSaveBody({ ...emptyPlanForm(), name: 'Выручка', plan: '400 000', bonus: '20 000', steps: '100: 1\n90: 0,5' }, 'new');
+    expect(ok.errors).toEqual({});
+    expect(ok.body).toMatchObject({ name: 'Выручка', unit: 'rub', plan: 400000, bonus: 20000, fact_rule: { type: 'manual' }, payout_rule: { type: 'threshold', steps: [{ from: 100, k: 1 }, { from: 90, k: 0.5 }], over: 'cap' } });
+  });
+
+  it('процент от продаж: 3,5 % уходит долей, ошибка — у поля процента', () => {
+    expect(planSaveBody({ ...emptyPlanForm(), name: 'Курсы', payout_type: 'rate', rate: '3,5', min: '50 000' }, 'new').body).toMatchObject({ payout_rule: { type: 'rate', rate: 0.035, min: 50000 } });
+    expect(planSaveBody({ ...emptyPlanForm(), name: 'Курсы', payout_type: 'rate', rate: '0' }, 'new').errors.rate).toBe('Процент от продаж — больше 0 и не больше 100');
+  });
+
+  it('у показателя из файла KPI уходит только правило выплаты', () => {
+    const f = { ...emptyPlanForm(), name: '', plan: '', steps: '100: 1,2' };
+    expect(planSaveBody(f, 'payout')).toEqual({ body: { payout_rule: { type: 'threshold', steps: [{ from: 100, k: 1.2 }], over: 'cap' } }, errors: {} });
+    expect(planSaveBody({ ...f, steps: 'много' }, 'payout').errors.steps).toMatch(/^Строка 1/);
+  });
+
+  it('правка: форма из показателя и обратно даёт то же правило', () => {
+    const f = planFormOf({ name: 'АКБ', unit: 'clients', plan: 40, bonus: 10000, description: null, fact_rule: { type: 'clients', groups: ['Курсы'], exclude_key: true, merge: [] }, payout_rule: { type: 'threshold', steps: [{ from: 90, k: 0.5 }, { from: 100, k: 1 }], over: 'proportional' } });
+    expect(planSaveBody(f, 'full').body).toMatchObject({ unit: 'clients', fact_rule: { type: 'clients', groups: ['Курсы'] }, payout_rule: { over: 'proportional', steps: [{ from: 100, k: 1 }, { from: 90, k: 0.5 }] } });
+  });
+
+  it('ошибки сервера по правилам — у поля, которое их вызвало', () => {
+    expect(planServerErrors({ fact_rule: 'x', payout_rule: 'y', name: 'z' }, { fact_type: 'items', payout_type: 'rate' })).toEqual({ items: 'x', rate: 'y', name: 'z' });
+    expect(planServerErrors({ fact_rule: 'x', payout_rule: 'y' }, { fact_type: 'revenue', payout_type: 'threshold' })).toEqual({ groups: 'x', steps: 'y' });
+  });
+
+  it('выплата за позиции — только у показателя с позициями', () => {
+    expect(payoutChoices('manual').map((c) => c.value)).toEqual(['none', 'fixed', 'threshold', 'rate']);
+    expect(payoutChoices('items').map((c) => c.value)).toContain('items');
+    const items = withFactType(emptyPlanForm(), 'items');
+    expect(items.payout_type).toBe('items');
+    expect(withFactType(items, 'revenue').payout_type).toBe('threshold');
+    expect(withFactType({ ...emptyPlanForm(), payout_type: 'rate' }, 'items').payout_type).toBe('rate');
+  });
+
+  it('пороги: строки формы ⇄ строки редактора', () => {
+    expect(stepRows('100: 1\n90%: 0,5\n80')).toEqual([{ from: '100', k: '1' }, { from: '90', k: '0,5' }, { from: '80', k: '' }]);
+    expect(stepsTextOf([{ from: '100', k: '1' }, { from: '', k: '' }, { from: '90', k: '0,5' }])).toBe('100: 1\n90: 0,5');
+    expect(nextStep([{ from: '100', k: '1' }])).toEqual({ from: '90', k: '' });
+    expect(nextStep([])).toEqual({ from: '', k: '' });
+  });
+
+  it('позиции: строки формы ⇄ строки редактора', () => {
+    expect(itemRows('Курс Python: 3\nВебинар')).toEqual([{ name: 'Курс Python', need: '3' }, { name: 'Вебинар', need: '' }]);
+    expect(itemsTextOf([{ name: ' Курс Python ', need: '3' }, { name: '', need: '2' }, { name: 'Вебинар', need: '' }])).toBe('Курс Python: 3\nВебинар');
+  });
+
+  it('группа из отчётов добавляется один раз', () => {
+    expect(addGroupLine('', 'КУРСЫ')).toBe('КУРСЫ');
+    expect(addGroupLine('КУРСЫ\n', 'КУРСЫ › Python')).toBe('КУРСЫ\nКУРСЫ › Python');
+    expect(addGroupLine('КУРСЫ', 'КУРСЫ')).toBe('КУРСЫ');
   });
 });

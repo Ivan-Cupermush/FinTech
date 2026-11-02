@@ -84,9 +84,16 @@ export function socketOrigin(apiBase: string): string {
   }
 }
 
+/** Ответ на сообщение из другого чата: само сообщение и откуда оно. */
+export interface ExternalReply {
+  message: ChatMessage;
+  chatTitle: string;
+}
+
 /** Своё сообщение видно сразу, до ответа сервера; сервер вернёт его с тем же client_id. */
-export function optimisticMessage(o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; clientId: string; now: string; replyTo?: ChatMessage | null; attachments?: Attachment[]; contact?: ContactCard | null }): ChatMessage & { failed?: boolean } {
+export function optimisticMessage(o: { chatId: string; topicId: string | null; me: { id: string; name: string }; text: string; clientId: string; now: string; replyTo?: ChatMessage | null; externalReply?: ExternalReply | null; attachments?: Attachment[]; contact?: ContactCard | null }): ChatMessage & { failed?: boolean } {
   const r = o.replyTo;
+  const x = o.externalReply;
   const atts = o.attachments ?? [];
   const kind: ChatMessage['kind'] = o.contact ? 'contact' : atts[0]?.kind === 'voice' ? 'voice' : atts[0]?.kind === 'video_note' ? 'video_note' : atts.length ? 'media' : 'text';
   return {
@@ -104,7 +111,7 @@ export function optimisticMessage(o: { chatId: string; topicId: string | null; m
     pinned: false,
     client_id: o.clientId,
     reply_to: r ? { id: r.id, sender_name: r.sender_name, text: r.text, kind: r.kind, deleted: r.deleted, media: mediaOf(r) } : null,
-    external_reply: null,
+    external_reply: x ? { id: x.message.id, sender_name: x.message.sender_name, text: x.message.text, kind: x.message.kind, deleted: x.message.deleted, media: mediaOf(x.message), chat_id: x.message.chat_id, chat_title: x.chatTitle } : null,
     forwarded_from: null,
     reactions: [],
     poll: null,
