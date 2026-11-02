@@ -23,6 +23,7 @@ describe('функции компании', () => {
       expect(m.title.length).toBeGreaterThan(2);
       expect(m.description.length).toBeGreaterThan(20);
       expect(m.impact.length).toBeGreaterThan(0);
+      expect(m.related.length).toBeGreaterThan(20);
       for (const fn of m.functions) expect(DELEGABLE_KEYS).toContain(fn);
     }
   });

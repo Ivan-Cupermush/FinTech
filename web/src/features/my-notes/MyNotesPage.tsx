@@ -19,6 +19,7 @@ import { AttachButton, AttachmentList, PendingList, useDropZone } from '../files
 import { Markdown } from '../notes/Markdown';
 import { NoteCalendar } from './Calendar';
 import { ShareNoteDialog } from './NoteDialogs';
+import { useModuleOn } from '../../lib/modules';
 import { myNotesApi, useMyNote, useMyNotes, useNoteDays, useRefreshNotes } from './data';
 import './my-notes.css';
 
@@ -219,6 +220,8 @@ export function MyNotePage() {
   const [preview, setPreview] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<'delete' | 'share' | null>(null);
+  // Чаты выключены в «Функциях компании» — отправлять заметку некуда.
+  const chats = useModuleOn('chats');
   const [menu, setMenu] = useState<DOMRect | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const up = useUploads();
@@ -383,9 +386,11 @@ export function MyNotePage() {
                 <Button size="sm" icon={<Pencil size={14} />} onClick={() => setEditing(true)}>
                   Изменить
                 </Button>
-                <Button size="sm" icon={<Send size={14} />} onClick={() => setDialog('share')}>
-                  В чат
-                </Button>
+                {chats && (
+                  <Button size="sm" icon={<Send size={14} />} onClick={() => setDialog('share')}>
+                    В чат
+                  </Button>
+                )}
                 <Button size="sm" icon={<Download size={14} />} loading={pdfBusy} onClick={() => void pdf()}>
                   PDF
                 </Button>

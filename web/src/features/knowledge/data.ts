@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { knowledgeDocBusy, type KnowledgeAskResult, type KnowledgeDoc, type KnowledgeMessage, type KnowledgeSession, type KnowledgeStatus } from '@offix/core';
 import { api } from '../../lib/api';
 
-export const useKnowledgeStatus = () => useQuery({ queryKey: ['kb-status'], queryFn: () => api<KnowledgeStatus>('/knowledge/status'), staleTime: 30_000 });
+export const useKnowledgeStatus = (enabled = true) => useQuery({ queryKey: ['kb-status'], queryFn: () => api<KnowledgeStatus>('/knowledge/status'), staleTime: 30_000, enabled });
 
-export const useKnowledgeDocs = (goalId?: string) =>
+export const useKnowledgeDocs = (goalId?: string, enabled = true) =>
   useQuery({
+    enabled,
     queryKey: ['kb-docs', goalId ?? 'all'],
     queryFn: () => api<KnowledgeDoc[]>(`/knowledge/docs${goalId ? `?goal_id=${goalId}` : ''}`),
     refetchInterval: (q) => (q.state.data?.some(knowledgeDocBusy) ? 2000 : false),

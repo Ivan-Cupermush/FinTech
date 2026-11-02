@@ -97,7 +97,8 @@ describe('Вход', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^Войти/ }));
     expect(screen.getByText('Введите почту')).toBeInTheDocument();
     expect(screen.getByText('Введите пароль')).toBeInTheDocument();
-    expect(calls).toHaveLength(0);
+    // Страница спрашивает только, не песочница ли это; входа без данных нет.
+    expect(calls.filter((c) => c.path !== '/auth/sandbox')).toHaveLength(0);
   });
   it('неверный пароль — понятное сообщение, форма остаётся', async () => {
     mockApi({ 'POST /auth/login': apiError(401, 'Неверная почта или пароль') });

@@ -14,6 +14,7 @@ import { chatApi, ck } from '../chats/data';
 import { RequestDialog } from '../tasks/RequestDialog';
 import { PersonFunctions } from './Functions';
 import { accountApi, ak, usePerson, usePersonGroups } from './data';
+import { useModuleOn } from '../../lib/modules';
 import './account.css';
 
 const errText = (e: unknown) => (e instanceof ApiError ? (Object.values(e.fields)[0] ?? e.message) : 'Не получилось, попробуйте ещё раз');
@@ -71,7 +72,9 @@ export function ContactNameDialog({ userId, realName, current, onClose }: { user
 export function PersonPage() {
   const { id = '' } = useParams();
   const q = usePerson(id);
-  const groups = usePersonGroups(id, !!q.data && !q.data.is_me);
+  // Без чатов — ни «Написать», ни групп: раздел выключен в компании.
+  const chats = useModuleOn('chats');
+  const groups = usePersonGroups(id, chats && !!q.data && !q.data.is_me);
   const qc = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
@@ -137,7 +140,7 @@ export function PersonPage() {
             </Button>
           ) : (
             <>
-              {p.active && (
+              {p.active && chats && (
                 <Button variant="primary" icon={<MessageCircle size={15} />} onClick={() => void write()}>
                   Написать
                 </Button>
@@ -183,7 +186,7 @@ export function PersonPage() {
             </div>
           </dl>
         </section>
-        {!p.is_me && (
+        {!p.is_me && chats && (
           <section className="card acc-card" aria-labelledby="person-groups">
             <h2 id="person-groups" className="acc-h">
               <Users size={18} aria-hidden /> Мои группы
