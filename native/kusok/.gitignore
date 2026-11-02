@@ -1,0 +1,9 @@
+/build*/
+/out/
+*.o
+*.a
+*.so
+compile_commands.json
+crash-*
+leak-*
+timeout-*

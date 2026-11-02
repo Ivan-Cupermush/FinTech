@@ -60,6 +60,22 @@ step "Собираю сервер"
 rm -rf "$DIR/server/dist-next"
 (cd "$DIR" && as_owner env OFFIX_VERSION="$VERSION" npm run build -w server -- --outdir dist-next)
 
+step "Собираю хранилище файлов kusok"
+# Собираем рядом и подменяем файлы переименованием: работающий сервер держит старый
+# kusok.node открытым, перезапись на месте могла бы его уронить.
+if command -v cmake >/dev/null && command -v cc >/dev/null; then
+  KB="$DIR/native/kusok/build-next"
+  (cd "$DIR" && as_owner cmake -S native/kusok -B "$KB" -DKUSOK_NODE=ON -DKUSOK_TESTS=OFF -DCMAKE_BUILD_TYPE=Release >/dev/null && as_owner cmake --build "$KB" -j >/dev/null)
+  as_owner install -d "$DIR/native/kusok/build"
+  for f in kusok.node kusok; do
+    as_owner cp "$KB/$f" "$DIR/native/kusok/build/$f.new"
+    as_owner mv -f "$DIR/native/kusok/build/$f.new" "$DIR/native/kusok/build/$f"
+  done
+  ok "kusok собран"
+else
+  warn "Нет cmake или компилятора C (apt-get install cmake build-essential) — файлы хранятся в папке, без дедупликации"
+fi
+
 step "Подменяю версии и перезапускаю $SERVICE"
 switch_folder "$DIR/server/dist" "$DIR/server/dist-next"
 switch_folder "$DIR/web/dist" "$DIR/web/dist-next"

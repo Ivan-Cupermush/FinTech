@@ -174,11 +174,15 @@ export function createKnowledgeService(db: Db, store: MediaStore, opts: Knowledg
     ).rows[0];
     if (!claimed) return;
     try {
-      const path = claimed.storage_key ? store.pathOf(claimed.storage_key) : null;
-      if (!path) throw new DocTextError('Файл документа не найден — загрузите его ещё раз');
-      const buf = await fs.readFile(path).catch(() => {
-        throw new DocTextError('Файл документа не найден — загрузите его ещё раз');
-      });
+      // Из kusok документ читается во временную копию, из files/ — с места.
+      const file = claimed.storage_key ? await store.materialize(claimed.storage_key).catch(() => null) : null;
+      if (!file) throw new DocTextError('Файл документа не найден — загрузите его ещё раз');
+      const buf = await fs
+        .readFile(file.path)
+        .catch(() => {
+          throw new DocTextError('Файл документа не найден — загрузите его ещё раз');
+        })
+        .finally(() => file.done());
       const { text, pages } = await extractDocText(buf, claimed.doc_type);
       const chunks = chunkText(text);
       if (!chunks.length) throw new DocTextError('В документе нет текста');

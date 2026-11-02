@@ -86,6 +86,11 @@ chown offix:offix /var/lib/offix && chmod 700 /var/lib/offix
 tar -xzf /tmp/offix-sandbox.tgz -C /opt/offix
 cd /opt/offix && npm ci --omit=dev -w server --no-audit --no-fund
 
+# Хранилище файлов kusok (дедупликация, проверка SHA-256): собирается из исходников
+# native/kusok за полминуты. Нужны cmake и компилятор C; node должен быть в PATH.
+apt-get install -y cmake build-essential
+npm run kusok:build
+
 # Настройки: JWT_SECRET — случайная строка, без него сервер не запустится.
 cp deploy/sandbox/sandbox.env.example server/.env
 sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" server/.env
@@ -102,7 +107,10 @@ curl -s http://127.0.0.1:4000/api/v1/auth/sandbox | head -c 200
 ```
 
 В журнале должно появиться «Песочница готова: входы rector, prorector, office, method,
-spec, guest (пароль = логин)».
+spec, guest (пароль = логин)» и «Файлы: kusok 0.5.0». Если вместо второго — «Файлы:
+папка files/ — kusok не собран», offix работает и так, просто без дедупликации:
+соберите kusok (шаг выше) и перезапустите. `UPLOADS_STORE=kusok` в `.env` делает kusok
+обязательным: без него сервер не запустится.
 
 ## 4. Служба systemd
 
@@ -164,6 +172,11 @@ curl -sI http://147.45.43.34/ | head -1                        # сайт сва
 ```bash
 tar -xzf /tmp/offix-sandbox.tgz -C /opt/offix      # server/.env и данные не затрагиваются
 cd /opt/offix && npm ci --omit=dev -w server --no-audit --no-fund
+
+# Хранилище файлов kusok (дедупликация, проверка SHA-256): собирается из исходников
+# native/kusok за полминуты. Нужны cmake и компилятор C; node должен быть в PATH.
+apt-get install -y cmake build-essential
+npm run kusok:build
 systemctl restart offix-sandbox
 ```
 

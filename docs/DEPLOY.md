@@ -87,6 +87,8 @@
 | `DATABASE_URL` | `postgres://offix:<пароль>@127.0.0.1:5432/offix` | база |
 | `JWT_SECRET` | 64 случайных символа, **только буквы и цифры** | подпись входа; `#` обрезает ключ — всё после него комментарий |
 | `UPLOADS_DIR` | `/var/lib/offix/uploads` или `D:\offix-files` | файлы людей — вне папки с кодом |
+| `UPLOADS_STORE` | `auto` (по умолчанию), `kusok` или `fs` | где лежат оригиналы: `kusok` — хранилище с дедупликацией и проверкой SHA-256 (Linux, собирается `npm run kusok:build`), `fs` — папка `files/`; `auto` — kusok, если собран |
+| `KUSOK_BACKUP_DIR` | `/var/backups/offix/kusok` | куда сервер копирует kusok; ставит `backup.sh --install-timer` |
 | `FFMPEG_DIR` | `/usr/bin` или `C:\ffmpeg\bin` | служба не видит PATH пользователя |
 | `APP_URL` | `https://offix.example.ru` | ссылки в письмах |
 
@@ -206,7 +208,10 @@ powershell -ExecutionPolicy Bypass -File deploy\windows\backup.ps1 -BackupDir D:
 ```
 
 Каждый день в 03:30: дамп базы (`pg_dump -F c`, хранится 30 дней) и копия загруженных файлов
-в режиме «только добавить». Адрес базы берётся из `DATABASE_URL`, пароль передаётся `pg_dump`
+в режиме «только добавить». Хранилище kusok копирует сам сервер — он держит его на запись, и
+утилита `kusok` из другого процесса его не откроет: `backup.sh` после дампа базы кладёт
+просьбу в `KUSOK_BACKUP_DIR`, и в течение 10 минут сервер переносит туда только новые куски
+(плюс каждую ночь). Итог — в `/var/backups/offix/kusok/last.json`, строки `storage:` в журнале. Адрес базы берётся из `DATABASE_URL`, пароль передаётся `pg_dump`
 через переменную окружения и не попадает в список процессов. Копию лучше держать на другом
 диске и дополнительно вне сервера.
 
@@ -217,8 +222,14 @@ sudo systemctl stop offix
 sudo -u postgres dropdb offix && sudo -u postgres createdb -O offix offix
 sudo -u postgres pg_restore -d offix --no-owner --role=offix /var/backups/offix/db/offix-20261027-0330.dump
 sudo rsync -a /var/backups/offix/uploads/ /var/lib/offix/uploads/
+# kusok: перенести файлы из копии (уже лежащие пропускаются, каждый кусок сверяется по SHA-256)
+cd /opt/offix && sudo -u offix native/kusok/build/kusok /var/backups/offix/kusok/store export - \
+  | sudo -u offix native/kusok/build/kusok /var/lib/offix/uploads/kusok import -
 sudo systemctl start offix
 ```
+
+Копировать папку kusok поверх живой нельзя — номера pack-файлов совпадут; только `export | import`.
+Счётчики ссылок после восстановления выравнивает ночная сверка с базой.
 
 Раз в месяц проверяйте, что копия читается: `pg_restore -l файл.dump | head`.
 

@@ -27,6 +27,7 @@ tar -czf "$out" \
   packages/core/package.json \
   server/package.json server/dist \
   web/package.json web/dist \
+  --exclude='native/kusok/build*' native/kusok \
   deploy/sandbox
 
 echo "Готово: $out ($(du -h "$out" | cut -f1)). Дальше — deploy/sandbox/README.md, шаг 2."

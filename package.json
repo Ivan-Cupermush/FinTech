@@ -19,7 +19,9 @@
     "mobile:install": "npm install --prefix mobile",
     "mobile:start": "npm start --prefix mobile",
     "mobile:test": "npm test --prefix mobile",
-    "mobile:typecheck": "npm run typecheck --prefix mobile"
+    "mobile:typecheck": "npm run typecheck --prefix mobile",
+    "kusok:build": "cmake -S native/kusok -B native/kusok/build -DKUSOK_NODE=ON -DKUSOK_TESTS=OFF -DCMAKE_BUILD_TYPE=Release && cmake --build native/kusok/build -j",
+    "kusok:test": "cmake -S native/kusok -B native/kusok/build-test -DKUSOK_NODE=ON -DKUSOK_TESTS=ON -DKUSOK_WERROR=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && cmake --build native/kusok/build-test -j && ctest --test-dir native/kusok/build-test --output-on-failure"
   },
   "engines": {
     "node": ">=22"

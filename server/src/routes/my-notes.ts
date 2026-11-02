@@ -1,3 +1,4 @@
+import type { MediaStore } from '../services/media';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
@@ -82,13 +83,13 @@ async function takenTitles(q: Queryable, ownerId: string, base: string): Promise
 }
 
 /** Заметка-копия у человека: текст и файлы (записи на те же файлы на диске). */
-async function copyNoteTo(q: Queryable, actor: { id: string; company_id: string }, src: { title: string; body: string }, files: { type: 'note' | 'note_share'; id: string }, at: string, opts: { exactTitle?: boolean } = {}): Promise<string> {
+async function copyNoteTo(q: Queryable, store: MediaStore, actor: { id: string; company_id: string }, src: { title: string; body: string }, files: { type: 'note' | 'note_share'; id: string }, at: string, opts: { exactTitle?: boolean } = {}): Promise<string> {
   const title = opts.exactTitle ? src.title : freeCopyTitle(src.title, await takenTitles(q, actor.id, src.title));
   const { rows } = await q.query<{ id: string }>(
     `INSERT INTO personal_notes (company_id, owner_id, title, body, note_date, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id`,
     [actor.company_id, actor.id, title, src.body, at.slice(0, 10), at],
   );
-  await copyAttachments(q, files, { type: 'note', id: rows[0]!.id }, actor.id);
+  await copyAttachments(q, store, files, { type: 'note', id: rows[0]!.id }, actor.id);
   return rows[0]!.id;
 }
 
@@ -289,7 +290,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
       const s = await visibleShare(q, actor, shareId);
       const prev = await q.query<{ note_id: string }>(`SELECT a.note_id FROM note_share_acceptances a JOIN personal_notes n ON n.id = a.note_id WHERE a.share_id = $1 AND a.user_id = $2`, [s.id, actor.id]);
       if (prev.rows[0]) return prev.rows[0].note_id;
-      const id = await copyNoteTo(q, actor, { title: s.title, body: s.body }, { type: 'note_share', id: s.id }, at());
+      const id = await copyNoteTo(q, media.store, actor, { title: s.title, body: s.body }, { type: 'note_share', id: s.id }, at());
       await q.query(
         `INSERT INTO note_share_acceptances (share_id, user_id, note_id, accepted_at) VALUES ($1, $2, $3, $4)
          ON CONFLICT (share_id, user_id) DO UPDATE SET note_id = EXCLUDED.note_id, accepted_at = EXCLUDED.accepted_at`,
@@ -341,7 +342,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
       if (!rq.note_id || rq.note_title === null) throw new ApiError('CONFLICT', 'Заметка удалена — делиться нечем');
       const requester = (await q.query<{ id: string; company_id: string }>(`SELECT user_id AS id, company_id FROM company_members WHERE user_id = $1 AND company_id = $2`, [rq.requester_id, actor.company_id])).rows[0];
       if (!requester) throw new ApiError('CONFLICT', 'Сотрудник больше не работает в компании');
-      const copy = await copyNoteTo(q, requester, { title: rq.note_title, body: rq.note_body ?? '' }, { type: 'note', id: rq.note_id }, at());
+      const copy = await copyNoteTo(q, media.store, requester, { title: rq.note_title, body: rq.note_body ?? '' }, { type: 'note', id: rq.note_id }, at());
       await q.query(`UPDATE note_share_requests SET status = 'approved', result_note_id = $2, resolved_at = $3 WHERE id = $1`, [rq.id, copy, at()]);
       const title = (await q.query<{ title: string }>(`SELECT title FROM personal_notes WHERE id = $1`, [copy])).rows[0]!.title;
       await notify(q, { company_id: actor.company_id, user_id: rq.requester_id, kind: 'note_request_approved', title: `${actor.display_name} поделился свежей версией`, body: noteTitle(title), data: { request_id: rq.id, note_id: copy } }, actor.id);
@@ -438,7 +439,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
     const id = idParam(req.params.id);
     const copy = await db.tx(async (q) => {
       const src = await ownNote(q, actor, id);
-      const newId = await copyNoteTo(q, actor, { title: src.title.trim() ? `${src.title} (копия)`.slice(0, MY_NOTE_LIMITS.title) : '', body: src.body }, { type: 'note', id: src.id }, at(), { exactTitle: true });
+      const newId = await copyNoteTo(q, media.store, actor, { title: src.title.trim() ? `${src.title} (копия)`.slice(0, MY_NOTE_LIMITS.title) : '', body: src.body }, { type: 'note', id: src.id }, at(), { exactTitle: true });
       await q.query(`UPDATE personal_notes SET note_date = $2 WHERE id = $1`, [newId, body.note_date ?? src.note_date]);
       return ownNote(q, actor, newId);
     });
@@ -528,7 +529,7 @@ export function myNotesRouter({ db, now, rt, media, onMessage }: ChatDeps): Rout
         n.body,
         at(),
       ]);
-      await copyAttachments(q, { type: 'note', id: n.id }, { type: 'note_share', id: rows[0]!.id }, actor.id);
+      await copyAttachments(q, media.store, { type: 'note', id: n.id }, { type: 'note_share', id: rows[0]!.id }, actor.id);
       const row = await insertMessage(q, a.chat, actor.id, { kind: 'note', text: body.text.trim() || null, topic_id: topicId, client_id: body.client_id, note_share_id: rows[0]!.id }, at());
       return { chat: a.chat, row };
     });

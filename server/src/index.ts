@@ -12,6 +12,8 @@ import { openDb, safeDbUrl } from './db/open';
 import { fakeSystemsFetch } from './seed/fake-systems';
 import { SANDBOX_SEATS, seedSandbox } from './seed/sandbox';
 import { createMediaStore } from './services/media';
+import { startStorageLoop } from './services/storage-jobs';
+import { loadKusok } from './services/blobs';
 import { aiProviderFromEnv } from './services/ai';
 import { createKnowledgeService, startKnowledgeLoop } from './services/knowledge';
 
@@ -28,7 +30,15 @@ try {
 }
 const realtime = createRealtimeHub();
 const pushSender = config.push.enabled ? expoSender({ accessToken: config.push.accessToken }) : undefined;
-const media = createMediaStore(config.uploads, config.jwtSecret);
+let media: ReturnType<typeof createMediaStore>;
+try {
+  media = createMediaStore(config.uploads, config.jwtSecret);
+} catch (e) {
+  console.error(`offix: хранилище файлов не открылось: ${(e as Error).message}`);
+  process.exit(1);
+}
+if (media.blobs === 'kusok') console.log(`Файлы: kusok ${loadKusok().module?.version ?? ''} (дедупликация, проверка SHA-256)`);
+else console.log(`Файлы: папка files/${config.uploads.store === 'fs' ? '' : ` — ${loadKusok().error}`}`);
 const knowledge = createKnowledgeService(db, media, { provider: aiProviderFromEnv(), onError: (e) => console.error('knowledge:', e) });
 if (config.sandbox) {
   // Песочница заводится один раз; при следующих запусках данные уже в базе.
@@ -44,6 +54,20 @@ if (config.mail.enabled && config.mail.smtpUrl && config.mail.from) {
   startReportMailLoop(db, smtpSender({ url: config.mail.smtpUrl, from: config.mail.from }), { appUrl: config.mail.appUrl, onError: (e) => console.error('report mail:', e) });
 }
 if (config.integrations.enabled || config.sandbox) startIntegrationLoop(db, integrationFetch, { onError: (e) => console.error('integrations:', e) });
+// Старые файлы — в kusok понемногу; ночью — сверка ссылок, сборка мусора и fsck.
+startStorageLoop(db, media, {
+  backupDir: config.uploads.kusokBackupDir,
+  onError: (e) => console.error('storage:', e),
+  onReport: ({ migrate, nightly, backup }) => {
+    if (backup) console.log(`storage: копия kusok — новых файлов ${backup.imported}, кусков ${backup.chunks}, ${backup.bytes} Б`);
+    if (migrate) console.log(`storage: перенесено в kusok ${migrate.moved}, нет на диске ${migrate.missing}, не удалось ${migrate.failed}`);
+    if (nightly) {
+      const line = `storage: сборка мусора ${nightly.gc.bytesBefore} → ${nightly.gc.bytesAfter} Б, fsck: файлов ${nightly.fsck.files}, испорчено ${nightly.fsck.brokenFiles}, сверка: +${nightly.reconcile.raised} −${nightly.reconcile.released}`;
+      if (nightly.broken) console.error(`${line} — НУЖНА ПРОВЕРКА: испорченных записей ${nightly.fsck.badRecords}, нет манифестов ${nightly.fsck.missingManifests}, файлов из базы нет в kusok ${nightly.reconcile.missing.length}`);
+      else console.log(line);
+    }
+  },
+});
 startScheduledLoop(db, realtime, { store: media, now: () => new Date() }, { onMessage: pushSender ? messagePushHook(db, pushSender, realtime, () => new Date()) : undefined, onError: (e) => console.error('scheduled:', e) });
 // Один HTTP-сервер на API и сокет: тот же порт и тот же прокси.
 const server = createServer(app);
@@ -62,6 +86,11 @@ const shutdown = (signal: string) => {
   console.log(`offix останавливается (${signal})`);
   setTimeout(() => process.exit(0), 15_000).unref();
   server.close(() => {
+    try {
+      media.close();
+    } catch (e) {
+      console.error('storage: kusok не закрылся', e);
+    }
     db.close().finally(() => process.exit(0));
   });
   server.closeIdleConnections();

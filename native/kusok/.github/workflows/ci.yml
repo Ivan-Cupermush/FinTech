@@ -1,0 +1,116 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    name: ${{ matrix.cc }} ${{ matrix.build }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+        build: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+      - name: зависимости
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build python3-pip
+          pip3 install --break-system-packages lz4
+      - name: сборка
+        env:
+          CC: ${{ matrix.cc }}
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DKUSOK_WERROR=ON
+          cmake --build build
+      - name: тесты
+        run: ctest --test-dir build --output-on-failure -j4
+
+  sanitizers:
+    name: ASan + UBSan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DKUSOK_SANITIZE=ON -DKUSOK_WERROR=ON
+          cmake --build build
+          ctest --test-dir build --output-on-failure -j4
+
+  valgrind:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build valgrind
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build
+          for t in build/test_*; do
+            echo "== $t"
+            valgrind --error-exitcode=9 --leak-check=full -q "$t" > /dev/null
+          done
+
+  fuzz:
+    name: libFuzzer (по 60 с на цель)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build clang
+      - run: |
+          CC=clang cmake -S . -B build -G Ninja -DKUSOK_FUZZ=ON -DKUSOK_TESTS=OFF
+          cmake --build build
+          for f in fuzz_lz fuzz_roundtrip fuzz_manifest fuzz_pack fuzz_idx fuzz_http fuzz_bundle; do
+            echo "== $f"
+            ./build/$f -max_total_time=60 -print_final_stats=1
+          done
+
+  node:
+    name: привязка node.js
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DKUSOK_NODE=ON -DKUSOK_WERROR=ON
+          cmake --build build
+          ctest --test-dir build --output-on-failure -R node
+
+  coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build gcovr
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DKUSOK_COVERAGE=ON
+          cmake --build build
+          ctest --test-dir build -j4
+          gcovr -r . --filter src/ --print-summary
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          clang-format --version
+          clang-format --dry-run --Werror src/*.c src/*.h include/kusok/*.h tools/*.c tools/*.h tests/*.c tests/*.h tests/fuzz/*.c bindings/node/*.c
+
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+      - run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DKUSOK_TESTS=OFF
+          cmake --build build
+          ./build/kusok-bench all | tee bench.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench
+          path: bench.md

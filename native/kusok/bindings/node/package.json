@@ -1,0 +1,12 @@
+{
+  "name": "kusok",
+  "version": "0.5.0",
+  "description": "дедуплицирующее хранилище файлов kusok для node.js",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test.js"
+  }
+}
