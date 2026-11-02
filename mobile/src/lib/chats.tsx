@@ -239,6 +239,12 @@ function ChatLiveProvider({ meId, children }: { meId: string | undefined; childr
         void qc.invalidateQueries({ queryKey: ['chat'] });
         refreshList();
       },
+      // Владелец поменял «Функции компании» — вкладки и меню перестраиваются.
+      modules_changed: () => {
+        void qc.invalidateQueries({ queryKey: ['me'] });
+        void qc.invalidateQueries({ queryKey: ['company-modules'] });
+        void qc.invalidateQueries({ queryKey: ['functions'] });
+      },
       profile_changed: (p: { user_id: string }) => {
         void qc.invalidateQueries({ queryKey: ['person', p.user_id] });
         if (p.user_id === meId) void Promise.all([qc.invalidateQueries({ queryKey: ['me'] }), qc.invalidateQueries({ queryKey: ['account'] })]);

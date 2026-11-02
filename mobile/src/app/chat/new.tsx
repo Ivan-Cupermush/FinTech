@@ -9,9 +9,10 @@ import { font, usePalette } from '../../lib/theme';
 import { PeoplePicker } from '../../ui/chats';
 import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { Button, Card, Input, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 /** Новый чат: личный — одним касанием по коллеге, группа — название, участники, темы. */
-export default function NewChatScreen() {
+function NewChatScreen() {
   const p = usePalette();
   const qc = useQueryClient();
   const me = useMe();
@@ -90,3 +91,6 @@ export default function NewChatScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', NewChatScreen);

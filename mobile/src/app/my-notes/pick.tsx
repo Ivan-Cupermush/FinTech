@@ -8,9 +8,10 @@ import { myNotesQuery } from '../../lib/personal';
 import { myNotesApi, useMyNotes } from '../../lib/personal-api';
 import { NoteRow } from '../../ui/my-notes';
 import { Button, Card, Empty, Input, Screen } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 /** Из чата: выбрать мою заметку и отправить её снимок в этот чат (и тему). */
-export default function PickNoteScreen() {
+function PickNoteScreen() {
   const { chat, topic } = useLocalSearchParams<{ chat: string; topic?: string }>();
   const qc = useQueryClient();
   const today = todayIso();
@@ -56,3 +57,6 @@ export default function PickNoteScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated(['my_notes', 'chats'], PickNoteScreen);

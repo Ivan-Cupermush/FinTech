@@ -15,6 +15,7 @@ import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { PageHero } from '../../ui/fx/PageHero';
 import { AskBar, DocRow } from '../../ui/knowledge';
 import { Button, Card, Empty, Screen, Text } from '../../ui/primitives';
+import { useModuleOn } from '../../ui/modules';
 
 /** Не дёргаем сервер на каждую букву. */
 function useDebounced<T>(value: T, ms = 250): T {
@@ -38,15 +39,18 @@ export default function NotesScreen() {
   const goalId = params.goal || undefined;
   const p = usePalette();
   const today = todayIso();
-  const [tab, setTab] = useState<Tab>(params.tab === 'docs' ? 'docs' : 'notes');
+  const [tabRaw, setTab] = useState<Tab>(params.tab === 'docs' ? 'docs' : 'notes');
   const [text, setText] = useState('');
   const [scope, setScope] = useState<NotesScope>('all');
   const q = useDebounced(text);
   const list = useNotes(notesQuery({ q, goalId, scope }));
   // Цифры шапки — по всей базе (или по цели), а не по результату поиска.
   const all = useNotes(notesQuery({ goalId }));
-  const status = useKnowledgeStatus();
-  const docs = useKnowledgeDocs(goalId);
+  // ИИ-помощник выключен в «Функциях компании» — остаются статьи, без документов и вопросов.
+  const ai = useModuleOn('knowledge_ai');
+  const tab: Tab = ai ? tabRaw : 'notes';
+  const status = useKnowledgeStatus(ai);
+  const docs = useKnowledgeDocs(goalId, ai);
   const empty = notesEmpty({ q, goalId });
   // Документы компании загружает тот, кому доверено; документы цели — ещё и редакторы цели.
   const canUpload = !!status.data?.can_manage || (!!goalId && params.upload === '1');
@@ -65,19 +69,21 @@ export default function NotesScreen() {
         subtitle={goalId ? 'Договорённости, решения и документы по этой цели.' : 'Регламенты, договорённости и документы — рядом с целями, а не в переписке.'}
         stats={all.data && !goalId ? knowledgeStats(all.data, status.data?.docs.ready, today) : undefined}
       >
-        <AskBar onAsk={(question) => router.push(askRoute(question))} />
+        {ai && <AskBar onAsk={(question) => router.push(askRoute(question))} />}
       </PageHero>
 
-      <LiquidSegmented
-        role="tab"
-        label="Раздел базы знаний"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'notes' as const, label: 'Статьи' },
-          { value: 'docs' as const, label: docs.data ? `Документы · ${docs.data.length}` : 'Документы' },
-        ]}
-      />
+      {ai && (
+        <LiquidSegmented
+          role="tab"
+          label="Раздел базы знаний"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'notes' as const, label: 'Статьи' },
+            { value: 'docs' as const, label: docs.data ? `Документы · ${docs.data.length}` : 'Документы' },
+          ]}
+        />
+      )}
 
       {tab === 'docs' ? (
         <DocsList goalId={goalId} canUpload={canUpload} today={today} docs={docs} />

@@ -20,6 +20,7 @@ import { VideoNoteRecorder, VoiceRecorderBar, type Recording } from '../../../ui
 import { MediaViewer } from '../../../ui/viewer';
 import { Glass } from '../../../ui/fx/Glass';
 import { NO_WEB_OUTLINE, Text } from '../../../ui/primitives';
+import { gated } from '../../../ui/modules';
 
 type Mode = { kind: 'reply' | 'edit'; message: ChatMessage } | ({ kind: 'external' } & ExternalReply) | null;
 
@@ -30,7 +31,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не полу
  * ввода, пузыри с ответами, реакциями и опросами. Касание пузыря — действия,
  * долгое касание — реакция.
  */
-export default function ChatScreen() {
+function ChatScreen() {
   const params = useLocalSearchParams<{ id: string; topic?: string }>();
   const chatId = params.id;
   const topicId = params.topic || null;
@@ -637,3 +638,6 @@ export default function ChatScreen() {
     </View>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', ChatScreen);

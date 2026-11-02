@@ -78,6 +78,7 @@ export default function RootLayout() {
               <Stack.Screen name="note-share/[id]" options={{ title: 'Заметка из чата' }} />
               <Stack.Screen name="note-request/[id]" options={{ title: 'Запрос заметки' }} />
               <Stack.Screen name="profile" options={{ title: 'Профиль' }} />
+              <Stack.Screen name="company" options={{ title: 'Функции компании' }} />
               <Stack.Screen name="person/[id]" options={{ title: 'Коллега' }} />
               <Stack.Screen name="scan" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
               <Stack.Screen name="qr/[token]" options={{ headerShown: false }} />

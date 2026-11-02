@@ -11,6 +11,7 @@ import { font, usePalette } from '../../lib/theme';
 import { PageHero } from '../../ui/fx/PageHero';
 import { PersonFunctionsCard } from '../../ui/functions';
 import { Avatar, Button, Card, Empty, Input, Screen, Text } from '../../ui/primitives';
+import { useModuleOn } from '../../ui/modules';
 
 /**
  * Карточка коллеги: подразделения, «Написать», своё имя для него
@@ -23,7 +24,9 @@ export default function PersonScreen() {
   const live = useChatLive();
   const q = usePerson(id);
   const person = q.data;
-  const groups = usePersonGroups(id, !!person && !person.is_me);
+  // Без чатов — ни «Написать», ни групп.
+  const chats = useModuleOn('chats');
+  const groups = usePersonGroups(id, chats && !!person && !person.is_me);
   const [rename, setRename] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -92,7 +95,7 @@ export default function PersonScreen() {
       ) : (
         <View style={{ gap: 8 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            {person.active && <Button title="Написать" variant="accent" style={{ flex: 1 }} icon={<MessageCircle size={17} color={p.accentInk} />} loading={busy === 'write'} onPress={() => void write()} />}
+            {person.active && chats && <Button title="Написать" variant="accent" style={{ flex: 1 }} icon={<MessageCircle size={17} color={p.accentInk} />} loading={busy === 'write'} onPress={() => void write()} />}
             <Button title="Переименовать" variant="secondary" style={{ flex: 1 }} icon={<Pencil size={16} color={p.ink} />} onPress={() => setRename(person.my_name ?? '')} />
           </View>
           {person.active && <Button title="Попросить о помощи" variant="secondary" icon={<HandHelping size={16} color={p.ink} />} onPress={() => router.push({ pathname: '/request', params: { to: person.id } })} />}
@@ -129,7 +132,7 @@ export default function PersonScreen() {
         )}
       </Card>
       {!person.is_me && person.active && <PersonFunctionsCard userId={person.id} name={shown} />}
-      {!person.is_me && !!groups.data?.length && (
+      {!person.is_me && chats && !!groups.data?.length && (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 }}>
             <Users size={18} color={p.ink} />

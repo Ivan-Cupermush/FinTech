@@ -5,9 +5,10 @@ import { salesToday } from '../../../lib/sales';
 import { salesApi, useSalesMonth, useSalesMutation } from '../../../lib/sales-api';
 import { Button, Card, Empty, Input, Screen, Text } from '../../../ui/primitives';
 import { errText } from '../../../ui/sales-month';
+import { gated } from '../../../ui/modules';
 
 /** Отметить факт показателя, который ведётся вручную: выплата пересчитается сразу. */
-export default function SalesFactScreen() {
+function SalesFactScreen() {
   const { id, month = salesToday().slice(0, 7), user } = useLocalSearchParams<{ id: string; month?: string; user?: string }>();
   const m = useSalesMonth(month, user);
   const plan = m.data?.plans.find((x) => x.id === id);
@@ -61,3 +62,6 @@ export default function SalesFactScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('sales', SalesFactScreen);

@@ -11,9 +11,10 @@ import { PageHero } from '../../../ui/fx/PageHero';
 import { Button, Card, Empty, Screen, SectionTitle, Text } from '../../../ui/primitives';
 import { MonthSwitcher } from '../../../ui/sales';
 import { errText, SalesMonthBody } from '../../../ui/sales-month';
+import { gated } from '../../../ui/modules';
 
 /** Продажи сотрудника для руководителя: его месяц, задачи и что он продаёт. */
-export default function SalesPersonScreen() {
+function SalesPersonScreen() {
   const { id, month: m0 } = useLocalSearchParams<{ id: string; month?: string }>();
   const p = usePalette();
   const today = salesToday();
@@ -87,3 +88,6 @@ export default function SalesPersonScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('sales', SalesPersonScreen);

@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
-import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, Sparkles, UserRound, Wallet } from 'lucide-react-native';
+import { BarChart3, BellRing, BookOpen, ChevronRight, KeyRound, LaptopMinimal, LogOut, NotebookPen, Pencil, ScanLine, Share2, SlidersHorizontal, Sparkles, UserRound, Wallet } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, Share, View } from 'react-native';
 import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, passwordError, passwordStrength, profileUrl } from '@offix/core';
 import { ApiError } from '../lib/client';
+import { profileMenu, type MenuKey } from '../lib/modules';
 import { lastLoginText, siteOrigin, STRENGTH_COLORS } from '../lib/personal';
 import { accountApi, mk, useProfile } from '../lib/personal-api';
 import { useMe } from '../lib/queries';
@@ -31,6 +32,16 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
     </Card>
   );
 }
+
+const MENU_ROWS: Record<MenuKey, { label: string; Icon: typeof Wallet; href: '/my-notes' | '/notes' | '/effect' | '/report' | '/sales' | '/company' | '/push-settings' }> = {
+  'my-notes': { label: 'Мои заметки', Icon: NotebookPen, href: '/my-notes' },
+  notes: { label: 'База знаний', Icon: BookOpen, href: '/notes' },
+  effect: { label: 'Эффект', Icon: Sparkles, href: '/effect' },
+  report: { label: 'Отчёт', Icon: BarChart3, href: '/report' },
+  sales: { label: 'Продажи и KPI', Icon: Wallet, href: '/sales' },
+  company: { label: 'Функции компании', Icon: SlidersHorizontal, href: '/company' },
+  push: { label: 'Push-уведомления', Icon: BellRing, href: '/push-settings' },
+};
 
 function MenuRow({ icon, label, onPress, first, danger }: { icon: ReactNode; label: string; onPress: () => void; first?: boolean; danger?: boolean }) {
   const p = usePalette();
@@ -216,12 +227,11 @@ export default function ProfileScreen() {
       )}
 
       <Card style={{ gap: 0, paddingVertical: 2 }}>
-        <MenuRow first icon={<NotebookPen size={18} color={p.ink2} />} label="Мои заметки" onPress={() => router.push('/my-notes')} />
-        <MenuRow icon={<BookOpen size={18} color={p.ink2} />} label="База знаний" onPress={() => router.push('/notes')} />
-        <MenuRow icon={<Sparkles size={18} color={p.ink2} />} label="Эффект" onPress={() => router.push('/effect')} />
-        <MenuRow icon={<BarChart3 size={18} color={p.ink2} />} label="Отчёт" onPress={() => router.push('/report')} />
-        <MenuRow icon={<Wallet size={18} color={p.ink2} />} label="Продажи и KPI" onPress={() => router.push('/sales')} />
-        <MenuRow icon={<BellRing size={18} color={p.ink2} />} label="Push-уведомления" onPress={() => router.push('/push-settings')} />
+        {/* Выключенные в «Функциях компании» разделы в меню не показываем. */}
+        {profileMenu(me.data?.modules, me.data?.role).map((key, i) => {
+          const m = MENU_ROWS[key];
+          return <MenuRow key={key} first={i === 0} icon={<m.Icon size={18} color={p.ink2} />} label={m.label} onPress={() => router.push(m.href)} />;
+        })}
         <MenuRow icon={<LogOut size={18} color={p.bad} />} label="Выйти" danger onPress={signOut} />
       </Card>
     </Screen>

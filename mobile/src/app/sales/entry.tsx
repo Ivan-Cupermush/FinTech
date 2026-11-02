@@ -8,13 +8,14 @@ import { salesApi, useSalesMonth, useSalesMutation } from '../../lib/sales-api';
 import { Button, Card, Input, Screen, Text } from '../../ui/primitives';
 import { Chips } from '../../ui/sales';
 import { errText } from '../../ui/sales-month';
+import { gated } from '../../ui/modules';
 
 /**
  * Записать продажу: товар, клиент, количество, сумма и дата. Если факт
  * показателя ведётся вручную, сумма (штуки, клиент) прибавится к нему.
  * Ошибки видны сразу — те же проверки, что на сервере.
  */
-export default function SaleEntryScreen() {
+function SaleEntryScreen() {
   const { month = salesToday().slice(0, 7), user } = useLocalSearchParams<{ month?: string; user?: string }>();
   const today = salesToday();
   const m = useSalesMonth(month, user);
@@ -92,3 +93,6 @@ export default function SaleEntryScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('sales', SaleEntryScreen);

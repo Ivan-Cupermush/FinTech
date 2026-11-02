@@ -9,6 +9,7 @@ import { font, usePalette } from '../../../lib/theme';
 import { PageHero } from '../../../ui/fx/PageHero';
 import { DocStatusPill } from '../../../ui/knowledge';
 import { Button, Card, Empty, Screen, Text } from '../../../ui/primitives';
+import { gated } from '../../../ui/modules';
 
 const PAGE = 12;
 
@@ -16,7 +17,7 @@ const PAGE = 12;
  * Документ базы знаний: что за файл, прочитал ли его помощник и что именно
  * он из него взял — фрагменты, по которым ищутся ответы.
  */
-export default function KnowledgeDocScreen() {
+function KnowledgeDocScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const today = todayIso();
@@ -138,3 +139,6 @@ export default function KnowledgeDocScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('knowledge_ai', KnowledgeDocScreen);

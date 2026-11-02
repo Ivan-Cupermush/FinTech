@@ -11,6 +11,7 @@ import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
 import { PageHero } from '../../ui/fx/PageHero';
 import { NoteCalendar, NoteRow } from '../../ui/my-notes';
 import { Button, Card, Empty, NO_WEB_OUTLINE, Screen, Text } from '../../ui/primitives';
+import { gated } from '../../ui/modules';
 
 function useDebounced<T>(value: T, ms = 250): T {
   const [v, setV] = useState(value);
@@ -25,7 +26,7 @@ function useDebounced<T>(value: T, ms = 250): T {
  * Мои заметки: личный ежедневник. Календарь на градиенте — точки там, где
  * есть записи; ниже заметки выбранного дня, избранное или найденное.
  */
-export default function MyNotesScreen() {
+function MyNotesScreen() {
   const params = useLocalSearchParams<{ date?: string }>();
   const p = usePalette();
   const today = todayIso();
@@ -137,3 +138,6 @@ export default function MyNotesScreen() {
     </Screen>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('my_notes', MyNotesScreen);

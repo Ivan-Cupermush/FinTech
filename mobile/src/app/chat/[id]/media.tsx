@@ -11,6 +11,7 @@ import { LiquidSegmented } from '../../../ui/fx/LiquidSegmented';
 import { FileRow, VoiceBubble } from '../../../ui/media';
 import { Button, Card, Empty, Screen, Text } from '../../../ui/primitives';
 import { MediaViewer } from '../../../ui/viewer';
+import { gated } from '../../../ui/modules';
 
 const EMPTY: Record<GalleryTab, string> = {
   media: 'Фото и видео из переписки появятся здесь',
@@ -20,7 +21,7 @@ const EMPTY: Record<GalleryTab, string> = {
 };
 
 /** Медиа, файлы, голосовые и ссылки чата — вкладками, как на сайте; сверху — сводка. */
-export default function ChatMediaScreen() {
+function ChatMediaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const { width } = useWindowDimensions();
@@ -162,3 +163,6 @@ function StatsCard({ chatId }: { chatId: string }) {
     </Card>
   );
 }
+
+// Раздел выключен в «Функциях компании» — вместо экрана «Раздел выключен».
+export default gated('chats', ChatMediaScreen);

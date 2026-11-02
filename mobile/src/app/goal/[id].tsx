@@ -14,11 +14,13 @@ import { GoalDocsLink, NotesLink } from '../../ui/notes';
 import { Glass } from '../../ui/fx/Glass';
 import { Hero } from '../../ui/fx/Hero';
 import { heroVariantForKpi } from '../../lib/fx';
+import { useModuleOn } from '../../ui/modules';
 
 export default function GoalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const q = useRoadmap(id);
+  const ai = useModuleOn('knowledge_ai');
   const invalidate = useInvalidateWork();
   const [observe, setObserve] = useState<Metric | null>(null);
   const [busy, setBusy] = useState(false);
@@ -151,7 +153,7 @@ export default function GoalScreen() {
 
       <DiscussionLink type="goal" id={g.id} title={g.title} />
       <NotesLink goalId={g.id} goalTitle={g.title} />
-      <GoalDocsLink goalId={g.id} goalTitle={g.title} canUpload={g.permissions.edit} />
+      {ai && <GoalDocsLink goalId={g.id} goalTitle={g.title} canUpload={g.permissions.edit} />}
 
       <SectionTitle title="Дорожная карта" />
       {groups.length ? (
