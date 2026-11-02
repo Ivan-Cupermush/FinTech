@@ -1,0 +1,31 @@
+# Песочница offix для жюри: API и сайт на 127.0.0.1:4000, база PGlite в /var/lib/offix.
+# Установка: см. deploy/sandbox/README.md, шаг 4.
+[Unit]
+Description=offix — песочница для жюри
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=offix
+Group=offix
+WorkingDirectory=/opt/offix/server
+# Настройки — в /opt/offix/server/.env (DATABASE_URL, JWT_SECRET, PORT, HOST, UPLOADS_DIR).
+Environment=OFFIX_SANDBOX=1
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=3
+# Сервер дописывает начатые запросы и закрывает базу — даём ему на это время.
+TimeoutStopSec=20
+# На машине 2 ГБ рядом живут другие сайты: потолок памяти для offix.
+MemoryHigh=1000M
+MemoryMax=1300M
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/offix
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

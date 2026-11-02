@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { SandboxInfo } from '@offix/core';
@@ -166,5 +167,37 @@ describe('адрес базы', () => {
     expect(pgliteDir('pglite:./data/pg')).toMatch(/\/data\/pg$/);
     expect(pgliteDir('postgres://offix:secret@localhost/offix')).toBeNull();
     expect(safeDbUrl('postgres://offix:secret@localhost/offix')).toBe('postgres://offix:***@localhost/offix');
+  });
+});
+
+describe('deploy/sandbox: файлы установки согласованы', () => {
+  const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+  const read = (f: string) => readFileSync(join(ROOT, 'deploy/sandbox', f), 'utf8');
+  const env = Object.fromEntries(
+    read('sandbox.env.example')
+      .split('\n')
+      .filter((l) => /^[A-Z_]+=/.test(l))
+      .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]),
+  );
+
+  it('nginx ведёт на тот порт, где слушает сервер, и только по имени песочницы', () => {
+    const nginx = read('nginx-offix.conf');
+    expect(nginx).toContain(`proxy_pass http://127.0.0.1:${env.PORT};`);
+    expect(env.HOST).toBe('127.0.0.1');
+    expect(nginx).toMatch(/server_name offix\.147-45-43-34\.sslip\.io;/);
+    expect(nginx).not.toMatch(/default_server/);
+    expect(env.APP_URL).toBe('http://offix.147-45-43-34.sslip.io');
+    expect(env.CORS_ORIGINS).toBe(env.APP_URL);
+  });
+
+  it('служба включает песочницу и пишет только в папку данных из .env', () => {
+    const unit = read('offix-sandbox.service');
+    expect(unit).toContain('Environment=OFFIX_SANDBOX=1');
+    expect(unit).toContain('Environment=NODE_ENV=production');
+    expect(unit).toContain('ReadWritePaths=/var/lib/offix');
+    expect(pgliteDir(env.DATABASE_URL!)).toBe('/var/lib/offix/pgdata');
+    expect(env.UPLOADS_DIR!.startsWith('/var/lib/offix/')).toBe(true);
+    // Секрет генерируется на сервере, в репозитории его нет.
+    expect(env.JWT_SECRET).toBe('');
   });
 });
