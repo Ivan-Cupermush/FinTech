@@ -1,4 +1,4 @@
-import { parseOffixLink, plural, type AccountProfile, type MyNoteSummary, type Notification } from '@offix/core';
+import { LOGIN_FAILURE_LABELS, LOGIN_METHOD_LABELS, parseOffixLink, plural, type AccountProfile, type LoginEvent, type MyNoteSummary, type Notification } from '@offix/core';
 import type { HeroStat } from './fx';
 
 /**
@@ -86,3 +86,21 @@ export function siteOrigin(server: string): string {
 
 /** Цвет полоски надёжности пароля — от тревожного к спокойному. */
 export const STRENGTH_COLORS = ['#e0464c', '#d97a00', '#3b5bff', '#12a36a'] as const;
+
+/** Строка журнала входов: «QR-код» / «Неверный пароль» и «2 ноября в 21:14 · Chrome на Windows · 1.2.3.4». */
+export function loginRow(l: LoginEvent, now = new Date()): { title: string; meta: string } {
+  const d = new Date(l.at);
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const day = d.toDateString() === now.toDateString() ? 'сегодня' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return {
+    title: l.ok ? LOGIN_METHOD_LABELS[l.method] : LOGIN_FAILURE_LABELS[l.failure ?? 'bad_password'],
+    meta: [`${day} в ${time}`, l.device, l.ip].filter(Boolean).join(' · '),
+  };
+}
+
+/** Что сказать над списком входов: есть ли среди них чужие попытки. */
+export function loginsNote(logins: Pick<LoginEvent, 'ok'>[]): string {
+  const failed = logins.filter((l) => !l.ok).length;
+  if (!failed) return 'Последние входы в вашу учётную запись. Не узнаёте вход — смените пароль.';
+  return `${failed} ${plural(failed, ['неудачная попытка', 'неудачные попытки', 'неудачных попыток'])} входа. Если это были не вы — смените пароль и выйдите на всех устройствах.`;
+}

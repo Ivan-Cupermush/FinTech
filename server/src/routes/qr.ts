@@ -7,6 +7,7 @@ import type { Db } from '../db/db';
 import { notFound } from '../http/errors';
 import { parseBody } from '../http/validate';
 import { audit } from '../services/audit';
+import { recordLogin } from '../services/security';
 import { createQrLogin, findQr, isExpired, sameHash, sha256 } from '../services/qr';
 
 const limiter = (limit: number): RequestHandler =>
@@ -58,6 +59,7 @@ export function qrPublicRouter(db: Db, secret: string, now: () => Date, opts: { 
         if (!u) return null;
         await q.query(`UPDATE users SET last_login_at = $2 WHERE id = $1`, [u.id, at.toISOString()]);
         await audit(q, { company_id: u.company_id, entity_type: 'member', entity_id: u.id, actor_id: u.id, event_type: 'login.qr', new_values: { ip: row.ip } });
+        await recordLogin(q, { userId: u.id, companyId: u.company_id, ok: true, method: 'qr', ip: row.ip, userAgent: row.user_agent, at });
         return { token: await issueToken(q, secret, u.id, u.company_id), u };
       });
       out = claimed

@@ -7,10 +7,10 @@ import { useMe } from '../lib/queries';
 import { usePalette } from '../lib/theme';
 import { Button, Card, Empty, Screen } from './primitives';
 
-/** Включён ли раздел. Пока профиль грузится — считаем включённым, чтобы меню не мигало. */
+/** Включён ли раздел. Пока профиль грузится — выключен: выключенный раздел не мелькнёт. */
 export function useModuleOn(key: ModuleKey): boolean {
   const me = useMe();
-  return isModuleOn(me.data?.modules, key);
+  return !!me.data && isModuleOn(me.data.modules, key);
 }
 
 /** Экран выключенного раздела: старая ссылка, push или пересланная ссылка. */

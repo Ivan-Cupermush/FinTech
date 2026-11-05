@@ -117,6 +117,24 @@ describe('layoutCapillary', () => {
     }
   });
 
+  it('узлов больше, чем помещается: шкала растягивается, и после растяжения зазор в ряду — не меньше minGap', () => {
+    const many = Array.from({ length: 20 }, (_, i) => task(`T${i}`, { due_at: '2026-11-10' }));
+    const minGap = 0.2;
+    const r = layoutCapillary({ tasks: many, edges: [], critical_path: [], today: TODAY, goal, maxLanes: 2, minGap });
+    expect(r.stretch).toBeGreaterThan(1);
+    const all = r.nodes;
+    for (const a of all) {
+      expect(a.x).toBeGreaterThanOrEqual(0);
+      expect(a.x).toBeLessThanOrEqual(1);
+      for (const b of all) if (a !== b && a.lane === b.lane) expect(Math.abs(a.x - b.x) * r.stretch).toBeGreaterThanOrEqual(minGap - 1e-9);
+    }
+  });
+
+  it('всё помещается — растягивать не нужно', () => {
+    const r = layoutCapillary({ tasks: [task('A', { due_at: '2026-11-05' }), task('B', { due_at: '2026-11-20' })], edges: [], critical_path: [], today: TODAY, goal });
+    expect(r.stretch).toBe(1);
+  });
+
   it('пустая цель — только узел цели', () => {
     const r = layoutCapillary({ tasks: [], edges: [], critical_path: [], today: TODAY, goal });
     expect(r.nodes).toHaveLength(1);

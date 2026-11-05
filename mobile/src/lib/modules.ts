@@ -6,7 +6,7 @@ import { isModuleOn, type CompanyModules, type CompanyRole, type ModuleKey, type
  * Чистая логика — тестируется без телефона.
  */
 
-export type MenuKey = 'my-notes' | 'notes' | 'effect' | 'report' | 'sales' | 'company' | 'push';
+export type MenuKey = 'my-notes' | 'notes' | 'effect' | 'report' | 'sales' | 'company' | 'security' | 'push';
 
 const MENU: { key: MenuKey; module?: ModuleKey; admin?: boolean }[] = [
   { key: 'my-notes', module: 'my_notes' },
@@ -15,13 +15,18 @@ const MENU: { key: MenuKey; module?: ModuleKey; admin?: boolean }[] = [
   { key: 'report' },
   { key: 'sales', module: 'sales' },
   { key: 'company', admin: true },
+  { key: 'security' },
   { key: 'push' },
 ];
 
-/** Меню профиля: выключенные разделы пропадают, «Функции компании» — владельцу и администратору. */
+/**
+ * Меню профиля: выключенные разделы пропадают, «Функции компании» — владельцу
+ * и администратору. Пока разделы компании не пришли (mods нет), их пунктов
+ * нет: выключенные «Продажи» не должны мелькнуть даже на миг.
+ */
 export function profileMenu(mods: Partial<CompanyModules> | null | undefined, role: CompanyRole | undefined): MenuKey[] {
   const admin = role === 'owner' || role === 'admin';
-  return MENU.filter((m) => (!m.admin || admin) && (!m.module || isModuleOn(mods, m.module))).map((m) => m.key);
+  return MENU.filter((m) => (!m.admin || admin) && (!m.module || (!!mods && isModuleOn(mods, m.module)))).map((m) => m.key);
 }
 
 /** Нижняя панель: вкладки, которые видно, и где «капля» (−1 — открыта скрытая вкладка). */

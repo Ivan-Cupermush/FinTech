@@ -1,0 +1,182 @@
+/* Безопасность: советы, журнал событий, входы, ушедшие сотрудники */
+.sec-advice {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 12px;
+}
+.sec-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  border-left: 3px solid var(--tone, var(--good));
+  background: color-mix(in srgb, var(--tone-soft, var(--good-soft)) 70%, var(--surface));
+}
+.sec-tip svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--tone, var(--good));
+}
+.sec-tip.is-warn {
+  --tone: var(--warn);
+  --tone-soft: var(--warn-soft);
+}
+.sec-tip.is-bad {
+  --tone: var(--bad);
+  --tone-soft: var(--bad-soft);
+}
+
+.sec-page .tabs {
+  margin-bottom: 14px;
+}
+.sec-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sec-panel > .btn {
+  align-self: center;
+}
+.sec-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sec-hint {
+  font-size: 13px;
+}
+.sec-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 70ch;
+}
+.sec-empty {
+  margin: 8px 0;
+  text-align: center;
+}
+
+/* Журнал событий: лента «кто — что — когда» */
+.sec-audit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sec-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.sec-event:last-child {
+  border-bottom: 0;
+}
+.sec-event-text {
+  --gap: 3px;
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+.sec-event-details {
+  font-size: 13px;
+  color: var(--ink-2, inherit);
+  overflow-wrap: anywhere;
+}
+.sec-event-time {
+  flex: none;
+  font-size: 12.5px;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+/* Входы */
+.sec-logins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sec-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.sec-login:last-child {
+  border-bottom: 0;
+}
+.sec-login-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.sec-login.is-failed .sec-login-icon {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.sec-login-text {
+  --gap: 2px;
+  min-width: 0;
+}
+.sec-login-title {
+  font-size: 14.5px;
+}
+.sec-login-meta {
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.sec-leaver {
+  gap: 12px;
+  padding: 12px 4px;
+}
+
+@media (max-width: 640px) {
+  .sec-event {
+    flex-wrap: wrap;
+  }
+  .sec-event-time {
+    margin-left: 44px;
+    padding-top: 0;
+  }
+}
+
+/* «Мои данные» в профиле */
+.sec-mydata {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-soft) 65%, var(--surface));
+  font-size: 14px;
+  line-height: 1.45;
+}
+.sec-mydata > .stack {
+  flex: 1 1 320px;
+}
+.sec-mydata-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sec-leavers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

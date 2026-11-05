@@ -273,3 +273,29 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Согласие на обработку персональных данных при регистрации. */
+.auth-consent {
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.auth-consent label {
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.auth-consent input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--brand);
+}
+.auth-consent a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

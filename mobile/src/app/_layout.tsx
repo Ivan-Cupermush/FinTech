@@ -65,6 +65,8 @@ export default function RootLayout() {
               <Stack.Screen name="notes/ask" options={{ title: 'Помощник' }} />
               <Stack.Screen name="notes/doc/[id]" options={{ title: 'Документ' }} />
               <Stack.Screen name="licenses" options={{ title: 'Лицензии' }} />
+              <Stack.Screen name="privacy" options={{ title: 'Персональные данные' }} />
+              <Stack.Screen name="security" options={{ title: 'Безопасность' }} />
               <Stack.Screen name="chat/[id]/index" options={{ headerShown: false }} />
               <Stack.Screen name="chat/[id]/info" options={{ title: 'Информация' }} />
               <Stack.Screen name="chat/[id]/members" options={{ title: 'Добавить участников', presentation: 'modal' }} />

@@ -329,7 +329,7 @@ describe('коллеги и свои имена', () => {
     const me: PersonCard = (await anna.get(`${API}/contacts/${id('anna')}`)).body.data;
     expect(me.is_me).toBe(true);
     expect(me.units.length).toBeGreaterThan(0);
-    const other = await request(ctx.app).post(`${API}/auth/register`).send({ company_name: 'Другой вуз', display_name: 'Чужой Директор', email: 'stranger@other.demo', password: 'calm-forest-19' });
+    const other = await request(ctx.app).post(`${API}/auth/register`).send({ company_name: 'Другой вуз', display_name: 'Чужой Директор', email: 'stranger@other.demo', password: 'calm-forest-19', consent: true });
     expect(other.status, JSON.stringify(other.body)).toBe(201);
     expect((await anna.get(`${API}/contacts/${other.body.data.user.id}`)).status).toBe(404);
     expect((await anna.put(`${API}/contacts/${other.body.data.user.id}/name`, { name: 'Чужой' })).status).toBe(404);

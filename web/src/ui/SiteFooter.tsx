@@ -32,7 +32,10 @@ export function SiteFooter() {
       </div>
       <div className="site-foot-bottom faint">
         <span>© {new Date().getFullYear()} offix</span>
-        <Link to="/licenses">Лицензии и благодарности</Link>
+        <span className="row site-foot-links">
+          <Link to="/privacy">Обработка персональных данных</Link>
+          <Link to="/licenses">Лицензии и благодарности</Link>
+        </span>
       </div>
     </footer>
   );

@@ -345,7 +345,8 @@ export function reportText(r: Report): string {
 
 // ——— CSV для Excel ———
 
-type Cell = string | number | null;
+export type CsvCell = string | number | null;
+type Cell = CsvCell;
 
 /** Число в русской записи без разрядов, чтобы Excel узнал его как число. */
 const csvNumber = (v: number) => String(Math.round(v * 100) / 100).replace('.', ',');
@@ -357,6 +358,9 @@ function csvCell(c: Cell): string {
   const safe = /^[=+\-@\t\r]/.test(c) ? `'${c}` : c;
   return /[;"\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
+
+/** Таблица в CSV для Excel: «;», BOM, защита от формул. */
+export const toCsv = (rows: readonly (readonly Cell[])[]): string => `\uFEFF${rows.map((row) => row.map(csvCell).join(';')).join('\r\n')}\r\n`;
 
 export const REPORT_CSV_COLUMNS = [
   'Цель',

@@ -188,6 +188,11 @@ export default function Login() {
                 Сервер: {server}
               </Text>
             </Pressable>
+            <Pressable onPress={() => router.push('/privacy')} accessibilityRole="link">
+              <Text variant="caption" tone="faint" style={{ textDecorationLine: 'underline' }}>
+                Обработка персональных данных
+              </Text>
+            </Pressable>
             <Pressable onPress={() => router.push('/licenses')} accessibilityRole="link">
               <Text variant="caption" tone="faint" style={{ textDecorationLine: 'underline' }}>
                 Лицензии и благодарности

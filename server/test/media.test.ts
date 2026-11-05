@@ -308,7 +308,7 @@ describe('медиа в чате', () => {
   });
 
   it('чужая компания не видит и не прикрепляет файлы', async () => {
-    const reg = await request(ctx.app).post(`${API}/auth/register`).send({ company_name: 'Другая компания', display_name: 'Пётр', email: 'petr@other.example', password: 'very-secret' });
+    const reg = await request(ctx.app).post(`${API}/auth/register`).send({ company_name: 'Другая компания', display_name: 'Пётр', email: 'petr@other.example', password: 'very-secret', consent: true });
     const t = reg.body.data.token;
     const theirs = await request(ctx.app).post(`${API}/files`).set('Authorization', `Bearer ${t}`).attach('file', reportPdf(), { filename: 'their.pdf', contentType: 'application/pdf' });
     expect(theirs.status).toBe(201);

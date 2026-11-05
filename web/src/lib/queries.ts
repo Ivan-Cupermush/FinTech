@@ -10,7 +10,7 @@ export const qk = {
   roadmap: (id: string) => ['roadmap', id] as const,
   tasks: (filter: string) => ['tasks', filter] as const,
   task: (id: string) => ['task', id] as const,
-  users: (search: string) => ['users', search] as const,
+  users: (search: string, withInactive = false) => ['users', search, withInactive] as const,
   units: ['units'] as const,
   notifications: ['notifications'] as const,
   metrics: ['metrics'] as const,
@@ -24,7 +24,9 @@ export const useGoal = (id: string) => useQuery({ queryKey: qk.goal(id), queryFn
 export const useRoadmap = (id: string) => useQuery({ queryKey: qk.roadmap(id), queryFn: () => api<Roadmap>(`/goals/${id}/roadmap`) });
 export const useTasks = (filter = 'mine=1') => useQuery({ queryKey: qk.tasks(filter), queryFn: () => api<Task[]>(`/tasks?${filter}`) });
 export const useTask = (id: string | null) => useQuery({ queryKey: qk.task(id ?? ''), queryFn: () => api<TaskDetail>(`/tasks/${id}`), enabled: !!id });
-export const useUsers = (search = '') => useQuery({ queryKey: qk.users(search), queryFn: () => api<Member[]>(`/users?search=${encodeURIComponent(search)}`), staleTime: 30_000 });
+/** Сотрудники компании; `withInactive` — вместе с отключёнными (видит только администратор). */
+export const useUsers = (search = '', withInactive = false) =>
+  useQuery({ queryKey: qk.users(search, withInactive), queryFn: () => api<Member[]>(`/users?search=${encodeURIComponent(search)}${withInactive ? '&include_inactive=1' : ''}`), staleTime: 30_000 });
 export const useUnits = () => useQuery({ queryKey: qk.units, queryFn: () => api<OrgUnitRow[]>('/org/units'), staleTime: 30_000 });
 export const useMetrics = () => useQuery({ queryKey: qk.metrics, queryFn: () => api<MetricsReport>('/metrics'), staleTime: 30_000 });
 export const useReport = (days: number) => useQuery({ queryKey: qk.report(days), queryFn: () => api<Report>(`/report?days=${days}`), staleTime: 30_000 });

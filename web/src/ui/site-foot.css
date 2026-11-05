@@ -51,3 +51,7 @@
     grid-template-columns: 1fr;
   }
 }
+.site-foot-links {
+  gap: 18px;
+  flex-wrap: wrap;
+}

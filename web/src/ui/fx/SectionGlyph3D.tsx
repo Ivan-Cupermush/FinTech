@@ -142,6 +142,18 @@ function Sparkle({ position, scale = 1 }: { position: [number, number, number]; 
   );
 }
 
+/** Контур щита: плоская верхняя кромка, бока сходятся в острый низ. */
+const SHIELD = (() => {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0.78);
+  s.bezierCurveTo(0.3, 0.66, 0.52, 0.64, 0.66, 0.62);
+  s.bezierCurveTo(0.66, 0.08, 0.5, -0.42, 0, -0.8);
+  s.bezierCurveTo(-0.5, -0.42, -0.66, 0.08, -0.66, 0.62);
+  s.bezierCurveTo(-0.52, 0.64, -0.3, 0.66, 0, 0.78);
+  return s;
+})();
+const SHIELD_EXTRUDE = { depth: 0.16, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 6, curveSegments: 32 };
+
 const GLYPHS: Record<SectionVariant, () => ReactNode> = {
   // Мишень: три стеклянных кольца и белое «яблочко».
   goals: () => (
@@ -401,6 +413,20 @@ const GLYPHS: Record<SectionVariant, () => ReactNode> = {
       </mesh>
       <mesh position={[0.72, 0.5, 0.2]} rotation={[0.4, 0.6, 0]}>
         <octahedronGeometry args={[0.2, 0]} />
+        <Solid />
+      </mesh>
+    </group>
+  ),
+  // Безопасность: стеклянный щит с белой галочкой и кольцом-замком за ним.
+  security: () => (
+    <group rotation={[0.22, -0.5, 0.03]}>
+      <mesh position={[0, 0, -0.08]}>
+        <extrudeGeometry args={[SHIELD, SHIELD_EXTRUDE]} />
+        <Glass />
+      </mesh>
+      <Check position={[0.02, 0.02, 0.2]} scale={1.15} />
+      <mesh position={[0.62, 0.62, -0.32]} rotation={[0, 0.4, 0]}>
+        <torusGeometry args={[0.2, 0.05, 16, 64]} />
         <Solid />
       </mesh>
     </group>

@@ -21,6 +21,7 @@ import { gradientCss, gradientLook } from '../../ui/fx/gradients';
 import { useDarkTheme } from '../../ui/fx/support';
 import { accountApi, ak, useProfile } from './data';
 import { MyFunctions } from './Functions';
+import { MyData } from '../security/MyData';
 import './account.css';
 
 const errFields = (e: unknown) => (e instanceof ApiError ? e.fields : {});
@@ -263,7 +264,9 @@ export function AccountPage() {
   const [dialog, setDialog] = useState<'email' | 'logout' | 'photo' | null>(null);
   const p = q.data;
   const admin = p?.role === 'owner' || p?.role === 'admin';
+  // Разделы компании ещё не пришли — выключенные пункты не показываем даже на миг.
   const mods = me.data?.modules;
+  const on = (m: Parameters<typeof isModuleOn>[1]) => !!me.data && isModuleOn(mods, m);
 
   if (q.isLoading || !p) return <div className="page"><Skeleton h={320} /></div>;
   return (
@@ -360,10 +363,12 @@ export function AccountPage() {
             </Button>
           </div>
         </section>
+
+        <MyData profile={p} />
       </div>
 
       <nav className="card card-tight list acc-menu" aria-label="Разделы">
-        {isModuleOn(mods, 'my_notes') && (
+        {on('my_notes') && (
           <Link className="list-row" to="/app/my-notes">
             <NotebookPen size={18} aria-hidden /> <span className="grow">Мои заметки</span> <ChevronRight size={16} className="faint" aria-hidden />
           </Link>
@@ -377,9 +382,14 @@ export function AccountPage() {
         <Link className="list-row" to="/app/report">
           <FileText size={18} aria-hidden /> <span className="grow">Отчёт</span> <ChevronRight size={16} className="faint" aria-hidden />
         </Link>
-        {admin && isModuleOn(mods, 'integrations') && (
+        {admin && on('integrations') && (
           <Link className="list-row" to="/app/integrations">
             <Plug size={18} aria-hidden /> <span className="grow">Интеграции</span> <ChevronRight size={16} className="faint" aria-hidden />
+          </Link>
+        )}
+        {admin && (
+          <Link className="list-row" to="/app/security">
+            <ShieldCheck size={18} aria-hidden /> <span className="grow">Безопасность</span> <ChevronRight size={16} className="faint" aria-hidden />
           </Link>
         )}
         {admin && (

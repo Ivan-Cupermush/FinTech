@@ -9,10 +9,13 @@ import { conflict, forbidden, invalid, notFound } from '../http/errors';
 import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
 import { loadModules } from '../services/modules';
+import type { MediaStore } from '../services/media';
+import { ANONYMIZE_MESSAGES, anonymizeMember } from '../services/security';
+import { removeAvatar } from './files';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
+export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStore): Router {
   const r = Router();
 
   r.get('/me', async (req, res) => {
@@ -37,7 +40,7 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
     const includeInactive = req.query.include_inactive === '1' && canManageOrg(actor);
     const { rows } = await db.query(
-      `SELECT u.id, u.display_name, u.position, u.email, u.active, u.avatar_url, m.role,
+      `SELECT u.id, u.display_name, u.position, u.email, u.active, u.avatar_url, m.role, u.anonymized_at IS NOT NULL AS anonymized,
               COALESCE((SELECT json_agg(json_build_object('id', o.id, 'name', o.name, 'is_manager', mm.is_manager) ORDER BY mm.is_primary DESC, o.name)
                  FROM org_memberships mm JOIN org_units o ON o.id = mm.unit_id
                 WHERE mm.user_id = u.id AND mm.company_id = m.company_id AND mm.ended_at IS NULL), '[]'::json) AS units
@@ -101,12 +104,15 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
     const id = idParam(req.params.id);
     const body = parseBody(z.object({ role: z.enum(COMPANY_ROLES).optional(), active: z.boolean().optional(), position: z.string().max(120).nullable().optional() }), req.body);
     const data = await db.tx(async (q) => {
-      const { rows } = await q.query<{ role: string; active: boolean }>(
-        `SELECT m.role, u.active FROM company_members m JOIN users u ON u.id = m.user_id WHERE m.company_id = $1 AND m.user_id = $2`,
+      const { rows } = await q.query<{ role: string; active: boolean; anonymized: boolean }>(
+        `SELECT m.role, u.active, u.anonymized_at IS NOT NULL AS anonymized FROM company_members m JOIN users u ON u.id = m.user_id WHERE m.company_id = $1 AND m.user_id = $2`,
         [actor.company_id, id],
       );
-      const cur = rows[0];
-      if (!cur) throw notFound('Сотрудник не найден');
+      const found = rows[0];
+      if (!found) throw notFound('Сотрудник не найден');
+      const { anonymized, ...cur } = found;
+      // Обезличенного не вернуть: ни имени, ни почты, ни пароля у него больше нет.
+      if (anonymized) throw conflict('Данные сотрудника обезличены — вернуть доступ нельзя, пригласите его заново');
       if (id === actor.id && (body.active === false || (body.role && body.role !== cur.role))) throw conflict('Нельзя отключить себя или изменить свою роль');
       if ((cur.role === 'owner' || body.role === 'owner') && actor.role !== 'owner') throw forbidden('Права владельца меняет только владелец');
       if (body.role) await q.query(`UPDATE company_members SET role = $3 WHERE company_id = $1 AND user_id = $2`, [actor.company_id, id, body.role]);
@@ -150,6 +156,28 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime): Router {
     });
     rt.disconnectUser(actor.company_id, id);
     res.json({ data: { password: body.password?.length ? null : password } });
+  });
+
+  /**
+   * Обезличить ушедшего сотрудника: имя, почта, фото, личные заметки и журнал
+   * входов исчезают, работа (задачи, цели, сообщения) остаётся под именем
+   * «Бывший сотрудник N». Только для отключённых; отменить нельзя.
+   */
+  r.post('/:id/anonymize', async (req, res) => {
+    const actor = actorOf(req);
+    if (!canManageOrg(actor)) throw forbidden('Обезличить данные может администратор');
+    if (!store) throw forbidden('Обезличивание недоступно');
+    const id = idParam(req.params.id);
+    const out = await db.tx((q) => anonymizeMember(q, store, actor, id));
+    if (!out.ok) {
+      const msg = ANONYMIZE_MESSAGES[out.reason];
+      if (out.reason === 'not_found') throw notFound(msg);
+      if (out.reason === 'owner' || out.reason === 'other_company') throw forbidden(msg);
+      throw conflict(msg);
+    }
+    await removeAvatar(store, out.avatar);
+    rt.emitCompany(actor.company_id, 'avatar_changed', { user_id: id, avatar_url: null });
+    res.json({ data: { id, display_name: out.name } });
   });
 
   return r;

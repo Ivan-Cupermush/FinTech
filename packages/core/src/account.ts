@@ -26,6 +26,9 @@ export interface AccountProfile {
   last_login_at: string | null;
   password_changed_at: string | null;
   joined_at: string;
+  /** Какую версию политики обработки данных человек принял и когда; null — не спрашивали (приглашённый сотрудник). */
+  consent_version?: string | null;
+  consent_at?: string | null;
 }
 
 /** Карточка коллеги: настоящие данные и моё имя для него. */
