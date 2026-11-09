@@ -1,4 +1,4 @@
-import { Building2, Copy, Eraser, KeyRound, Network, Plus, UserCheck, UserPlus, UserRoundX, Users } from 'lucide-react';
+import { Building2, Copy, Eraser, FileSpreadsheet, KeyRound, Network, Plus, UserCheck, UserPlus, UserRoundX, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { buildTree, plural, COMPANY_ROLE_HINTS, COMPANY_ROLE_LABELS, COMPANY_ROLES, UNIT_TYPE_LABELS, UNIT_TYPES, type CompanyRole, type FieldErrors, type TreeNode, type UnitType } from '@offix/core';
@@ -13,6 +13,7 @@ import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { Dialog, Empty, Skeleton, Tabs } from '../../ui/Misc';
 import { Pill } from '../../ui/Pill';
+import { ImportPeople } from './ImportPeople';
 import { useToast } from '../../ui/Toast';
 
 type Tab = 'structure' | 'people';
@@ -24,7 +25,7 @@ type Tab = 'structure' | 'people';
 export function OrgPage() {
   const me = useMe();
   const [tab, setTab] = useState<Tab>('structure');
-  const [dialog, setDialog] = useState<'unit' | 'invite' | null>(null);
+  const [dialog, setDialog] = useState<'unit' | 'invite' | 'import' | null>(null);
   const admin = me.data?.role === 'owner' || me.data?.role === 'admin';
   const people = useUsers();
   const units = useUnits();
@@ -39,6 +40,9 @@ export function OrgPage() {
         actions={
           admin && (
             <>
+              <Button icon={<FileSpreadsheet size={16} />} onClick={() => setDialog('import')}>
+                Из Excel
+              </Button>
               <Button icon={<UserPlus size={16} />} onClick={() => setDialog('invite')}>
                 Пригласить
               </Button>
@@ -60,22 +64,35 @@ export function OrgPage() {
           ]}
         />
       </div>
-      {tab === 'structure' ? <Structure admin={admin} onAdd={() => setDialog('unit')} /> : <People admin={admin} myRole={me.data?.role} meId={me.data?.id} />}
+      {tab === 'structure' ? <Structure admin={admin} onAdd={() => setDialog('unit')} onImport={() => setDialog('import')} /> : <People admin={admin} myRole={me.data?.role} meId={me.data?.id} />}
       {dialog === 'unit' && <UnitDialog onClose={() => setDialog(null)} />}
+      {dialog === 'import' && <ImportPeople onClose={() => setDialog(null)} />}
       {dialog === 'invite' && <InviteDialog onClose={() => setDialog(null)} canOwner={me.data?.role === 'owner'} />}
     </div>
   );
 }
 
-function Structure({ admin, onAdd }: { admin: boolean; onAdd: () => void }) {
+function Structure({ admin, onAdd, onImport }: { admin: boolean; onAdd: () => void; onImport: () => void }) {
   const units = useUnits();
   if (units.isLoading) return <Skeleton h={200} />;
   const active = (units.data ?? []).filter((u) => u.status === 'active');
   if (!active.length)
     return (
       <div className="card">
-        <Empty icon={<Building2 size={22} />} title="Структура не задана" action={admin ? <Button variant="primary" onClick={onAdd}>Добавить подразделение</Button> : undefined}>
-          Это нормально для небольшой команды: цели и задачи работают и без неё. Добавьте подразделения, когда понадобится разграничить доступ и видеть цели по отделам.
+        <Empty icon={<Building2 size={22} />} title="Структура не задана" action={
+            admin ? (
+              <div className="row wrap" style={{ gap: 8, justifyContent: 'center' }}>
+                <Button variant="primary" onClick={onAdd}>
+                  Добавить подразделение
+                </Button>
+                <Button icon={<FileSpreadsheet size={16} />} onClick={onImport}>
+                  Загрузить из Excel
+                </Button>
+              </div>
+            ) : undefined
+          }
+        >
+          Это нормально для небольшой команды: цели и задачи работают и без неё. Добавьте подразделения, когда понадобится разграничить доступ и видеть цели по отделам, или загрузите сотрудников со структурой одним файлом.
         </Empty>
       </div>
     );

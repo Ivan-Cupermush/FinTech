@@ -39,3 +39,4 @@ export * from './radar';
 export * from './capillary';
 export * from './security';
 export * from './privacy';
+export * from './people-import';

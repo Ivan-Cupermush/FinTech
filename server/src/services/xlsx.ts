@@ -202,3 +202,23 @@ export function writeXlsx(sheets: readonly SheetToWrite[]): Uint8Array {
   sheets.forEach((s, i) => (files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml(s))));
   return zipSync(files, { level: 6 });
 }
+
+/** Текст CSV: UTF-8, а если в нём битые символы — Windows-1251 (выгрузки из 1С и Excel). */
+export function decodeText(buf: Buffer): string {
+  const utf = buf.toString('utf8').replace(/^\uFEFF/, '');
+  return utf.includes('\uFFFD') ? new TextDecoder('windows-1251').decode(buf) : utf;
+}
+
+/**
+ * Таблица из файла текстом с табуляцией — как вставка из Excel: дальше её
+ * разбирает тот же parseTable, что и вставленный текст. Из книги берём
+ * первый лист, где есть данные.
+ */
+export function tableText(buf: Buffer, name: string): string {
+  const e = name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
+  if (e === '.csv' || e === '.txt') return decodeText(buf);
+  if (e && !['.xlsx', '.xlsm', '.xls'].includes(e)) throw new SalesFileError('Загрузите файл Excel (.xlsx) или CSV');
+  const sheet = readXlsx(buf).find((s) => s.rows.some((r) => r.some((c) => String(c ?? '').trim())));
+  if (!sheet) throw new SalesFileError('В файле нет строк с данными');
+  return sheet.rows.map((r) => r.map((c) => String(c ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+}

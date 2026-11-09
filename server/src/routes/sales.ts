@@ -88,7 +88,7 @@ import {
   type SalesFn,
   type SalesPersonRow,
 } from '../services/sales';
-import { readXlsx, writeXlsx } from '../services/xlsx';
+import { decodeText, readXlsx, writeXlsx } from '../services/xlsx';
 import { receive } from './files';
 
 const FILE_BYTES = 20 * 1024 * 1024;
@@ -139,12 +139,6 @@ function fileError(e: unknown): never {
 }
 
 const ext = (name: string) => name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
-
-/** Текст CSV: UTF-8, а если в нём битые символы — Windows-1251 (выгрузки из 1С и Excel). */
-function decodeText(buf: Buffer): string {
-  const utf = buf.toString('utf8').replace(/^﻿/, '');
-  return utf.includes('�') ? new TextDecoder('windows-1251').decode(buf) : utf;
-}
 
 /** Листы Excel; CSV и TXT — одним листом. */
 function readSheets(buf: Buffer, name: string): SheetData[] {
