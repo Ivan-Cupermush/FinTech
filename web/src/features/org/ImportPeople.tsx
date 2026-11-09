@@ -346,8 +346,8 @@ export function ImportPeople({ onClose }: { onClose: () => void }) {
                     <td>
                       <span className="pim-path">{r.unit_path.length ? r.unit_path.join(' / ') : '—'}</span>
                       <span className="import-reason">
-                        {COMPANY_ROLE_LABELS[r.role]}
-                        {r.is_manager ? ' · руководитель' : ''}
+                        {r.is_manager && r.role === 'manager' ? 'Глава подразделения' : COMPANY_ROLE_LABELS[r.role]}
+                        {r.is_manager && r.role !== 'manager' ? ' · глава подразделения' : ''}
                         {r.position ? ` · ${r.position}` : ''}
                       </span>
                     </td>
