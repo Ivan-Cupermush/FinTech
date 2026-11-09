@@ -1,6 +1,9 @@
+import { useId } from 'react';
+
 /**
  * Мини-график по недельным точкам. Пропуски (null) рвут линию, а не рисуются
- * нулём: «нечего считать» и «ноль» — разные вещи.
+ * нулём: «нечего считать» и «ноль» — разные вещи. `glow` — светящаяся линия
+ * для живых шапок, тем же языком, что капилляры и карточки Risk Radar.
  */
 export function Sparkline({
   values,
@@ -9,6 +12,7 @@ export function Sparkline({
   tone = 'accent',
   height = 56,
   label,
+  glow = false,
 }: {
   values: readonly (number | null)[];
   max?: number;
@@ -16,7 +20,9 @@ export function Sparkline({
   tone?: 'accent' | 'good' | 'ink';
   height?: number;
   label: string;
+  glow?: boolean;
 }) {
+  const fade = `spark-fade-${useId().replace(/[^\w-]/g, '')}`;
   const W = 100;
   const H = 40;
   const known = values.filter((v): v is number => v !== null);
@@ -38,9 +44,17 @@ export function Sparkline({
   const lastIndex = values.length - 1;
   const last = values[lastIndex];
   return (
-    <div className={`spark spark-${tone}`} style={{ height }} role="img" aria-label={label}>
+    <div className={`spark spark-${tone}${glow ? ' spark-glow' : ''}`} style={{ height }} role="img" aria-label={label}>
       {known.length ? (
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+          {glow && (
+            <defs>
+              <linearGradient id={fade} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" className="spark-fade-top" />
+                <stop offset="1" className="spark-fade-bottom" />
+              </linearGradient>
+            </defs>
+          )}
           {/* Ось на всю ширину: пустой участок слева читается как «данных ещё не было». */}
           <line x1={0} y1={H - 0.5} x2={W} y2={H - 0.5} className="spark-axis" vectorEffect="non-scaling-stroke" />
           {segments.map((seg, k) => {
@@ -48,7 +62,8 @@ export function Sparkline({
             const area = `${line} L${x(seg[seg.length - 1]!.i).toFixed(2)},${H} L${x(seg[0]!.i).toFixed(2)},${H} Z`;
             return (
               <g key={k}>
-                <path d={area} className="spark-area" />
+                <path d={area} className="spark-area" style={glow ? { fill: `url(#${fade})` } : undefined} />
+                {glow && seg.length > 1 && <path d={line} className="spark-halo" vectorEffect="non-scaling-stroke" />}
                 <path d={seg.length > 1 ? line : `M${x(seg[0]!.i) - 0.01},${y(seg[0]!.v)} L${x(seg[0]!.i) + 0.01},${y(seg[0]!.v)}`} className="spark-line" vectorEffect="non-scaling-stroke" />
               </g>
             );

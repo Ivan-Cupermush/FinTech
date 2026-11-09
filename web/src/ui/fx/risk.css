@@ -214,6 +214,48 @@ a.rr:hover {
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
 }
+/* Ожидание замера: пунктир по линии тренда, по нему раз в несколько секунд пробегает искра. */
+.rr-spark-wait::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 50%;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.42);
+}
+.rr-spark-wait i {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.7);
+  animation: rr-wait-run 4.8s var(--ease) infinite;
+}
+@keyframes rr-wait-run {
+  0% {
+    left: 18px;
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 1;
+  }
+  85%,
+  100% {
+    left: calc(100% - 25px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rr-spark-wait i {
+    animation: none;
+    left: calc(100% - 25px);
+  }
+}
 .rr-spark-dot {
   position: absolute;
   width: 8px;
@@ -275,9 +317,10 @@ a.rr:hover {
 .rr-num.rr-num-empty {
   align-items: center;
   gap: 8px;
-  font-size: 26px;
-  letter-spacing: -0.02em;
-  opacity: 0.92;
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: -0.015em;
+  opacity: 0.86;
 }
 .rr-sub {
   display: flex;
