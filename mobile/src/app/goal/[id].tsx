@@ -60,7 +60,12 @@ export default function GoalScreen() {
   const reschedule = (risk: Risk) => {
     const lines = (risk.proposals ?? []).map((x) => `• ${byId.get(x.task_id)?.title ?? 'Задача'}: ${formatDate(x.from_due, { short: true })} → ${formatDate(x.to_due, { short: true })} (+${x.shift_days} дн.)`).join('\n');
     Alert.alert('Перенести сроки?', `${lines}\n\nНичего не изменится, пока вы не подтвердите.`, [
-      { text: 'Оставить', style: 'cancel' },
+      {
+        text: 'Оставить',
+        style: 'cancel',
+        // Ответ «не переносить» тоже идёт в метрику «Доверие к переносам»; сроки не меняются.
+        onPress: () => void api(`/goals/${g.id}/reschedule/dismiss`, { body: { task_ids: (risk.proposals ?? []).map((x) => x.task_id) } }).catch(() => undefined),
+      },
       {
         text: 'Перенести',
         onPress: async () => {

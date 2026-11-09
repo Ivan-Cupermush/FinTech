@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer } from 'lucide-react';
+import { Activity, ArrowRight, CalendarCheck, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Link, useNavigate } from 'react-router-dom';
@@ -164,6 +164,17 @@ function Report({ r }: { r: MetricsReport }) {
           max={100}
           trend={trendText(seriesTrend(r.series.on_time))}
         />
+        <Tile
+          icon={<CalendarCheck size={18} />}
+          title="Доверие к переносам"
+          value={percent(r.trust.value)}
+          caption={trustCaption(r.trust)}
+          how={`Доля предложенных системой переносов сроков, которые руководитель подтвердил. Предложение без ответа ${r.trust.expire_days} дней считаем отклонённым.`}
+          series={r.series.trust}
+          max={100}
+          tone="good"
+          trend={trendText(seriesTrend(r.series.trust))}
+        />
       </div>
 
       <section className="card" aria-labelledby="act-h">
@@ -220,6 +231,13 @@ function Breakdown({ counts, total }: { counts: Record<Movement, number>; total:
       </ul>
     </div>
   );
+}
+
+function trustCaption(t: MetricsReport['trust']): string {
+  const decided = t.accepted + t.dismissed;
+  const wait = t.open ? `${t.open} ${plural(t.open, ['ждёт', 'ждут', 'ждут'])} решения` : '';
+  if (!decided) return wait ? `${wait}, решённых за период нет` : 'Система не предлагала переносов';
+  return `${t.accepted} из ${decided} подтверждены${wait ? ` · ${wait}` : ''}`;
 }
 
 function Tile({

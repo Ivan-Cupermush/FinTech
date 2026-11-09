@@ -43,12 +43,14 @@ function report(over: Partial<MetricsReport> = {}): MetricsReport {
     launch: { value: 71, launched: 5, total: 7, within_days: 7, median_days: 2.6 },
     blockers: { median_hours: 60, resolved: 2, open: 1, oldest_open_hours: 98 },
     on_time: { value: 67, on_time: 2, total: 3 },
+    trust: { value: 75, accepted: 3, dismissed: 1, open: 1, expire_days: 14 },
     series: {
       at: weeks,
       north_star: [null, null, null, 0, 33, 67, 67, 67],
       freshness: [null, null, null, 33, 67, 67, 67, 67],
       blocker_hours: [null, null, null, null, 48, 48, 60, 60],
       on_time: [null, null, null, null, 100, 100, 67, 67],
+      trust: [null, null, null, null, null, 100, 67, 75],
     },
     ...over,
   };
@@ -101,6 +103,7 @@ describe('экран «Эффект»', () => {
     expect(within(blockers).getByText('2,5 дня')).toBeInTheDocument();
     expect(within(blockers).getByText('медиана по 2 блокерам · 1 открыто')).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: 'Запуск целей' })).getByText('5 из 7 запущены в первые 7 дней · медиана 2,6 дня')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Доверие к переносам' })).getByText('3 из 4 подтверждены · 1 ждёт решения')).toBeInTheDocument();
 
     const steps = screen.getByRole('heading', { name: /Что поднимет цифры/ }).closest('section')!;
     expect(within(steps).getByRole('link', { name: /Внести замер/ })).toHaveAttribute('href', '/app/goals/g3');

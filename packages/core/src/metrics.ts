@@ -282,10 +282,65 @@ export function onTimeWindow(tasks: readonly TaskOutcome[], at: string, windowDa
   return { value: share(onTime, total), on_time: onTime, total };
 }
 
+/** Предложенный системой перенос срока и что с ним стало. */
+export interface ProposalOutcome {
+  shown_at: string;
+  decided_at: string | null;
+  outcome: 'accepted' | 'dismissed' | null;
+}
+
+export interface RescheduleTrust {
+  /** Доля подтверждённых среди решённых за окно, %. */
+  value: number | null;
+  accepted: number;
+  dismissed: number;
+  /** Ждут решения на момент `at`. */
+  open: number;
+  /** Через сколько дней молчания предложение считаем отклонённым. */
+  expire_days: number;
+}
+
+/**
+ * Доверие к переносам: сколько предложенных системой переносов руководители
+ * подтвердили. Предложение, которое висит без ответа дольше `expireDays`,
+ * считаем отклонённым в момент истечения: молчание — тоже ответ, иначе
+ * доля была бы выше, чем на деле. Считается на момент `at` по тому, что было
+ * известно тогда, поэтому недельный ряд нельзя переписать задним числом.
+ */
+export function rescheduleTrust(list: readonly ProposalOutcome[], at: string, windowDays = 30, expireDays = 14): RescheduleTrust {
+  const t = Date.parse(at);
+  const f = t - windowDays * DAY_MS;
+  let accepted = 0;
+  let dismissed = 0;
+  let open = 0;
+  for (const p of list) {
+    const shown = Date.parse(p.shown_at);
+    if (shown > t) continue;
+    let when: number;
+    let outcome: 'accepted' | 'dismissed';
+    if (p.decided_at && p.outcome && Date.parse(p.decided_at) <= t) {
+      when = Date.parse(p.decided_at);
+      outcome = p.outcome;
+    } else if (t - shown >= expireDays * DAY_MS) {
+      when = shown + expireDays * DAY_MS;
+      outcome = 'dismissed';
+    } else {
+      open++;
+      continue;
+    }
+    if (when <= f) continue;
+    if (outcome === 'accepted') accepted++;
+    else dismissed++;
+  }
+  return { value: share(accepted, accepted + dismissed), accepted, dismissed, open, expire_days: expireDays };
+}
+
 export interface ProductMetricsInput {
   goals: readonly GoalHistory[];
   events: readonly StatusEvent[];
   tasks: readonly TaskOutcome[];
+  /** Предложенные переносы сроков; нет — метрика пустая. */
+  proposals?: readonly ProposalOutcome[];
 }
 
 export interface ProductMetrics {
@@ -296,6 +351,7 @@ export interface ProductMetrics {
   launch: Launch;
   blockers: BlockerStats;
   on_time: OnTime;
+  trust: RescheduleTrust;
   /** Значения метрик на конец каждой из последних недель, старые слева. */
   series: {
     at: string[];
@@ -303,6 +359,7 @@ export interface ProductMetrics {
     freshness: (number | null)[];
     blocker_hours: (number | null)[];
     on_time: (number | null)[];
+    trust: (number | null)[];
   };
 }
 
@@ -310,6 +367,7 @@ export function productMetrics(input: ProductMetricsInput, at: string, opts: { w
   const windowDays = opts.windowDays ?? 30;
   const weeks = Math.max(1, opts.weeks ?? 8);
   const points = Array.from({ length: weeks }, (_, i) => shiftIso(at, -7 * (weeks - 1 - i)));
+  const proposals = input.proposals ?? [];
   return {
     at,
     window_days: windowDays,
@@ -318,12 +376,14 @@ export function productMetrics(input: ProductMetricsInput, at: string, opts: { w
     launch: launchRate(input.goals, at),
     blockers: blockerStats(input.events, at, windowDays),
     on_time: onTimeWindow(input.tasks, at, windowDays),
+    trust: rescheduleTrust(proposals, at, windowDays),
     series: {
       at: points,
       north_star: points.map((p) => northStar(input.goals, p, windowDays).value),
       freshness: points.map((p) => kpiFreshness(input.goals, p).value),
       blocker_hours: points.map((p) => blockerStats(input.events, p, windowDays).median_hours),
       on_time: points.map((p) => onTimeWindow(input.tasks, p, windowDays).value),
+      trust: points.map((p) => rescheduleTrust(proposals, p, windowDays).value),
     },
   };
 }

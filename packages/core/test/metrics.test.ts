@@ -9,6 +9,7 @@ import {
   northStar,
   onTimeWindow,
   productMetrics,
+  rescheduleTrust,
   seriesTrend,
   shiftIso,
   valueAt,
@@ -274,5 +275,45 @@ describe('formatHours и seriesTrend', () => {
     expect(seriesTrend([null, 20, 50, null])).toEqual({ delta: 30, steps: 1 });
     expect(seriesTrend([null, 20])).toBeNull();
     expect(seriesTrend([])).toBeNull();
+  });
+});
+
+describe('доверие к переносам', () => {
+  const at = '2026-10-31T12:00:00.000Z';
+  const day = (d: number) => new Date(Date.parse(at) + d * 86_400_000).toISOString();
+  it('доля подтверждённых среди решённых за окно', () => {
+    const t = rescheduleTrust(
+      [
+        { shown_at: day(-5), decided_at: day(-4), outcome: 'accepted' },
+        { shown_at: day(-5), decided_at: day(-3), outcome: 'accepted' },
+        { shown_at: day(-6), decided_at: day(-6), outcome: 'dismissed' },
+        { shown_at: day(-2), decided_at: null, outcome: null },
+        // Решено до окна — не считается.
+        { shown_at: day(-60), decided_at: day(-59), outcome: 'dismissed' },
+      ],
+      at,
+    );
+    expect(t).toEqual({ value: 67, accepted: 2, dismissed: 1, open: 1, expire_days: 14 });
+  });
+
+  it('молчание дольше двух недель — отказ, в момент истечения', () => {
+    const t = rescheduleTrust([{ shown_at: day(-20), decided_at: null, outcome: null }], at);
+    expect(t).toMatchObject({ value: 0, dismissed: 1, open: 0 });
+    // Неделю назад оно ещё ждало решения.
+    expect(rescheduleTrust([{ shown_at: day(-20), decided_at: null, outcome: null }], day(-7))).toMatchObject({ value: null, open: 1 });
+  });
+
+  it('прошлое считается по тому, что было известно тогда', () => {
+    const list = [{ shown_at: day(-10), decided_at: day(-1), outcome: 'accepted' as const }];
+    expect(rescheduleTrust(list, day(-5))).toMatchObject({ value: null, open: 1 });
+    expect(rescheduleTrust(list, at)).toMatchObject({ value: 100, accepted: 1 });
+    expect(rescheduleTrust(list, day(-11))).toMatchObject({ value: null, open: 0 });
+  });
+
+  it('в метриках продукта — плитка и недельный ряд', () => {
+    const m = productMetrics({ goals: [], events: [], tasks: [], proposals: [{ shown_at: day(-3), decided_at: day(-2), outcome: 'accepted' }] }, at, { weeks: 3 });
+    expect(m.trust.value).toBe(100);
+    expect(m.series.trust).toEqual([null, null, 100]);
+    expect(productMetrics({ goals: [], events: [], tasks: [] }, at).trust.value).toBeNull();
   });
 });

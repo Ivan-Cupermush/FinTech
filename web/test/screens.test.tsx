@@ -183,6 +183,15 @@ describe('Карточка цели', () => {
     await waitFor(() => expect(calls.some((c) => c.path.endsWith('/reschedule'))).toBe(true));
     expect(calls.find((c) => c.path.endsWith('/reschedule'))!.body).toEqual({ changes: [{ task_id: 't3', start_at: '2026-10-21', due_at: '2026-10-28' }] });
   });
+  it('«Оставить как есть» сроки не трогает, но ответ запоминается для метрики', async () => {
+    const calls = mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap(), 'POST /goals/g1/reschedule/dismiss': { dismissed: 1 } });
+    renderApp('/app/goals/g1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Посмотреть перенос сроков' }));
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Перенести сроки' })).getByRole('button', { name: 'Оставить как есть' }));
+    expect(screen.queryByRole('dialog', { name: 'Перенести сроки' })).not.toBeInTheDocument();
+    await waitFor(() => expect(calls.find((c) => c.path === '/goals/g1/reschedule/dismiss')?.body).toEqual({ task_ids: ['t3'] }));
+    expect(calls.some((c) => c.path === '/goals/g1/reschedule')).toBe(false);
+  });
   it('внесение факта: проверка числа и единиц до отправки', async () => {
     const calls = mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap(), 'POST /goals/g1/metrics/m1/observations': { id: 'o1' } });
     renderApp('/app/goals/g1');
