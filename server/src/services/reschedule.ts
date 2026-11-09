@@ -42,6 +42,7 @@ export async function recordProposals(q: Queryable, companyId: string, goalId: s
   const byTask = new Map(open.rows.map((r) => [r.task_id, r]));
   const current = new Set(proposals.map((p) => p.task_id));
   for (const p of proposals) {
+    if (!p.from_due) continue; // без срока переносить нечего
     const row = byTask.get(p.task_id);
     if (!row && said.has(`${p.task_id}|${p.from_due}`)) continue;
     if (!row) {
