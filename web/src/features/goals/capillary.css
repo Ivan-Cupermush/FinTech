@@ -310,17 +310,25 @@
   top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
-  width: 148px;
+  width: max-content;
+  max-width: 164px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  padding: 5px 9px 6px;
   text-align: center;
   pointer-events: none;
+  /* Капилляры идут под подписью: матовая подложка гасит линию, текст читается. */
+  border-radius: 12px;
+  background: rgba(12, 14, 52, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(190, 200, 255, 0.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  backdrop-filter: blur(8px) saturate(1.2);
 }
 .cap-node.goal .cap-label {
   top: calc(100% + 18px);
-  width: 180px;
+  max-width: 180px;
 }
 .cap-title {
   font-size: 13px;
@@ -334,6 +342,7 @@
   text-shadow: 0 1px 10px rgba(5, 6, 30, 0.9);
 }
 .cap-meta {
+  white-space: nowrap;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -579,7 +588,8 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     0 0 18px rgba(74, 92, 255, 0.8);
-  z-index: 1;
+  /* Над подписями узлов: «Сегодня» не прячется под соседней задачей. */
+  z-index: 3;
 }
 
 .cap-legend {

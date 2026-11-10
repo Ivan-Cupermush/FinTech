@@ -59,7 +59,7 @@ export function GoalTile({
   const delta = lastDelta(trend);
   const left = goal.due_at ? diffDays(today, goal.due_at) : null;
   return (
-    <RiskCard to={`/app/goals/${goal.id}`} tone={tone} spark={trend} className="goal-tile" aria-label={`${goal.title}: ${RISK_TONE_LABELS[tone].toLowerCase()}`}>
+    <RiskCard to={`/app/goals/${goal.id}`} tone={tone} spark={m ? trend : undefined} className="goal-tile" aria-label={`${goal.title}: ${RISK_TONE_LABELS[tone].toLowerCase()}`}>
       <div className="spread" style={{ alignItems: 'flex-start', gap: 10 }}>
         <span className="rr-eyebrow clip">
           {GOAL_TYPE_LABELS[goal.type]}

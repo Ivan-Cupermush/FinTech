@@ -96,7 +96,7 @@ function Report({ r }: { r: MetricsReport }) {
           <Breakdown counts={ns.counts} total={ns.total} />
         </div>
         <div className="effect-hero-chart">
-          <Sparkline values={r.series.north_star} max={100} height={120} label={`Северная звезда по неделям: ${r.series.north_star.map((v) => (v === null ? 'нет данных' : `${v} %`)).join(', ')}`} />
+          <Sparkline glow values={r.series.north_star} max={100} height={120} label={`Северная звезда по неделям: ${r.series.north_star.map((v) => (v === null ? 'нет данных' : `${v} %`)).join(', ')}`} />
           <div className="spread faint effect-axis">
             <span>{weeks} {plural(weeks, ['неделю', 'недели', 'недель'])} назад</span>
             <span>{trendText(seriesTrend(r.series.north_star)) ?? 'сейчас'}</span>
@@ -118,7 +118,7 @@ function Report({ r }: { r: MetricsReport }) {
                     <RiskBadge label={MOVEMENT_LABELS[i.movement]} />
                   </div>
                   <span className="rr-title">{i.title}</span>
-                  <div className="rr-num rr-num-long">{i.delta === null ? <span className="effect-goal-none">нет замеров</span> : <Odometer value={formatDelta(i.delta)} />}</div>
+                  <div className="rr-num rr-num-long">{i.delta === null ? <span className="effect-goal-none">Нет замеров</span> : <Odometer value={formatDelta(i.delta)} />}</div>
                 </RiskCard>
               );
             })}

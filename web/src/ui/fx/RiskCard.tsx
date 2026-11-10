@@ -22,7 +22,7 @@ export function RiskCard({
   tone: RiskTone;
   /** Ссылка: вся карточка кликабельна. */
   to?: string;
-  /** Последние замеры — линия тренда внизу карточки. */
+  /** Последние замеры — линия тренда внизу карточки; меньше двух — пунктир ожидания. */
   spark?: readonly number[];
   className?: string;
   children: ReactNode;
@@ -63,7 +63,7 @@ export function RiskCard({
       </span>
       <span className="rr-core" aria-hidden />
       {tone === 'critical' && <span className="rr-pulse" aria-hidden />}
-      {spark && spark.length > 1 && <Spark values={spark} />}
+      {spark && (spark.length > 1 ? <Spark values={spark} /> : <SparkWait />)}
       <span className="rr-frost" aria-hidden />
       <span className="rr-glint" aria-hidden />
       <div className="rr-body">{children}</div>
@@ -93,6 +93,15 @@ function Spark({ values }: { values: readonly number[] }) {
         <path className="rr-spark-line" d={d} />
       </svg>
       <i className="rr-spark-dot" style={{ left: `${(last[0] / 300) * 100}%`, top: `${(last[1] / 64) * 100}%` }} />
+    </span>
+  );
+}
+
+/** Замеров меньше двух — линии ещё нет: пунктир с бегущей искрой «ждём замер». */
+function SparkWait() {
+  return (
+    <span className="rr-spark rr-spark-wait" aria-hidden>
+      <i />
     </span>
   );
 }
