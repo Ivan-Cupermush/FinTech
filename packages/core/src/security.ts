@@ -120,6 +120,7 @@ const LABELS: Record<string, string> = {
   'login.qr_approved': 'Подтвердил вход по QR-коду',
   'login.locked': 'Вход закрыт после неудачных попыток',
   'member.invited': 'Пригласил сотрудника',
+  'member.imported': 'Загрузил сотрудников из файла',
   'member.updated': 'Изменил роль или доступ',
   'member.password_reset': 'Сбросил пароль сотруднику',
   'member.anonymized': 'Обезличил данные сотрудника',
@@ -179,7 +180,7 @@ export function auditGroup(eventType: string): Exclude<AuditGroup, 'all'> {
 export function auditGroupTypes(group: AuditGroup): { prefixes: string[]; exact: string[] } | null {
   if (group === 'all') return null;
   if (group === 'security') return { prefixes: ['account.', 'login.', 'security.'], exact: SECURITY_MEMBER };
-  if (group === 'people') return { prefixes: ['user.', 'company.', 'org_unit.'], exact: ['member.invited'] };
+  if (group === 'people') return { prefixes: ['user.', 'company.', 'org_unit.'], exact: ['member.invited', 'member.imported'] };
   return { prefixes: ['goal.', 'task.', 'metric.', 'sales_report.', 'sales_plan.'], exact: [] };
 }
 

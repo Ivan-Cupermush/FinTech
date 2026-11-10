@@ -129,6 +129,14 @@ function Report({ r }: { r: MetricsReport }) {
         />
         <Tile title="Задачи в срок" value={formatPercent(r.on_time.value)} caption={r.on_time.total ? `${r.on_time.on_time} из ${r.on_time.total} не позже срока` : 'Задачи не закрывали'} series={r.series.on_time} max={100} />
       </View>
+      <Tile
+        title="Доверие к переносам"
+        value={formatPercent(r.trust.value)}
+        caption={r.trust.accepted + r.trust.dismissed ? `${r.trust.accepted} из ${r.trust.accepted + r.trust.dismissed} предложенных переносов подтверждены` : r.trust.open ? `${r.trust.open} ждут решения` : 'Система не предлагала переносов'}
+        series={r.series.trust}
+        max={100}
+        color={p.good}
+      />
 
       <SectionTitle title="Что поднимет цифры" />
       <Card style={{ gap: 0, paddingVertical: 4 }}>

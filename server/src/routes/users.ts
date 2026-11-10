@@ -1,7 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { canManageOrg, COMPANY_ROLES, passwordError, tempPassword } from '@offix/core';
+import { canManageOrg, COMPANY_ROLES, PEOPLE_IMPORT_MAX_ROWS, passwordError, SalesFileError, tempPassword, type PeopleMapping } from '@offix/core';
 import { actorOf, hashPassword, revokeSessions } from '../auth/auth';
 import type { Db } from '../db/db';
 import { noRealtime, type Realtime } from '../realtime/hub';
@@ -11,9 +11,13 @@ import { audit } from '../services/audit';
 import { loadModules } from '../services/modules';
 import type { MediaStore } from '../services/media';
 import { ANONYMIZE_MESSAGES, anonymizeMember } from '../services/security';
-import { removeAvatar } from './files';
+import { receive, removeAvatar } from './files';
+import { planForCompany, runPeopleImport } from '../services/people-import';
+import { tableText } from '../services/xlsx';
+import { promises as fs } from 'node:fs';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 
 export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStore): Router {
   const r = Router();
@@ -51,6 +55,55 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStor
       [actor.company_id, search, includeInactive],
     );
     res.json({ data: rows });
+  });
+
+  /**
+   * Импорт сотрудников из Excel или CSV, шаг 1: файл → текст таблицы. Дальше
+   * её разбирает тот же parseTable, что и вставку из буфера обмена.
+   */
+  r.post('/import/table', async (req, res) => {
+    const actor = actorOf(req);
+    if (!canManageOrg(actor)) throw forbidden('Загружать сотрудников может администратор');
+    if (!store) throw invalid('Загрузка файлов выключена', { file: 'Вставьте таблицу из Excel через буфер обмена' });
+    const file = await receive(store, 'file', { maxBytes: Math.min(store.maxBytes, IMPORT_FILE_BYTES) })(req, res);
+    try {
+      res.json({ data: { text: tableText(await fs.readFile(file.path), file.originalname) } });
+    } catch (e) {
+      if (e instanceof SalesFileError) throw invalid(e.message, { file: e.message });
+      throw e;
+    } finally {
+      await fs.rm(file.path, { force: true }).catch(() => undefined);
+    }
+  });
+
+  /**
+   * Шаг 2: план (`dry_run`) и выполнение. Таблица приходит уже разобранной,
+   * колонки выбирает человек; сервер заново проверяет каждую строку.
+   */
+  r.post('/import', async (req, res) => {
+    const actor = actorOf(req);
+    if (!canManageOrg(actor)) throw forbidden('Загружать сотрудников может администратор');
+    const col = z.number().int().min(-1).max(60);
+    const body = parseBody(
+      z.object({
+        rows: z.array(z.array(z.string().max(2000)).max(60)).min(1).max(PEOPLE_IMPORT_MAX_ROWS + 200),
+        lines: z.array(z.number().int().min(1)).optional(),
+        mapping: z.object({ last_name: col, first_name: col, middle_name: col, name: col, email: col, position: col, unit: col, manager: col, role: col }),
+        dry_run: z.boolean().default(true),
+      }),
+      req.body,
+    );
+    const m: PeopleMapping = body.mapping;
+    if (m.email < 0) throw invalid('Не удалось загрузить сотрудников', { mapping: 'Выберите колонку с почтой' });
+    if (m.name < 0 && m.last_name < 0 && m.first_name < 0) throw invalid('Не удалось загрузить сотрудников', { mapping: 'Выберите колонку с ФИО' });
+    const lines = body.lines?.length === body.rows.length ? body.lines : body.rows.map((_, i) => i + 1);
+    if (body.dry_run) {
+      const { plan } = await planForCompany(db, actor, body.rows, lines, m);
+      res.json({ data: { plan } });
+      return;
+    }
+    const result = await runPeopleImport(db, actor, body.rows, lines, m);
+    res.status(201).json({ data: result });
   });
 
   /** Пригласить сотрудника. Пока без почты: возвращаем временный пароль администратору. */

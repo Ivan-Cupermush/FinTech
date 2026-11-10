@@ -2,6 +2,7 @@ import type { Direction, GoalHistory, StatusEvent, TaskOutcome, UnitId } from '@
 import type { AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { visibleGoals } from '../routes/roadmap';
+import { loadProposals } from './reschedule';
 
 interface HistoryRow {
   goal_id: string;
@@ -87,5 +88,7 @@ export async function loadMetricsInput(q: Queryable, actor: AuthedActor, at: str
     [tasks.rows.map((t) => t.id)],
   );
 
-  return { visible, goals, kpis: metrics.rows, events: events.rows, tasks: tasks.rows as TaskOutcome[] };
+  const proposals = await loadProposals(q, actor.company_id, goalIds);
+
+  return { visible, goals, kpis: metrics.rows, events: events.rows, tasks: tasks.rows as TaskOutcome[], proposals };
 }

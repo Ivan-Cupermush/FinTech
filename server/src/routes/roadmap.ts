@@ -24,6 +24,7 @@ import { idParam, isUuid, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
 import { effectiveAccess, getVisibleGoal, goalCard, loadGoals, loadMetrics, loadTrends, serializeMetric, type LoadedGoal } from '../services/goals';
 import { notify } from '../services/notify';
+import { decideProposals, recordProposals } from '../services/reschedule';
 import { loadOrg } from '../services/org';
 import { loadTasks, serializeTask, taskPermissions, type TaskRow } from '../services/tasks';
 
@@ -99,6 +100,10 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
     const { goal, org } = await getVisibleGoal(db, actor, id);
     const t = today();
     const { risks, tasks, edges } = await goalRisks(db, actor.company_id, goal, t);
+    // Предложенный перенос увидел тот, кто может его подтвердить, — записываем для метрики доверия.
+    if (canEditGoal(actor, await effectiveAccess(db, actor.company_id, goal), 'due_at', org) && goal.row.status === 'active') {
+      await recordProposals(db, actor.company_id, id, risks.flatMap((x) => x.proposals ?? []), tasks, now().toISOString());
+    }
     const children = (await loadGoals(db, actor.company_id)).filter((g) => g.row.parent_goal_id === id && g.row.status !== 'cancelled');
     const childMetrics = await loadMetrics(db, children.map((c) => c.row.id));
     const links = await db.query<{ goal_id: string; task_id: string }>(`SELECT goal_id, task_id FROM goal_tasks WHERE goal_id = ANY($1::uuid[])`, [[id, ...children.map((c) => c.row.id)]]);
@@ -173,7 +178,30 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
         await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: task.id, goal_id: id, actor_id: actor.id, event_type: 'task.rescheduled', old_values: { start_at: task.start_at, due_at: task.due_at }, new_values: { start_at: start, due_at: c.due_at } });
         if (task.assignee_id) await notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'reschedule', title: `Новый срок задачи «${task.title}»`, body: `Срок перенесён на ${formatDate(c.due_at, { today: today() })}`, task_id: task.id, goal_id: id }, actor.id);
       }
+      await decideProposals(q, actor.company_id, id, body.changes.map((c) => ({ task_id: c.task_id, from_due: byId.get(c.task_id)!.due_at, to_due: c.due_at })), 'accepted', now().toISOString());
       return { updated: body.changes.length };
+    });
+    res.json({ data });
+  });
+
+  /**
+   * «Оставить как есть»: руководитель увидел предложенный перенос и решил
+   * сроки не трогать. Сроки не меняются, ответ идёт в метрику доверия.
+   */
+  r.post('/goals/:id/reschedule/dismiss', async (req, res) => {
+    const actor = actorOf(req);
+    const id = idParam(req.params.id);
+    const body = parseBody(z.object({ task_ids: z.array(z.string()).min(1).max(100) }), req.body);
+    const data = await db.tx(async (q) => {
+      const { goal, org } = await getVisibleGoal(q, actor, id);
+      if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'due_at', org)) throw forbidden('Решать о переносе сроков может руководитель цели');
+      const { risks } = await goalRisks(q, actor.company_id, goal, today());
+      const offered = new Map(risks.flatMap((x) => x.proposals ?? []).map((p) => [p.task_id, p]));
+      const decided = body.task_ids.flatMap((t) => {
+        const p = offered.get(t);
+        return p ? [{ task_id: t, from_due: p.from_due, to_due: p.to_due }] : [];
+      });
+      return { dismissed: await decideProposals(q, actor.company_id, id, decided, 'dismissed', now().toISOString()) };
     });
     res.json({ data });
   });

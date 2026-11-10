@@ -361,6 +361,11 @@ function RescheduleAction({ goalId, risk, roadmap }: { goalId: string; risk: Ris
       setSaving(false);
     }
   };
+  // Ответ «не переносить» идёт в метрику «Доверие к переносам»; сроки не меняются.
+  const keep = () => {
+    setOpen(false);
+    void api(`/goals/${goalId}/reschedule/dismiss`, { body: { task_ids: proposals.map((p) => p.task_id) } }).catch(() => undefined);
+  };
   return (
     <>
       <div style={{ marginTop: 8 }}>
@@ -374,7 +379,7 @@ function RescheduleAction({ goalId, risk, roadmap }: { goalId: string; risk: Ris
           onClose={() => setOpen(false)}
           footer={
             <>
-              <Button variant="ghost" onClick={() => setOpen(false)}>
+              <Button variant="ghost" onClick={keep}>
                 Оставить как есть
               </Button>
               <Button variant="primary" loading={saving} onClick={apply}>

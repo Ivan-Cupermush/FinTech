@@ -69,6 +69,8 @@ export const uploadAvatar = (file: Blob, opts: UploadOptions = {}) => send<{ ava
 export const uploadKnowledgeDoc = (file: Blob, opts: UploadOptions = {}) => send<KnowledgeDoc>('/knowledge/docs', file, opts);
 /** Файл продаж — отчёт 1С, файл KPI, продажи из Excel, список клиентов: сервер разберёт его сразу. */
 export const uploadSalesFile = <T>(path: string, file: Blob, opts: UploadOptions = {}) => send<T>(`/sales${path}`, file, opts);
+/** Таблица сотрудников из Excel: сервер вернёт её текстом, разбирает уже браузер. */
+export const uploadPeopleTable = (file: Blob, opts: UploadOptions = {}) => send<{ text: string }>('/users/import/table', file, opts);
 export const dropDraft = (id: string) => api(`/files/${id}`, { method: 'DELETE' }).catch(() => undefined);
 
 const fresh = new Map<string, string>();

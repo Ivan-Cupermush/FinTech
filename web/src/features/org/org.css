@@ -1,0 +1,143 @@
+/* Импорт сотрудников из Excel: зона файла, колонки, предпросмотр, пароли */
+.pim-lead {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pim-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line));
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(120% 140% at 100% 100%, color-mix(in srgb, var(--good) 12%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface) 70%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  transition:
+    border-color 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.pim-drop > svg {
+  flex: none;
+  color: var(--accent);
+}
+.pim-drop.is-drag {
+  border-color: var(--accent);
+  transform: scale(1.01);
+  box-shadow: 0 10px 40px -12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.pim-drop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+}
+.pim-drop-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pim-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+  gap: 10px 12px;
+}
+.pim-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 15px;
+}
+.pim-warn {
+  color: var(--warn);
+  font-size: 13px;
+}
+.pim-units {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.pim-unit {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pim-table {
+  max-height: 340px;
+}
+.pim-table .pill {
+  margin-bottom: 2px;
+}
+.pim-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.pim-path {
+  display: block;
+}
+.pim-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(140% 160% at 0% 0%, color-mix(in srgb, var(--good) 22%, transparent), transparent 65%),
+    color-mix(in srgb, var(--surface) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--good) 35%, var(--line));
+}
+.pim-done > svg {
+  flex: none;
+  color: var(--good);
+}
+.pim-done > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+.pim-done b {
+  font-size: 16px;
+}
+.pim-keys {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  line-height: 1.45;
+  border-left: 3px solid var(--warn);
+  background: color-mix(in srgb, var(--warn-soft) 70%, var(--surface));
+}
+.pim-keys > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--warn);
+}
+.pim-keys.is-alert {
+  border-left-color: var(--bad);
+  background: color-mix(in srgb, var(--bad-soft) 70%, var(--surface));
+}
+.pim-keys.is-alert > svg {
+  color: var(--bad);
+}
+@media (max-width: 640px) {
+  .pim-drop {
+    flex-wrap: wrap;
+  }
+}
