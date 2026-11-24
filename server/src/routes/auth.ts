@@ -10,6 +10,9 @@ import { audit } from '../services/audit';
 import { loginLockout, recordLogin } from '../services/security';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Публичная заглушка с той же стоимостью bcrypt, что у паролей пользователей.
+// Сравнение с ней выравнивает работу входа для незарегистрированной почты.
+const MISSING_ACCOUNT_HASH = '$2b$10$/QvnnmhHtf0ADBNPZYLOsOpxeQp1BcfvNzBVhOSVR2O39bCpoiMmG';
 
 export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean; loginLimit?: number; lockout?: boolean; now?: () => Date } = {}): Router {
   const r = Router();
@@ -37,7 +40,10 @@ export function authRouter(db: Db, secret: string, opts: { rateLimit?: boolean; 
     const user = rows[0];
     const BAD = 'Неверная почта или пароль';
     // Одинаковый ответ для «нет такого» и «не тот пароль».
-    if (!user) throw new ApiError('UNAUTHORIZED', BAD);
+    if (!user) {
+      await checkPassword(password, MISSING_ACCOUNT_HASH);
+      throw new ApiError('UNAUTHORIZED', BAD);
+    }
     const meta = { ip: req.ip ?? null, userAgent: String(req.headers['user-agent'] ?? '') };
     const at = now();
     const base = { userId: user.id, companyId: user.company_id, method: 'password' as const, at, ...meta };
