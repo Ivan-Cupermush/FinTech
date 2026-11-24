@@ -3,7 +3,7 @@ import { AlertTriangle, Check, Flag } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import Svg, { Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { capillaryFocus, capillaryPath, downstream, formatDate, layoutCapillary, needsBow, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode, type Roadmap } from '@offix/core';
+import { BLOCKER_LABELS, capillaryFocus, capillaryNextTasks, capillaryPath, downstream, formatDate, layoutCapillary, needsBow, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode, type Roadmap } from '@offix/core';
 import { font } from '../../lib/theme';
 import { Button } from '../primitives';
 import { useReduceMotion } from './Hero';
@@ -85,6 +85,7 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
   const focus = selected ? capillaryFocus(layout.links, selected.n.id) : null;
   const task = selected ? roadmap.tasks.find((t) => t.id === selected.n.id) : undefined;
   const waiting = task ? downstream(roadmap.edges, task.id).filter((id) => open.some((t) => t.id === id && t.status !== 'done')).length : 0;
+  const nextTasks = task ? capillaryNextTasks(roadmap.tasks, roadmap.edges, task.id) : [];
   const cps = task?.checkpoints ?? [];
 
   return (
@@ -184,6 +185,17 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
             {task ? ` · ${TASK_STATUS_LABELS[task.status].toUpperCase()}` : ''}
           </RNText>
           <RNText style={styles.detailTitle}>{selected.n.title}</RNText>
+          {task && (
+            <View style={{ gap: 4 }}>
+              <RNText style={styles.detailInfo}>Исполнитель: {task.assignee?.display_name ?? 'не назначен'}</RNText>
+              {task.blocker && (
+                <RNText style={styles.detailInfo}>
+                  Причина блокировки: {BLOCKER_LABELS[task.blocker.reason]}{task.blocker.note && ` · ${task.blocker.note}`}
+                </RNText>
+              )}
+              {task.blocker?.next_step && <RNText style={styles.detailInfo}>Следующий шаг: {task.blocker.next_step}</RNText>}
+            </View>
+          )}
           <View style={styles.bar}>
             <View style={{ width: `${selected.n.progress ?? 0}%`, height: 6, borderRadius: 3, backgroundColor: selected.n.state === 'blocked' || selected.n.state === 'overdue' ? '#ff5d6c' : '#9d8cff' }} />
           </View>
@@ -202,6 +214,16 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
             )}
           </View>
           {task && <Button title="Открыть задачу" variant="secondary" onPress={() => router.push(`/task/${task.id}`)} style={{ minHeight: 40, alignSelf: 'flex-start' }} />}
+          {nextTasks.length > 0 && (
+            <View style={{ gap: 4 }}>
+              <RNText style={styles.detailInfo}>{nextTasks.length === 1 ? 'Ближайшая зависимая задача' : 'Ближайшие зависимые задачи'}</RNText>
+              {nextTasks.map((next) => (
+                <Pressable key={next.id} accessibilityRole="button" onPress={() => router.push(`/task/${next.id}`)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                  <RNText style={[styles.detailInfo, { textDecorationLine: 'underline' }]}>{next.title}</RNText>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -230,6 +252,7 @@ const styles = StyleSheet.create({
   todayText: { color: '#fff', fontFamily: font.bold, fontSize: 9.5, letterSpacing: 1.2 },
   detail: { margin: 12, marginTop: 4, padding: 16, gap: 10, borderRadius: 20, backgroundColor: 'rgba(64,76,220,0.38)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.3)' },
   eyebrow: { color: 'rgba(214,220,255,0.7)', fontFamily: font.semibold, fontSize: 10, letterSpacing: 1.2 },
+  detailInfo: { color: '#eef0ff', fontFamily: font.regular, fontSize: 13, lineHeight: 18 },
   detailTitle: { color: '#fff', fontFamily: font.semibold, fontSize: 16, lineHeight: 21 },
   bar: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
 });

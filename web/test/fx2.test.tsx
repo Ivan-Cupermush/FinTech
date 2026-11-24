@@ -187,6 +187,28 @@ describe('капиллярная карта цели', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
+  it('показывает причину, исполнителя и прямые открытые зависимости по ближайшему сроку', async () => {
+    const baseRoadmap = roadmap();
+    const next = task('t5', { title: 'Подготовить тест', start_at: '2026-10-16', due_at: '2026-10-23' });
+    const later = task('t6', { title: 'Проверить итоги', start_at: '2026-10-25', due_at: '2026-10-28' });
+    baseRoadmap.tasks.push(next, later);
+    baseRoadmap.edges.push({ from: 't2', to: 't5' }, { from: 't2', to: 't4' }, { from: 't3', to: 't6' });
+    const calls = mockApi({ ...base, 'GET /goals/g1/roadmap': baseRoadmap,
+      'GET /tasks/t5': { ...next, history: [], dependencies: [], participants: [], files: [] },
+    });
+    renderApp('/app/goals/g1');
+    const map = await screen.findByRole('region', { name: 'Капиллярная карта цели' }, { timeout: 3000 });
+    await userEvent.click(within(map).getByRole('button', { name: /^Задача «Подключить API»/ }));
+    const detail = within(map).getByRole('region', { name: 'Задача «Подключить API»' });
+    expect(within(detail).getByText('Исполнитель: Анна Королёва')).toBeInTheDocument();
+    expect(within(detail).getByText(/Причина блокировки: Техническая проблема · Нет доступа/)).toBeInTheDocument();
+    const steps = within(within(detail).getByRole('list')).getAllByRole('button');
+    expect(steps.map((button) => button.textContent)).toEqual(['Подготовить тест', 'Обучить сотрудников']);
+    await userEvent.click(steps[0]!);
+    await screen.findByRole('dialog');
+    expect(calls.some((call) => call.path === '/tasks/t5')).toBe(true);
+  });
+
   it('у цели без задач карта не рисуется — показывается список', async () => {
     mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap({ tasks: [], edges: [], critical_path: [], direct_task_ids: [], subgoals: [] }) });
     renderApp('/app/goals/g1');

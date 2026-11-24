@@ -1,6 +1,6 @@
 import { addDays, diffDays } from './dates';
-import { downstream } from './schedule';
-import type { TaskStatus } from './task';
+import { downstream, type Dependency } from './schedule';
+import { isClosed, type TaskStatus } from './task';
 
 /**
  * Капиллярная карта цели: задачи — узлы на оси времени, зависимости —
@@ -53,6 +53,19 @@ export function capillaryFocus(links: readonly CapLink[], selected: string): Rea
   const incoming = new Set([selected, ...downstream(links.map(({ from, to }) => ({ from: to, to: from })), selected)]);
   const outgoing = new Set([selected, ...downstream(links, selected)]);
   return new Set(links.filter(({ from, to }) => (incoming.has(from) && incoming.has(to)) || (outgoing.has(from) && outgoing.has(to))));
+}
+
+/** Открытые прямые зависимости из видимых задач карты, сначала ближайшие по плану. */
+export function capillaryNextTasks<T extends Pick<CapTaskInput, 'id' | 'title' | 'status' | 'start_at' | 'due_at'>>(
+  tasks: readonly T[],
+  edges: readonly Dependency[],
+  selected: string,
+): T[] {
+  const ids = new Set(edges.filter(({ from }) => from === selected).map(({ to }) => to));
+  const date = (task: T) => task.start_at ?? task.due_at ?? '9999';
+  return tasks
+    .filter((task) => ids.has(task.id) && !isClosed(task))
+    .sort((a, b) => date(a).localeCompare(date(b)) || a.title.localeCompare(b.title, 'ru'));
 }
 
 export interface CapLayout {
