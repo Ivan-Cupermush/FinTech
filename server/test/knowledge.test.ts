@@ -104,6 +104,7 @@ describe('база знаний с ИИ: документы', () => {
 
   it('документ цели видят только те, кто видит цель — и в списке, и в ответах, и по ссылке на файл', async () => {
     const goal = ctx.demo.goals.onboarding!;
+    await ctx.knowledge.idle();
     const before = (await (await ctx.as('dima')).get(`${API}/status`)).body.data as KnowledgeStatus;
     const r = await upload(ctx, 'elena', Buffer.from('Наставник новичка проводит встречу-знакомство в первый день и ревизию пробного периода на тридцатый день.'), 'nastavnik.txt', {
       goal_id: goal,
