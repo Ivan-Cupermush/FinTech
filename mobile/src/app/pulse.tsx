@@ -2,16 +2,16 @@ import { router } from 'expo-router';
 import { HandHelping, Plus, ScanLine } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { formatDate } from '@offix/core';
-import { greeting, pulseStats } from '../../lib/logic';
-import { useDashboard, useMe, useMetrics } from '../../lib/queries';
-import { font, usePalette } from '../../lib/theme';
-import { Glass } from '../../ui/fx/Glass';
-import { Hero } from '../../ui/fx/Hero';
-import { HeroStats } from '../../ui/fx/PageHero';
-import { GoalTile, RiskItem, TaskRow } from '../../ui/domain';
-import { EffectSummary } from '../../ui/effect';
-import { Button, Card, Empty, Screen, SectionTitle, Text } from '../../ui/primitives';
-import { ProfilePhoto } from '../../ui/profile';
+import { greeting, pulseStats } from '../lib/logic';
+import { useDashboard, useMe, useMetrics } from '../lib/queries';
+import { font, usePalette } from '../lib/theme';
+import { Glass } from '../ui/fx/Glass';
+import { Hero } from '../ui/fx/Hero';
+import { HeroStats } from '../ui/fx/PageHero';
+import { GoalTile, RiskItem, TaskRow } from '../ui/domain';
+import { EffectSummary } from '../ui/effect';
+import { Button, Card, Empty, Screen, SectionTitle, Text } from '../ui/primitives';
+import { ProfilePhoto } from '../ui/profile';
 
 /** Пульс: что под угрозой, кому помочь и мои задачи — за 10 секунд. */
 export default function Pulse() {

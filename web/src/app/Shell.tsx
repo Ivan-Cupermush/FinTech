@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Building2, Camera, FileText, LayoutGrid, ListChecks, LogOut, MessagesSquare, Moon, NotebookPen, Plug, Plus, ShieldCheck, SlidersHorizontal, Sun, Target, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
+import { Bell, CalendarDays, Camera, ListChecks, LogOut, MessagesSquare, Moon, Plus, SlidersHorizontal, Sun, Target, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS, isModuleOn, type ModuleKey } from '@offix/core';
@@ -18,34 +18,19 @@ interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  end?: boolean;
   /** Показывать в нижней панели на телефоне. */
   tab?: boolean;
-  /** Только владельцу и администратору. */
-  admin?: boolean;
   /** Раздел из «Функций компании»: выключен — пункта нет. */
   module?: ModuleKey;
 }
 
 const NAV: NavItem[] = [
-  { to: '/app', label: 'Пульс', icon: LayoutGrid, end: true },
-  { to: '/app/goals', label: 'Цели', icon: Target },
   { to: '/app/tasks', label: 'Задачи', icon: ListChecks },
+  { to: '/app/goals', label: 'Цели', icon: Target },
+  { to: '/app/metrics', label: 'KPI', icon: TrendingUp },
   { to: '/app/chats', label: 'Чаты', icon: MessagesSquare, module: 'chats' },
-  // На телефоне вкладок шесть: «Эффект» открывается из сводки на Пульсе, отчёт — с экрана «Эффект».
-  { to: '/app/metrics', label: 'Эффект', icon: TrendingUp, tab: false },
-  { to: '/app/report', label: 'Отчёт', icon: FileText, tab: false },
-  { to: '/app/sales', label: 'Продажи', icon: Wallet, tab: false, module: 'sales' },
-  { to: '/app/notes', label: 'База знаний', icon: BookOpen, tab: false },
-  { to: '/app/my-notes', label: 'Мои заметки', icon: NotebookPen, tab: false, module: 'my_notes' },
-  { to: '/app/org', label: 'Организация', icon: Building2 },
-  // Интеграции настраивает администратор: остальным пункт не показываем.
-  { to: '/app/integrations', label: 'Интеграции', icon: Plug, tab: false, admin: true, module: 'integrations' },
-  { to: '/app/notifications', label: 'Уведомления', icon: Bell },
-  // Что включено в компании — решает владелец или администратор.
-  { to: '/app/company', label: 'Функции компании', icon: SlidersHorizontal, tab: false, admin: true },
-  // Журнал событий и входов, обезличивание ушедших — владельцу и администратору.
-  { to: '/app/security', label: 'Безопасность', icon: ShieldCheck, tab: false, admin: true },
+  { to: '/app/meetings', label: 'Совещания', icon: CalendarDays },
+  { to: '/app/profile', label: 'Настройки', icon: SlidersHorizontal, tab: false },
 ];
 
 export function Shell() {
@@ -58,10 +43,7 @@ export function Shell() {
   const unread = dash.data?.unread_notifications ?? 0;
   const chatsOn = isModuleOn(me.data?.modules, 'chats');
   const chatsUnread = useChatsUnread(!!me.data && chatsOn).data?.unread ?? 0;
-  const admin = me.data?.role === 'owner' || me.data?.role === 'admin';
-  // Пока не знаем, какие разделы включены в компании, их пунктов нет: иначе
-  // выключенные «Продажи» мелькают в меню сразу после входа.
-  const nav = NAV.filter((n) => (!n.admin || admin) && (!n.module || (!!me.data && isModuleOn(me.data.modules, n.module))));
+  const nav = NAV.filter(({ module }) => !module || (!!me.data && isModuleOn(me.data.modules, module)));
   const { pathname } = useLocation();
   // Открытый чат на телефоне занимает весь экран — нижняя панель прячется.
   const inChat = /^\/app\/chats\/[^/]+/.test(pathname);
@@ -84,17 +66,20 @@ export function Shell() {
           Новая цель
         </Button>
         <nav className="stack" style={{ '--gap': '2px' } as React.CSSProperties}>
-          {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          {nav.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <Icon size={18} strokeWidth={1.8} />
               {label}
-              {to === '/app/notifications' && unread > 0 && <span className="badge">{unread}</span>}
               {to === '/app/chats' && chatsUnread > 0 && <span className="badge is-chat">{chatsUnread > 99 ? '99+' : chatsUnread}</span>}
             </NavLink>
           ))}
         </nav>
         <div className="sidebar-foot">
           <div className="row" style={{ gap: 4 }}>
+            <Link to="/app/notifications" className="btn btn-ghost btn-sm" aria-label={unread ? `Уведомления: ${unread} непрочитанных` : 'Уведомления'}>
+              <Bell size={16} aria-hidden />
+              {unread > 0 && <span aria-hidden>{unread > 99 ? '99+' : unread}</span>}
+            </Link>
             <Button variant="ghost" size="sm" icon={isDark ? <Sun size={16} /> : <Moon size={16} />} onClick={toggleTheme} aria-label="Сменить тему" />
             <Button variant="ghost" size="sm" icon={<LogOut size={16} />} onClick={logout} aria-label="Выйти" />
           </div>
@@ -123,11 +108,10 @@ export function Shell() {
       </main>
       <Glass className="tabbar-glass" radius={28} overLight={!isDark} elasticity={0} displacement={40} blur={0.25}>
         <nav className="tabbar" aria-label="Навигация">
-          {nav.filter((n) => n.tab !== false).map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'active' : '')}>
+          {nav.filter((n) => n.tab !== false).map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <Icon size={22} strokeWidth={1.8} />
-              {label === 'Организация' ? 'Команда' : label === 'Уведомления' ? 'Входящие' : label}
-              {to === '/app/notifications' && unread > 0 && <span className="dot" />}
+              {label}
               {to === '/app/chats' && chatsUnread > 0 && <span className="tab-count">{chatsUnread > 99 ? '99+' : chatsUnread}</span>}
             </NavLink>
           ))}

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Integration, IntegrationRun, IntegrationTarget } from '@offix/core';
 import { runSummary } from '../src/features/integrations/IntegrationsPage';
 import type { Dashboard, Me } from '../src/lib/types';
-import { TODAY } from './fixtures';
+import { account, TODAY } from './fixtures';
 import { apiError, mockApi, renderApp } from './render';
 
 const me = (role: Me['role']): Me => ({
@@ -77,7 +77,7 @@ describe('runSummary', () => {
 
 describe('список интеграций', () => {
   it('администратор видит подключения, состояние и ошибку', async () => {
-    mockApi({ ...base, 'GET /integrations': [integration(), integration({ id: 'i2', kind: 'moodle', name: 'Moodle: курс', state: 'error', last_error: 'Moodle не принял токен веб-сервиса', last_run: run('r2', { status: 'error' }) })] });
+    mockApi({ ...base, 'GET /account': account(me('owner')), 'GET /integrations': [integration(), integration({ id: 'i2', kind: 'moodle', name: 'Moodle: курс', state: 'error', last_error: 'Moodle не принял токен веб-сервиса', last_run: run('r2', { status: 'error' }) })] });
     renderApp('/app/integrations');
     const list = await screen.findByLabelText('Подключения');
     const rows = within(list).getAllByRole('link');
@@ -88,7 +88,8 @@ describe('список интеграций', () => {
     expect(within(rows[0]!).getByText(/записано 1 замер/)).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Ошибка')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Moodle не принял токен веб-сервиса')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Интеграции/ })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('complementary', { name: 'Навигация' })).getByRole('link', { name: 'Настройки' }));
+    expect(await screen.findByRole('link', { name: 'Интеграции' })).toHaveAttribute('href', '/app/integrations');
   });
 
   it('пустой раздел — сразу выбор системы', async () => {

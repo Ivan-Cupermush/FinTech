@@ -88,7 +88,7 @@ describe('экран «Эффект»', () => {
   it('Северная звезда, цели, плитки и шаги', async () => {
     mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /metrics': report() });
     renderApp('/app/metrics');
-    expect(await screen.findByRole('heading', { name: 'Эффект' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'KPI' })).toBeInTheDocument();
     expect(await screen.findByText('2 из 3 активных целей с KPI сдвинули показатель к цели за 30 дней')).toBeInTheDocument();
     expect(screen.getByText('Вся компания · 30 дней')).toBeInTheDocument();
 
@@ -143,22 +143,22 @@ describe('экран «Эффект»', () => {
   });
 });
 
-describe('«Эффект» в навигации и на Пульсе', () => {
-  it('в сайдбаре есть, в нижних вкладках телефона — нет', async () => {
+describe('KPI в навигации и на Пульсе', () => {
+  it('KPI есть и в сайдбаре, и в нижней панели', async () => {
     mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /metrics': report() });
     renderApp('/app');
     const sidebar = await screen.findByRole('complementary', { name: 'Навигация' });
     const tabbar = screen.getByRole('navigation', { name: 'Навигация' });
-    expect(within(sidebar).getByRole('link', { name: /Эффект/ })).toHaveAttribute('href', '/app/metrics');
+    expect(within(sidebar).getByRole('link', { name: 'KPI' })).toHaveAttribute('href', '/app/metrics');
     // Чаты — раздел компании: вкладка появляется, когда пришёл профиль с разделами.
     expect(await within(tabbar).findByRole('link', { name: /Чаты/ })).toHaveAttribute('href', '/app/chats');
-    expect(within(tabbar).getAllByRole('link')).toHaveLength(6);
-    expect(within(tabbar).queryByRole('link', { name: /Эффект/ })).toBeNull();
+    expect(within(tabbar).getAllByRole('link')).toHaveLength(5);
+    expect(within(tabbar).getByRole('link', { name: 'KPI' })).toHaveAttribute('href', '/app/metrics');
   });
 
   it('сводка на Пульсе ведёт на экран эффекта', async () => {
     mockApi({ 'GET /users/me': ME, 'GET /dashboard': DASH, 'GET /metrics': report() });
-    renderApp('/app');
+    renderApp('/app/pulse');
     const strip = await screen.findByRole('link', { name: 'Эффект: 67 % целей сдвинули KPI за 30 дней' });
     expect(strip).toHaveAttribute('href', '/app/metrics');
     expect(within(strip).getByText('2,5 дня')).toBeInTheDocument();

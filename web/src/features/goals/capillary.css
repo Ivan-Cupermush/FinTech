@@ -45,6 +45,13 @@
 }
 
 /* Капилляры: нить, свечение и бегущий импульс. */
+.cap-link.dimmed {
+  opacity: 0.18;
+}
+.cap-link.dimmed .cap-pulse,
+.cap-link.dimmed .cap-glitch {
+  display: none;
+}
 .cap-link path {
   fill: none;
   stroke-linecap: round;

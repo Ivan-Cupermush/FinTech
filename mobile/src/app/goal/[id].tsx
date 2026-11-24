@@ -44,6 +44,7 @@ export default function GoalScreen() {
     ...(r.direct_task_ids.length ? [{ id: 'direct', title: 'Задачи цели', owner: undefined, tasks: r.direct_task_ids.map((t) => byId.get(t)).filter((t) => !!t && t.status !== 'cancelled') }] : []),
   ];
   const ready = g.checklist.every((c) => c.done);
+  const noMapTasks = !r.tasks.some((task) => task.status !== 'cancelled');
 
   const activate = async () => {
     setBusy(true);
@@ -145,6 +146,13 @@ export default function GoalScreen() {
         </View>
       </Hero>
 
+      {!noMapTasks && (
+        <>
+          <SectionTitle title="Дорожная карта" />
+          <CapillaryMap key={g.id} roadmap={r} />
+        </>
+      )}
+
       {g.status === 'draft' && (
         <Card>
           <Text variant="title">{ready ? 'Готова к запуску' : 'Чтобы запустить цель'}</Text>
@@ -176,8 +184,7 @@ export default function GoalScreen() {
       <NotesLink goalId={g.id} goalTitle={g.title} />
       {ai && <GoalDocsLink goalId={g.id} goalTitle={g.title} canUpload={g.permissions.edit} />}
 
-      <SectionTitle title="Дорожная карта" />
-      <CapillaryMap roadmap={r} />
+      {noMapTasks && <SectionTitle title="Дорожная карта" />}
       {groups.length ? (
         groups.map((grp, i) => (
           <Card key={grp.id} style={{ gap: 0, paddingVertical: 8 }}>

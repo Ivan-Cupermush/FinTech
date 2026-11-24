@@ -1,6 +1,6 @@
-import { Plus, Target } from 'lucide-react';
+import { BookOpen, Plus, Target } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { todayIso } from '@offix/core';
 import { goalsHeroStats } from '../../lib/hero-stats';
 import { useDashboard, useGoals } from '../../lib/queries';
@@ -44,9 +44,12 @@ export function GoalsPage() {
         subtitle="Каждая цель — это показатель, который должен измениться, и путь к нему."
         stats={all.data ? goalsHeroStats(all.data, dash.data?.risks) : undefined}
         actions={
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/goals/new')}>
-            Новая цель
-          </Button>
+          <div className="row wrap" style={{ gap: 8 }}>
+            <Button variant="primary" icon={<Plus size={16} />} onClick={() => navigate('/app/goals/new')}>
+              Новая цель
+            </Button>
+            <Link to="/app/notes" className="btn btn-secondary"><BookOpen size={16} /> База знаний</Link>
+          </div>
         }
       />
       <div style={{ marginBottom: 20 }}>

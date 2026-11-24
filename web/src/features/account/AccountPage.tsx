@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { BarChart3, BookOpen, Camera, ChevronRight, Copy, FileText, KeyRound, LaptopMinimal, LogOut, Mail, Moon, NotebookPen, Pencil, Plug, QrCode as QrIcon, ShieldCheck, SlidersHorizontal, Smartphone, Sun, UserRound } from 'lucide-react';
+import { BarChart3, Bell, BookOpen, Building2, Camera, ChevronRight, Copy, FileText, KeyRound, LaptopMinimal, LogOut, Mail, Moon, NotebookPen, Pencil, Plug, QrCode as QrIcon, ShieldCheck, SlidersHorizontal, Smartphone, Sun, UserRound } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { COMPANY_ROLE_LABELS, PASSWORD_STRENGTH_LABELS, displayNameError, formatDate, isModuleOn, passwordError, passwordStrength, profileUrl, todayIso, type AccountProfile } from '@offix/core';
@@ -368,6 +368,12 @@ export function AccountPage() {
       </div>
 
       <nav className="card card-tight list acc-menu" aria-label="Разделы">
+        <Link className="list-row" to="/app/notifications">
+          <Bell size={18} aria-hidden /> <span className="grow">Уведомления</span> <ChevronRight size={16} className="faint" aria-hidden />
+        </Link>
+        <Link className="list-row" to="/app/org">
+          <Building2 size={18} aria-hidden /> <span className="grow">Команда и структура</span> <ChevronRight size={16} className="faint" aria-hidden />
+        </Link>
         {on('my_notes') && (
           <Link className="list-row" to="/app/my-notes">
             <NotebookPen size={18} aria-hidden /> <span className="grow">Мои заметки</span> <ChevronRight size={16} className="faint" aria-hidden />
@@ -377,7 +383,7 @@ export function AccountPage() {
           <BookOpen size={18} aria-hidden /> <span className="grow">База знаний</span> <ChevronRight size={16} className="faint" aria-hidden />
         </Link>
         <Link className="list-row" to="/app/metrics">
-          <BarChart3 size={18} aria-hidden /> <span className="grow">Эффект</span> <ChevronRight size={16} className="faint" aria-hidden />
+          <BarChart3 size={18} aria-hidden /> <span className="grow">KPI</span> <ChevronRight size={16} className="faint" aria-hidden />
         </Link>
         <Link className="list-row" to="/app/report">
           <FileText size={18} aria-hidden /> <span className="grow">Отчёт</span> <ChevronRight size={16} className="faint" aria-hidden />
@@ -397,10 +403,10 @@ export function AccountPage() {
             <SlidersHorizontal size={18} aria-hidden /> <span className="grow">Функции компании</span> <ChevronRight size={16} className="faint" aria-hidden />
           </Link>
         )}
-        <button type="button" className="list-row" onClick={toggleTheme}>
+        <button type="button" className="list-row mobile-only" onClick={toggleTheme}>
           {dark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />} <span className="grow">{dark ? 'Светлая тема' : 'Тёмная тема'}</span>
         </button>
-        <button type="button" className="list-row acc-logout" onClick={logout}>
+        <button type="button" className="list-row acc-logout mobile-only" onClick={logout}>
           <LogOut size={18} aria-hidden /> <span className="grow">Выйти</span>
         </button>
       </nav>

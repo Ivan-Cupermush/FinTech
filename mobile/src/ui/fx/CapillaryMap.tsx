@@ -3,7 +3,7 @@ import { AlertTriangle, Check, Flag } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import Svg, { Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { capillaryPath, downstream, formatDate, layoutCapillary, needsBow, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode, type Roadmap } from '@offix/core';
+import { capillaryFocus, capillaryPath, downstream, formatDate, layoutCapillary, needsBow, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode, type Roadmap } from '@offix/core';
 import { font } from '../../lib/theme';
 import { Button } from '../primitives';
 import { useReduceMotion } from './Hero';
@@ -82,6 +82,7 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
   const at = new Map(layout.nodes.map((n) => [n.id, { x: px(n.x), y: py(n.lane), n }]));
   const goalTone = riskTone({ risk_level: goal.status === 'active' ? riskLevelOf(roadmap.risks) : 'ok', kpi: goal.metrics[0]?.progress.state ?? null, status: goal.status });
   const selected = sel ? at.get(sel) : undefined;
+  const focus = selected ? capillaryFocus(layout.links, selected.n.id) : null;
   const task = selected ? roadmap.tasks.find((t) => t.id === selected.n.id) : undefined;
   const waiting = task ? downstream(roadmap.edges, task.id).filter((id) => open.some((t) => t.id === id && t.status !== 'done')).length : 0;
   const cps = task?.checkpoints ?? [];
@@ -109,7 +110,7 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
               const d = capillaryPath(a.x, a.y, b.x, b.y, needsBow(layout, l.from, l.to) ? (a.n.lane > 0 ? 36 : -36) : 0);
               const c = l.critical ? '#ff3b5c' : l.broken ? '#ffb547' : l.done ? '#8f9bff' : '#7f8cff';
               return (
-                <G key={`${l.from}-${l.to}`}>
+                <G key={`${l.from}-${l.to}`} opacity={focus && !focus.has(l) ? 0.18 : 1}>
                   <Path d={d} stroke={c} strokeOpacity={l.critical ? 0.28 : 0.16} strokeWidth={l.critical ? 11 : 9} fill="none" strokeLinecap="round" />
                   <Path d={d} stroke={c} strokeOpacity={l.done ? 0.6 : 1} strokeWidth={l.critical ? 2.4 : 2} fill="none" strokeLinecap="round" />
                 </G>

@@ -51,7 +51,7 @@ export default function RootLayout() {
               <Stack.Screen name="goal/new" options={{ title: 'Новая цель', presentation: 'modal' }} />
               <Stack.Screen name="task/[id]" options={{ title: 'Задача', presentation: 'modal' }} />
               <Stack.Screen name="request" options={{ title: 'Новая просьба', presentation: 'modal' }} />
-              <Stack.Screen name="effect" options={{ title: 'Эффект' }} />
+              <Stack.Screen name="pulse" options={{ title: 'Пульс' }} />
               <Stack.Screen name="report" options={{ title: 'Отчёт' }} />
               <Stack.Screen name="sales/index" options={{ title: 'Продажи' }} />
               <Stack.Screen name="sales/person/[id]" options={{ title: 'Сотрудник' }} />

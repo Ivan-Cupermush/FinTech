@@ -8,5 +8,5 @@ export default function Index() {
   const { ready, token } = useSession();
   const p = usePalette();
   if (!ready) return <View style={{ flex: 1, backgroundColor: p.bg }} />;
-  return <Redirect href={token ? '/(tabs)' : '/login'} />;
+  return <Redirect href={token ? '/(tabs)/tasks' : '/login'} />;
 }

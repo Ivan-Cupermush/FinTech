@@ -1,7 +1,19 @@
-import { kpiProgress } from '@offix/core';
-import type { GoalCard, Metric, Roadmap, Task } from '../src/lib/types';
+import { kpiProgress, type AccountProfile } from '@offix/core';
+import type { GoalCard, Me, Metric, Roadmap, Task } from '../src/lib/types';
 
 export const TODAY = '2026-10-19';
+
+export function account(me: Me): AccountProfile {
+  return {
+    ...me,
+    avatar_url: null,
+    last_login_at: null,
+    password_changed_at: null,
+    joined_at: `${TODAY}T00:00:00.000Z`,
+    consent_version: null,
+    consent_at: null,
+  };
+}
 
 export function task(id: string, over: Partial<Task> = {}): Task {
   return {

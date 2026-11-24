@@ -36,7 +36,7 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
 const MENU_ROWS: Record<MenuKey, { label: string; Icon: typeof Wallet; href: '/my-notes' | '/notes' | '/effect' | '/report' | '/sales' | '/company' | '/security' | '/push-settings' }> = {
   'my-notes': { label: 'Мои заметки', Icon: NotebookPen, href: '/my-notes' },
   notes: { label: 'База знаний', Icon: BookOpen, href: '/notes' },
-  effect: { label: 'Эффект', Icon: Sparkles, href: '/effect' },
+  effect: { label: 'KPI', Icon: Sparkles, href: '/effect' },
   report: { label: 'Отчёт', Icon: BarChart3, href: '/report' },
   sales: { label: 'Продажи и KPI', Icon: Wallet, href: '/sales' },
   company: { label: 'Функции компании', Icon: SlidersHorizontal, href: '/company' },
@@ -229,9 +229,10 @@ export default function ProfileScreen() {
 
       <Card style={{ gap: 0, paddingVertical: 2 }}>
         {/* Выключенные в «Функциях компании» разделы в меню не показываем. */}
-        {profileMenu(me.data?.modules, me.data?.role).map((key, i) => {
+        <MenuRow first icon={<BellRing size={18} color={p.ink2} />} label="Входящие" onPress={() => router.push('/inbox')} />
+        {profileMenu(me.data?.modules, me.data?.role).map((key) => {
           const m = MENU_ROWS[key];
-          return <MenuRow key={key} first={i === 0} icon={<m.Icon size={18} color={p.ink2} />} label={m.label} onPress={() => router.push(m.href)} />;
+          return <MenuRow key={key} icon={<m.Icon size={18} color={p.ink2} />} label={m.label} onPress={() => router.push(m.href)} />;
         })}
         <MenuRow icon={<LogOut size={18} color={p.bad} />} label="Выйти" danger onPress={signOut} />
       </Card>

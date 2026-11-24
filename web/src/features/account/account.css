@@ -131,7 +131,6 @@
   color: var(--ink);
 }
 .acc-menu {
-  display: none;
   margin-top: 18px;
 }
 .acc-menu .list-row {
@@ -447,9 +446,6 @@
 @media (max-width: 900px) {
   .acc-grid {
     grid-template-columns: 1fr;
-  }
-  .acc-menu {
-    display: block;
   }
   .acc-facts > div {
     grid-template-columns: 1fr;

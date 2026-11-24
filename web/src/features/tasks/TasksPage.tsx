@@ -1,9 +1,9 @@
-import { Archive, CalendarDays, Eye, HandHelping, List, ListChecks, ListTodo, Search } from 'lucide-react';
+import { Archive, Bell, CalendarDays, Eye, HandHelping, List, ListChecks, ListTodo, NotebookPen, Search, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { archiveNote, byLight, isOverdue, monthOf, noteDayLabel, plural, taskCalendar, taskMonthGrid, tasksForDay, todayIso, type TaskStatus } from '@offix/core';
+import { Link, useSearchParams } from 'react-router-dom';
+import { archiveNote, byLight, isModuleOn, isOverdue, monthOf, noteDayLabel, plural, taskCalendar, taskMonthGrid, tasksForDay, todayIso, type TaskStatus } from '@offix/core';
 import { tasksHeroStats } from '../../lib/hero-stats';
-import { useTasks } from '../../lib/queries';
+import { useDashboard, useMe, useTasks } from '../../lib/queries';
 import type { Task } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Segmented, Skeleton, Tabs } from '../../ui/Misc';
@@ -63,6 +63,8 @@ export function groupTasks(tasks: Task[], today: string) {
 }
 
 export function TasksPage() {
+  const me = useMe();
+  const unread = useDashboard().data?.unread_notifications ?? 0;
   const [params, setParams] = useSearchParams();
   const initial = params.get('scope') as Scope | null;
   const [scope, setScope] = useState<Scope>(initial && SCOPES.includes(initial) ? initial : 'mine');
@@ -109,11 +111,26 @@ export function TasksPage() {
         subtitle={archive ? 'Закрытые задачи уходят сюда сами через 3 дня. Автор или руководитель может вернуть задачу.' : q.data ? `${counts('blocked') ? `${counts('blocked')} заблокировано · ` : ''}${counts('in_progress')} в работе. Сначала — то, где нужна помощь.` : ' '}
         stats={q.data && !archive ? tasksHeroStats(q.data, today) : undefined}
         actions={
-          <Button variant="primary" icon={<HandHelping size={16} />} onClick={() => setAsking(true)}>
-            Попросить коллегу
-          </Button>
+          <div className="row wrap" style={{ gap: 8 }}>
+            <Button variant="primary" icon={<HandHelping size={16} />} onClick={() => setAsking(true)}>
+              Попросить коллегу
+            </Button>
+            <Link to="/app/profile" className="btn btn-secondary mobile-only" aria-label="Настройки" title="Настройки">
+              <SlidersHorizontal size={16} aria-hidden />
+            </Link>
+            <Link to="/app/notifications" className="btn btn-secondary mobile-only" aria-label={unread ? `Уведомления: ${unread} непрочитанных` : 'Уведомления'} title="Уведомления">
+              <Bell size={16} aria-hidden />
+              {unread > 0 && <span aria-hidden>{unread > 99 ? '99+' : unread}</span>}
+            </Link>
+          </div>
         }
       />
+      <div className="row wrap" style={{ gap: 8, marginBottom: 12 }}>
+        <Link to="/app/pulse" className="btn btn-ghost btn-sm">Пульс</Link>
+        {me.data && isModuleOn(me.data.modules, 'my_notes') && (
+          <Link to="/app/my-notes" className="btn btn-ghost btn-sm"><NotebookPen size={16} /> Мои заметки</Link>
+        )}
+      </div>
       <div className="task-toolbar">
         <Tabs
           label="Чьи задачи"

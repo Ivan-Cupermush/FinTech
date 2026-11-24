@@ -69,19 +69,19 @@ describe('меню не мигает выключенными разделами
   it('пока профиль не пришёл, «Продаж» в меню нет; пришёл с выключенными — так и нет', async () => {
     let answer!: (v: unknown) => void;
     mockApi({ 'GET /users/me': () => new Promise((r) => (answer = r)), 'GET /dashboard': DASH, 'GET /chats/unread': { unread: 0 } });
-    renderApp('/app');
-    await waitFor(() => expect(within(sidebar()).getByRole('link', { name: /Цели/ })).toBeInTheDocument());
-    expect(within(sidebar()).queryByRole('link', { name: /Продажи/ })).not.toBeInTheDocument();
+    renderApp('/app/metrics');
+    await screen.findByRole('heading', { name: 'KPI' });
+    expect(screen.queryByRole('link', { name: 'Продажи' })).not.toBeInTheDocument();
     answer(me());
-    await waitFor(() => expect(within(sidebar()).getByRole('link', { name: /Безопасность/ })).toBeInTheDocument());
-    expect(within(sidebar()).queryByRole('link', { name: /Продажи/ })).not.toBeInTheDocument();
+    await within(sidebar()).findByRole('link', { name: /Чаты/ });
+    expect(screen.queryByRole('link', { name: 'Продажи' })).not.toBeInTheDocument();
   });
 
-  it('«Безопасность» в меню только у владельца и администратора', async () => {
-    mockApi(base(me({ role: 'member' })));
-    renderApp('/app');
-    await waitFor(() => expect(within(sidebar()).getByRole('link', { name: /Мои заметки/ })).toBeInTheDocument());
-    expect(within(sidebar()).queryByRole('link', { name: /Безопасность/ })).not.toBeInTheDocument();
+  it('«Безопасность» в настройках только у владельца и администратора', async () => {
+    mockApi({ ...base(me({ role: 'member' })), 'GET /account': { ...PROFILE, role: 'member' } });
+    renderApp('/app/profile');
+    await screen.findByRole('link', { name: 'Мои заметки' });
+    expect(screen.queryByRole('link', { name: 'Безопасность' })).not.toBeInTheDocument();
   });
 });
 

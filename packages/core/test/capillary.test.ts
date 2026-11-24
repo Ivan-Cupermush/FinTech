@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { capillaryPath, capNodeState, layoutCapillary, needsBow, timeScale, type CapTaskInput } from '../src/capillary';
+import { capillaryFocus, capillaryPath, capNodeState, layoutCapillary, needsBow, timeScale, type CapTaskInput } from '../src/capillary';
 import { criticalPath } from '../src/schedule';
 
 const TODAY = '2026-11-02';
 const task = (id: string, over: Partial<CapTaskInput> = {}): CapTaskInput => ({ id, title: id, status: 'todo', start_at: null, due_at: null, done_at: null, ...over });
 const goal = { id: 'G', title: 'Цель', due_at: '2026-12-20' };
+
+describe('capillaryFocus', () => {
+  it('выделяет обе стороны выбранной цепочки и оставляет перекрёстную ветку приглушённой', () => {
+    const links = [
+      { from: 'A', to: 'B' },
+      { from: 'B', to: 'C' },
+      { from: 'C', to: 'G' },
+      { from: 'A', to: 'C' },
+      { from: 'D', to: 'C' },
+    ].map((edge) => ({ ...edge, critical: false, broken: false, done: false }));
+
+    expect([...capillaryFocus(links, 'B')]).toEqual(links.slice(0, 3));
+  });
+});
 
 describe('capNodeState', () => {
   it('выполнена, блок, просрочка, в работе, план', () => {

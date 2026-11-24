@@ -157,7 +157,8 @@ describe('капиллярная карта цели', () => {
   it('открывается по умолчанию: узлы задач и цели, критический путь, «Сегодня»', async () => {
     mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap() });
     renderApp('/app/goals/g1');
-    const map = await screen.findByRole('region', { name: 'Капиллярная карта цели' });
+    const map = await screen.findByRole('region', { name: 'Капиллярная карта цели' }, { timeout: 3000 });
+    expect(map.compareDocumentPosition(screen.getByRole('heading', { name: 'Риски по цели' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Карта' })).toHaveAttribute('aria-selected', 'true');
     const nodes = within(map).getAllByRole('button', { pressed: false });
     // Три задачи (отменённая не рисуется) и сама цель.
@@ -195,7 +196,7 @@ describe('капиллярная карта цели', () => {
 
   it('карточка цели на Пульсе — Risk Radar с одометром', async () => {
     mockApi({ ...base, 'GET /dashboard': { ...DASH, goals: [{ id: 'g1', title: 'Цель', type: 'strategic', due_at: null, primary_metric: metric(), progress: 35, task_progress: { done: 0, total: 0 }, risk_level: 'warning' }] }, 'GET /metrics': null });
-    renderApp('/app');
+    renderApp('/app/pulse');
     const card = await screen.findByRole('link', { name: 'Цель: есть риски' });
     expect(card).toHaveClass('rr-warning');
     expect(card.querySelector('.odo')).not.toBeNull();

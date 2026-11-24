@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowUpRight, Check, Flag, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { capillaryPath, downstream, needsBow, formatDate, layoutCapillary, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode } from '@offix/core';
+import { capillaryFocus, capillaryPath, downstream, needsBow, formatDate, layoutCapillary, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode } from '@offix/core';
 import type { Roadmap } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -97,6 +97,7 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
     setSelected((s) => (s === id ? null : id));
   };
   const sel = selected ? at.get(selected) : undefined;
+  const focus = sel ? capillaryFocus(layout.links, sel.n.id) : null;
   const criticalCount = layout.nodes.filter((n) => n.kind === 'task' && n.critical).length;
 
   if (!taskCount) return null;
@@ -113,7 +114,7 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
               if (!a || !b) return null;
               // Обход узлов своего ряда: верхние ряды выгибаются вверх, нижние — вниз.
               const d = capillaryPath(a.x, a.y, b.x, b.y, needsBow(layout, l.from, l.to) ? (a.n.lane > 0 ? 40 : -40) : 0);
-              const cls = `cap-link${l.critical ? ' critical' : ''}${l.broken ? ' broken' : ''}${l.done ? ' done' : ''}`;
+              const cls = `cap-link${l.critical ? ' critical' : ''}${l.broken ? ' broken' : ''}${l.done ? ' done' : ''}${focus && !focus.has(l) ? ' dimmed' : ''}`;
               return (
                 <g key={`${l.from}-${l.to}`} className={cls} style={{ '--d': `${(i * 0.37) % 1.8}s` } as React.CSSProperties}>
                   <path className="cap-glow" d={d} />
@@ -148,6 +149,7 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
                 type="button"
                 className={`cap-node ${goalNode ? `goal tone-${goalTone}` : n.state}${n.critical ? ' critical' : ''}${selected === n.id ? ' on' : ''}`}
                 style={{ left: p.x, top: p.y }}
+                title={n.title}
                 aria-pressed={selected === n.id}
                 aria-label={`${goalNode ? 'Цель' : 'Задача'} «${n.title}»: ${meta}${n.critical && !goalNode ? ', критический путь' : ''}`}
                 onClick={() => pick(n.id)}
