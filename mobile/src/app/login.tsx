@@ -47,7 +47,7 @@ export default function Login() {
     setBusy(key);
     try {
       await session.login(e, pw, server);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/tasks');
     } catch (err) {
       if (err instanceof ApiError) {
         setErrors(err.fields);

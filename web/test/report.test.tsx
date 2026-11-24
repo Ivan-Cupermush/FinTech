@@ -181,13 +181,11 @@ describe('отчёт для руководства', () => {
     expect(screen.getByRole('button', { name: 'PDF' })).toBeDisabled();
   });
 
-  it('в сайдбаре есть «Отчёт», с экрана «Эффект» — ссылка на него', async () => {
+  it('отчёт доступен из раздела KPI', async () => {
     mockApi({ ...base, 'GET /report': report() });
     renderApp('/app/report');
     const sidebar = await screen.findByRole('complementary', { name: 'Навигация' });
-    expect(within(sidebar).getByRole('link', { name: /Отчёт/ })).toHaveAttribute('href', '/app/report');
-    const tabbar = screen.getByRole('navigation', { name: 'Навигация' });
-    await within(tabbar).findByRole('link', { name: /Чаты/ });
-    expect(within(tabbar).getAllByRole('link')).toHaveLength(6);
+    await userEvent.click(within(sidebar).getByRole('link', { name: 'KPI' }));
+    expect(await screen.findByRole('link', { name: 'Отчёт для руководства' })).toHaveAttribute('href', '/app/report');
   });
 });

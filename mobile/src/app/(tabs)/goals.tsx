@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { BookOpen, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { todayIso } from '@offix/core';
@@ -7,7 +7,7 @@ import { useGoals } from '../../lib/queries';
 import { usePalette } from '../../lib/theme';
 import { GoalTile } from '../../ui/domain';
 import { LiquidSegmented } from '../../ui/fx/LiquidSegmented';
-import { Card, Empty, Screen, Text } from '../../ui/primitives';
+import { Button, Card, Empty, Screen, Text } from '../../ui/primitives';
 
 const TABS = [
   { key: 'active', label: 'В работе', filter: 'scope=top&status=active' },
@@ -28,6 +28,7 @@ export default function Goals() {
           <Plus size={20} color={p.bg} />
         </Pressable>
       </View>
+      <Button title="База знаний" variant="secondary" icon={<BookOpen size={18} color={p.ink} />} onPress={() => router.push('/notes')} />
       <LiquidSegmented label="Какие цели" value={tab} onChange={setTab} options={TABS.map((t) => ({ value: t.key, label: t.label }))} />
       {q.data?.length
         ? q.data.map((g) => <GoalTile key={g.id} goal={g} today={today} onPress={() => router.push(`/goal/${g.id}`)} />)

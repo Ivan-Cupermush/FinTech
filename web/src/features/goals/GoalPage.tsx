@@ -75,6 +75,18 @@ export function GoalPage() {
   const primary = g.metrics.find((m) => m.is_primary) ?? g.metrics[0] ?? null;
   const tone = riskTone({ risk_level: g.status === 'active' ? riskLevelOf(r.risks) : undefined, kpi: primary?.progress.state ?? null, status: g.status });
   const unit = primary ? UNITS[primary.unit] : null;
+  const showMap = view === 'map' && r.tasks.some((t) => t.status !== 'cancelled');
+  const risks = r.risks.length > 0 && g.status === 'active' && (
+    <section className="card" style={{ marginBottom: 20 }} aria-labelledby="risks-h">
+      <div className="section-title">
+        <h3 id="risks-h">Риски по цели</h3>
+        <span className="faint num" style={{ fontSize: 13 }}>
+          {r.risks.length}
+        </span>
+      </div>
+      <RiskList risks={r.risks} onTask={setTaskId} action={(risk) => (risk.proposals?.length && g.permissions.manage ? <RescheduleAction goalId={g.id} risk={risk} roadmap={r} /> : null)} />
+    </section>
+  );
 
   return (
     <div className="page">
@@ -156,17 +168,7 @@ export function GoalPage() {
 
       {g.status === 'draft' && <ActivationCard goal={g} onFix={setDialog} />}
 
-      {r.risks.length > 0 && g.status === 'active' && (
-        <section className="card" style={{ marginBottom: 20 }} aria-labelledby="risks-h">
-          <div className="section-title">
-            <h3 id="risks-h">Риски по цели</h3>
-            <span className="faint num" style={{ fontSize: 13 }}>
-              {r.risks.length}
-            </span>
-          </div>
-          <RiskList risks={r.risks} onTask={setTaskId} action={(risk) => (risk.proposals?.length && g.permissions.manage ? <RescheduleAction goalId={g.id} risk={risk} roadmap={r} /> : null)} />
-        </section>
-      )}
+      {!showMap && risks}
 
       <div className="spread wrap" style={{ marginBottom: 16 }}>
         <Segmented
@@ -189,12 +191,17 @@ export function GoalPage() {
         )}
       </div>
 
-      {view === 'map' && (r.tasks.some((t) => t.status !== 'cancelled') ? (
-          <Suspense fallback={<div className="cap cap-pending" aria-busy="true" />}>
-            <CapillaryMap roadmap={r} onTask={setTaskId} />
-          </Suspense>
-        ) : <RoadmapTree roadmap={r} onTask={setTaskId} />)}
-      {view === 'tree' && <RoadmapTree roadmap={r} onTask={setTaskId} />}
+      {showMap && (
+        <>
+          <div style={{ marginBottom: 20 }}>
+            <Suspense fallback={<div className="cap cap-pending" aria-busy="true" />}>
+              <CapillaryMap key={g.id} roadmap={r} onTask={setTaskId} />
+            </Suspense>
+          </div>
+          {risks}
+        </>
+      )}
+      {(view === 'tree' || (view === 'map' && !showMap)) && <RoadmapTree roadmap={r} onTask={setTaskId} />}
       {view === 'timeline' && <RoadmapTimeline roadmap={r} onTask={setTaskId} />}
       {view === 'analytics' && <RoadmapAnalytics roadmap={r} />}
       {view === 'discussion' && <Discussion type="goal" id={g.id} />}

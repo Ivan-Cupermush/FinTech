@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { CalendarDays, HandHelping, ListTodo } from 'lucide-react-native';
+import { Bell, CalendarDays, HandHelping, ListTodo, SlidersHorizontal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { archiveNote, isOverdue, monthOf, noteDayLabel, plural, taskCalendar, taskMonthGrid, tasksForDay, todayIso, type Task } from '@offix/core';
 import { TASK_SCOPES, TASK_SCOPE_EMPTY, taskSections, tasksStats, type TaskScope } from '../../lib/logic';
-import { useTasks } from '../../lib/queries';
+import { useDashboard, useTasks } from '../../lib/queries';
+import { useModuleOn } from '../../ui/modules';
 import { font, usePalette } from '../../lib/theme';
 import { TaskRow } from '../../ui/domain';
 import { Glass } from '../../ui/fx/Glass';
@@ -16,6 +17,8 @@ import { Button, Card, Empty, Screen, Text } from '../../ui/primitives';
 /** Задачи: мои, все, мои просьбы, наблюдаю и архив; список по срочности или календарь сроков. */
 export default function Tasks() {
   const p = usePalette();
+  const unread = useDashboard().data?.unread_notifications ?? 0;
+  const notes = useModuleOn('my_notes');
   const [scope, setScope] = useState<TaskScope>('mine');
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const today = todayIso();
@@ -39,16 +42,26 @@ export default function Tasks() {
         subtitle={archive ? 'Закрытые задачи уходят сюда сами через 3 дня. Автор или руководитель может вернуть задачу.' : 'Сначала — то, где нужна помощь.'}
         stats={q.data && !archive ? tasksStats(tasks, today) : undefined}
         right={
-          <Pressable accessibilityRole="button" accessibilityLabel="Попросить коллегу" onPress={() => router.push('/request')} hitSlop={8}>
-            <Glass radius={18} style={{ height: 36, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <HandHelping size={15} color="#fff" />
-              <Text variant="caption" style={{ color: '#fff' }}>
-                Попросить
-              </Text>
-            </Glass>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Попросить коллегу" onPress={() => router.push('/request')} hitSlop={4}>
+              <Glass radius={18} style={{ height: 36, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <HandHelping size={15} color="#fff" />
+                <Text variant="caption" style={{ color: '#fff' }}>Попросить</Text>
+              </Glass>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Настройки" onPress={() => router.push('/profile')} hitSlop={4}>
+              <Glass radius={18} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+                <SlidersHorizontal size={16} color="#fff" />
+              </Glass>
+            </Pressable>
+          </View>
         }
       />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <Button title="Пульс" variant="secondary" onPress={() => router.push('/pulse')} />
+        {notes && <Button title="Мои заметки" variant="secondary" onPress={() => router.push('/my-notes')} />}
+        <Button title={unread ? `Входящие · ${unread > 99 ? '99+' : unread}` : 'Входящие'} variant="secondary" icon={<Bell size={16} color={p.ink} />} onPress={() => router.push('/inbox')} />
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }} style={{ marginHorizontal: -2 }} accessibilityRole="tablist">
         {TASK_SCOPES.map((s) => {
           const on = s.value === scope;

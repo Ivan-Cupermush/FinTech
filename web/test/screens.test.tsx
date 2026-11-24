@@ -56,7 +56,7 @@ describe('KpiTrack', () => {
 describe('Пульс', () => {
   it('приветствует, показывает цели, критичные риски и кому нужна помощь', async () => {
     mockApi(base);
-    renderApp('/app');
+    renderApp('/app/pulse');
     expect(await screen.findByRole('heading', { level: 1, name: /Ольга/ })).toBeInTheDocument();
     expect(screen.getByText('1 вопрос требует решения сегодня.')).toBeInTheDocument();
     expect(screen.getAllByText('Сократить время согласования заявки').length).toBeGreaterThan(0);
@@ -66,7 +66,7 @@ describe('Пульс', () => {
   });
   it('шапка Пульса — живой градиент с 3D-знаком и стеклянными счётчиками', async () => {
     mockApi(base);
-    renderApp('/app');
+    renderApp('/app/pulse');
     const h1 = await screen.findByRole('heading', { level: 1, name: /Ольга/ });
     const hero = h1.closest('.app-hero') as HTMLElement;
     expect(hero).toHaveClass('fx-backdrop', 'on-color');
@@ -79,7 +79,7 @@ describe('Пульс', () => {
   });
   it('пустая компания видит приглашение создать первую цель', async () => {
     mockApi({ ...base, 'GET /dashboard': { ...DASH, goals: [], risks: [], my_tasks: [], help_needed: [], drafts: [] } });
-    renderApp('/app');
+    renderApp('/app/pulse');
     expect(await screen.findByText('Начните с одной измеримой цели')).toBeInTheDocument();
     expect(screen.getByText('Всё под контролем')).toBeInTheDocument();
   });
@@ -109,13 +109,13 @@ describe('Вход', () => {
     expect(await screen.findByText('Неверная почта или пароль')).toBeInTheDocument();
     expect(screen.getByLabelText('Почта')).toHaveValue('olga@offix.demo');
   });
-  it('успешный вход ведёт в Пульс', async () => {
+  it('успешный вход ведёт в текущие задачи', async () => {
     mockApi({ ...base, 'POST /auth/login': { token: 'new-token' } });
     renderApp('/login', { token: null });
     await userEvent.type(await screen.findByLabelText('Почта'), 'olga@offix.demo');
     await userEvent.type(screen.getByLabelText('Пароль'), 'offix-demo');
     await userEvent.click(screen.getByRole('button', { name: /^Войти/ }));
-    expect(await screen.findByRole('heading', { level: 1, name: /Ольга/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Задачи' })).toBeInTheDocument();
     expect(localStorage.getItem('offix.token')).toBe('new-token');
   });
 });

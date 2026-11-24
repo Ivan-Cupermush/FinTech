@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CompanyModules, SandboxInfo } from '@offix/core';
 import type { Dashboard, Me } from '../src/lib/types';
-import { TODAY } from './fixtures';
+import { account, TODAY } from './fixtures';
 import { apiError, mockApi, renderApp } from './render';
 
 const ALL_ON: CompanyModules = { sales: true, chats: true, knowledge_ai: true, my_notes: true, integrations: true };
@@ -98,21 +98,26 @@ describe('песочница на странице входа', () => {
 
 describe('меню по функциям компании', () => {
   it('выключенные разделы пропадают из меню, «Функции компании» — только у администратора', async () => {
-    mockApi(base(me({ modules: { ...UNI, chats: false } })));
+    const owner = me({ modules: { ...UNI, chats: false } });
+    mockApi({ ...base(owner), 'GET /account': account(owner) });
     renderApp('/app');
-    const nav = sidebar();
-    await waitFor(() => expect(within(nav).getByRole('link', { name: /Функции компании/ })).toBeInTheDocument());
-    expect(within(nav).queryByRole('link', { name: /Продажи/ })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole('link', { name: /Чаты/ })).not.toBeInTheDocument();
-    expect(within(nav).getByRole('link', { name: /Мои заметки/ })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Мои заметки' })).toHaveAttribute('href', '/app/my-notes');
+    expect(within(sidebar()).queryByRole('link', { name: /Чаты/ })).not.toBeInTheDocument();
+    await userEvent.click(within(sidebar()).getByRole('link', { name: 'KPI' }));
+    expect(await screen.findByRole('heading', { name: 'KPI' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Продажи' })).not.toBeInTheDocument();
+    await userEvent.click(within(sidebar()).getByRole('link', { name: 'Настройки' }));
+    expect(await screen.findByRole('link', { name: 'Функции компании' })).toHaveAttribute('href', '/app/company');
   });
 
   it('у сотрудника нет пункта «Функции компании», а включённые разделы на месте', async () => {
-    mockApi(base(me({ role: 'member', modules: ALL_ON })));
-    renderApp('/app');
-    const nav = sidebar();
-    await waitFor(() => expect(within(nav).getByRole('link', { name: /Продажи/ })).toBeInTheDocument());
-    expect(within(nav).queryByRole('link', { name: /Функции компании/ })).not.toBeInTheDocument();
+    const member = me({ role: 'member', modules: ALL_ON });
+    mockApi({ ...base(member), 'GET /account': account(member) });
+    renderApp('/app/metrics');
+    expect(await screen.findByRole('link', { name: 'Продажи' })).toHaveAttribute('href', '/app/sales');
+    await userEvent.click(within(sidebar()).getByRole('link', { name: 'Настройки' }));
+    expect(await screen.findByRole('link', { name: 'Команда и структура' })).toHaveAttribute('href', '/app/org');
+    expect(screen.queryByRole('link', { name: 'Функции компании' })).not.toBeInTheDocument();
   });
 
   it('прямая ссылка на выключенный раздел — «Раздел выключен», а не ошибка', async () => {

@@ -18,6 +18,7 @@ import { LicensesPage } from './features/credits/LicensesPage';
 import { PrivacyPage } from './features/privacy/PrivacyPage';
 import { SecurityPage } from './features/security/SecurityPage';
 import { ChatsPage } from './features/chats/ChatsPage';
+import { MeetingsPage } from './features/meetings/MeetingsPage';
 import { MetricsPage } from './features/metrics/MetricsPage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { OrgPage } from './features/org/OrgPage';
@@ -67,7 +68,8 @@ export function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<PulsePage />} />
+        <Route index element={<Navigate to="tasks" replace />} />
+        <Route path="pulse" element={<PulsePage />} />
         <Route path="goals" element={<GoalsPage />} />
         <Route path="goals/new" element={<GoalNewPage />} />
         <Route path="goals/:id" element={<GoalPage />} />
@@ -75,6 +77,7 @@ export function AppRoutes() {
         <Route path="chats" element={<ModuleGate module="chats"><ChatsPage /></ModuleGate>} />
         <Route path="chats/:id" element={<ModuleGate module="chats"><ChatsPage /></ModuleGate>} />
         <Route path="metrics" element={<MetricsPage />} />
+        <Route path="meetings" element={<MeetingsPage />} />
         <Route path="report" element={<ReportPage />} />
         <Route path="sales" element={<ModuleGate module="sales"><SalesPage /></ModuleGate>} />
         <Route path="sales/people/:id" element={<ModuleGate module="sales"><SalesEmployeePage /></ModuleGate>} />

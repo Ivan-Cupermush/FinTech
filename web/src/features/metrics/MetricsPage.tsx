@@ -1,9 +1,9 @@
-import { Activity, ArrowRight, CalendarCheck, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer } from 'lucide-react';
+import { Activity, ArrowRight, CalendarCheck, CircleGauge, Clock3, FileText, Rocket, Sparkles, Timer, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Backdrop } from '../../ui/fx/Backdrop';
 import { Link, useNavigate } from 'react-router-dom';
-import { MOVEMENT_LABELS, formatDelta, movementTone, formatHours, formatPercent as percent, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
-import { useMetrics } from '../../lib/queries';
+import { MOVEMENT_LABELS, formatDelta, movementTone, formatHours, formatPercent as percent, isModuleOn, northStarCaption, plural, seriesTrend, todayIso, trendText, type Movement } from '@offix/core';
+import { useMe, useMetrics } from '../../lib/queries';
 import type { MetricsReport } from '../../lib/types';
 import { Button } from '../../ui/Button';
 import { Empty, Skeleton } from '../../ui/Misc';
@@ -21,6 +21,7 @@ const BREAKDOWN: Movement[] = ['improved', 'flat', 'worse', 'stale'];
  */
 export function MetricsPage() {
   const q = useMetrics();
+  const me = useMe();
   const navigate = useNavigate();
   const r = q.data;
 
@@ -29,12 +30,17 @@ export function MetricsPage() {
       <div className="page-head">
         <div>
           <div className="eyebrow">{r ? `${r.scope === 'company' ? 'Вся компания' : 'Цели вашей зоны'} · ${r.window_days} дней` : ' '}</div>
-          <h1 style={{ marginTop: 6 }}>Эффект</h1>
+          <h1 style={{ marginTop: 6 }}>KPI</h1>
           <p className="muted">Двигает ли работа показатели. Считается по замерам и истории задач, без ручных отчётов.</p>
         </div>
-        <Link to="/app/report" className="btn btn-secondary">
-          <FileText size={16} /> Отчёт для руководства
-        </Link>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <Link to="/app/report" className="btn btn-secondary">
+            <FileText size={16} /> Отчёт для руководства
+          </Link>
+          {me.data && isModuleOn(me.data.modules, 'sales') && (
+            <Link to="/app/sales" className="btn btn-secondary"><Wallet size={16} /> Продажи</Link>
+          )}
+        </div>
       </div>
 
       {q.isLoading && (

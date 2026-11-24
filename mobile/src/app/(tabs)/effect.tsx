@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronRight, FileText } from 'lucide-react-native';
+import { ChevronRight, FileText, Wallet } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import {
   MOVEMENT_LABELS,
@@ -16,26 +16,30 @@ import {
   type MetricsReport,
   type Movement,
 } from '@offix/core';
-import { effectRoute } from '../lib/logic';
-import { useMetrics } from '../lib/queries';
-import { font, usePalette } from '../lib/theme';
-import { MovementBar, Sparkline } from '../ui/effect';
-import { Hero } from '../ui/fx/Hero';
-import { Button, Card, Empty, Pill, Screen, SectionTitle, Text } from '../ui/primitives';
+import { effectRoute } from '../../lib/logic';
+import { useMetrics } from '../../lib/queries';
+import { font, usePalette } from '../../lib/theme';
+import { MovementBar, Sparkline } from '../../ui/effect';
+import { Hero } from '../../ui/fx/Hero';
+import { useModuleOn } from '../../ui/modules';
+import { Button, Card, Empty, Pill, Screen, SectionTitle, Text } from '../../ui/primitives';
 
 /** Эффект: двигает ли работа показатели. Та же картина, что на сайте, в одну колонку. */
 export default function Effect() {
   const q = useMetrics();
+  const sales = useModuleOn('sales');
   const r = q.data;
   return (
     <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
       <View style={{ gap: 6 }}>
+        <Text variant="h1">KPI</Text>
         <Text variant="eyebrow" tone="faint">
           {r ? `${r.scope === 'company' ? 'Вся компания' : 'Цели вашей зоны'} · ${r.window_days} дней` : ' '}
         </Text>
         <Text tone="muted">Двигает ли работа показатели. Считается по замерам и истории задач, без ручных отчётов.</Text>
       </View>
       <ReportLink />
+      {sales && <SalesLink />}
       {q.isError && (
         <Card>
           <Empty title="Не удалось посчитать метрики" text={(q.error as Error).message} action={<Button title="Повторить" variant="secondary" onPress={() => q.refetch()} />} />
@@ -55,6 +59,11 @@ export default function Effect() {
 function ReportLink() {
   const p = usePalette();
   return <Button title="Отчёт для руководства" variant="secondary" icon={<FileText size={18} color={p.ink} />} onPress={() => router.push('/report')} />;
+}
+
+function SalesLink() {
+  const p = usePalette();
+  return <Button title="Продажи" variant="secondary" icon={<Wallet size={18} color={p.ink} />} onPress={() => router.push('/sales')} />;
 }
 
 const ORDER: Movement[] = ['improved', 'flat', 'worse', 'stale'];

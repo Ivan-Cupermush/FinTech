@@ -1,4 +1,5 @@
 import { addDays, diffDays } from './dates';
+import { downstream } from './schedule';
 import type { TaskStatus } from './task';
 
 /**
@@ -45,6 +46,13 @@ export interface CapLink {
   broken: boolean;
   /** Обе стороны уже выполнены — капилляр спокойный. */
   done: boolean;
+}
+
+/** Связи на путях к выбранному узлу и от него, включая связь с самой целью. */
+export function capillaryFocus(links: readonly CapLink[], selected: string): ReadonlySet<CapLink> {
+  const incoming = new Set([selected, ...downstream(links.map(({ from, to }) => ({ from: to, to: from })), selected)]);
+  const outgoing = new Set([selected, ...downstream(links, selected)]);
+  return new Set(links.filter(({ from, to }) => (incoming.has(from) && incoming.has(to)) || (outgoing.has(from) && outgoing.has(to))));
 }
 
 export interface CapLayout {
