@@ -104,6 +104,7 @@ describe('база знаний с ИИ: документы', () => {
 
   it('документ цели видят только те, кто видит цель — и в списке, и в ответах, и по ссылке на файл', async () => {
     const goal = ctx.demo.goals.onboarding!;
+    const before = (await (await ctx.as('dima')).get(`${API}/status`)).body.data as KnowledgeStatus;
     const r = await upload(ctx, 'elena', Buffer.from('Наставник новичка проводит встречу-знакомство в первый день и ревизию пробного периода на тридцатый день.'), 'nastavnik.txt', {
       goal_id: goal,
       title: 'Наставничество',
@@ -112,6 +113,8 @@ describe('база знаний с ИИ: документы', () => {
     expect(r.body.data.goal_title).toBeTruthy();
     await ctx.knowledge.idle();
     const id = r.body.data.id as string;
+    const after = (await (await ctx.as('dima')).get(`${API}/status`)).body.data as KnowledgeStatus;
+    expect(after.chunks).toBe(before.chunks);
     expect((await (await ctx.as('dima')).get(`${API}/docs/${id}`)).status).toBe(404);
     expect((await (await ctx.as('dima')).get(`${API}/docs`)).body.data.some((d: KnowledgeDoc) => d.id === id)).toBe(false);
     expect((await (await ctx.as('dima')).get(`/api/v1/files/${r.body.data.file.id}`)).status).toBe(404);
