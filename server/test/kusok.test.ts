@@ -214,8 +214,11 @@ describe.runIf(BUILT)('kusok: вложения', () => {
     const a = await uploaded('anna', png, 'фото.png', 'image/png');
     expect(a.kind).toBe('photo');
     expect(isKusokKey(await keyOf(a))).toBe(true);
-    expect(a.thumb_url).toMatch(/^\/api\/v1\/files\/thumbs\/[0-9a-f]{32}\.jpg$/);
-    expect((await request(ctx.app).get(a.thumb_url!)).status).toBe(200);
+    expect(a.thumb_url).toBe(a.url + '&preview=1');
+    const preview = await request(ctx.app).get(a.thumb_url!);
+    expect(preview.status).toBe(200);
+    expect(preview.headers['content-type']).toContain('image/jpeg');
+    expect((await sharp(preview.body as Buffer).metadata()).format).toBe('jpeg');
     const jpg = await bytes(a.url);
     expect((await sharp(jpg.body as Buffer).metadata()).width).toBe(300);
     const { readdirSync } = await import('node:fs');
