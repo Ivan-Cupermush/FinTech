@@ -14,6 +14,7 @@ import {
   type GoalAccessView,
   type GoalStatus,
   type GoalType,
+  type ObservationSource,
   type OrgContext,
   type TaskStatus,
   type UnitId,
@@ -52,6 +53,7 @@ export interface MetricRow {
   is_primary: boolean;
   current_value: number | null;
   last_observed_at: string | null;
+  last_observed_source: ObservationSource | null;
 }
 
 export interface LoadedGoal {
@@ -139,10 +141,10 @@ export async function loadMetrics(q: Queryable, goalIds: string[]): Promise<Metr
   if (!goalIds.length) return [];
   const { rows } = await q.query<MetricRow>(
     `SELECT m.id, m.goal_id, m.name, m.unit, m.baseline, m.target_value, m.direction, m.range_min, m.range_max, m.is_primary,
-            o.value AS current_value, o.observed_at AS last_observed_at
+            o.value AS current_value, o.observed_at AS last_observed_at, o.source AS last_observed_source
        FROM goal_metrics m
        LEFT JOIN LATERAL (
-         SELECT value, observed_at FROM goal_metric_observations WHERE metric_id = m.id ORDER BY observed_at DESC, created_at DESC LIMIT 1
+         SELECT value, observed_at, source FROM goal_metric_observations WHERE metric_id = m.id ORDER BY observed_at DESC, created_at DESC LIMIT 1
        ) o ON TRUE
       WHERE m.goal_id = ANY($1::uuid[])
       ORDER BY m.is_primary DESC, m.created_at`,
@@ -181,6 +183,7 @@ export function serializeMetric(m: MetricRow) {
     is_primary: m.is_primary,
     current_value: m.current_value,
     last_observed_at: m.last_observed_at,
+    last_observed_source: m.last_observed_source,
     planned_change: plannedChange(m.baseline, m.target_value),
     progress: p,
   };

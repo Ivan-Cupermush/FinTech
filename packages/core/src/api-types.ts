@@ -1,6 +1,6 @@
 import type { Attachment } from './media';
 import type { CompanyRole } from './access';
-import type { Direction, KpiProgress } from './kpi';
+import type { Direction, KpiProgress, ObservationSource } from './kpi';
 import type { GoalStatus, GoalType } from './goal';
 import type { Risk } from './risk';
 import type { BlockerReason, TaskStatus } from './task';
@@ -30,6 +30,8 @@ export interface Metric {
   is_primary: boolean;
   current_value: number | null;
   last_observed_at: string | null;
+  /** Отсутствует в старых ответах API. */
+  last_observed_source?: ObservationSource | null;
   planned_change: number | null;
   progress: KpiProgress;
   /** Последние замеры по порядку, для спарклайна (Пульс и список целей). */
