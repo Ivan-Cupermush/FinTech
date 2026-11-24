@@ -4,7 +4,7 @@
 
 | Критерий | Что уже можно показать | Чего ждём для сдачи |
 |---|---|---|
-| Работа MVP | [Стенд sprint2](http://sprint2.147-45-43-34.sslip.io/login), `f1b8477` с назначением встреч. [Прогон руководителя и методиста](https://github.com/Ivan-Cupermush/FinTech/tree/1938eeb/docs/sprint2-baseline) показывает путь к риску | Двухминутный показ одного и того же релизного SHA, сквозной прогон вторым участником команды |
+| Работа MVP | [Стенд sprint2](http://sprint2.147-45-43-34.sslip.io/login), `f1b8477` с назначением встреч. [Прогон руководителя и методиста](https://github.com/Ivan-Cupermush/FinTech/tree/1938eeb/docs/sprint2-baseline) показывает путь к риску | [Репетиционная видеозапись](rehearsal.md) готова. Для сдачи повторить на релизном SHA со вторым участником команды |
 | Техника и автоматизация | [PR #26](https://github.com/Ivan-Cupermush/FinTech/pull/26), `f3b8b82`, контрольный импорт, источник замера, сверка с графиком и отчётом | Повтор на релизном SHA, запись результата и проверка повторной загрузки |
 | Защита и данные | [PR #21](https://github.com/Ivan-Cupermush/FinTech/pull/21), [PR #22](https://github.com/Ivan-Cupermush/FinTech/pull/22), [PR #23](https://github.com/Ivan-Cupermush/FinTech/pull/23). В [PR #25](https://github.com/Ivan-Cupermush/FinTech/pull/25) тесты изоляции совещаний и проверки ролей | Схема потоков, приёмка на релизном SHA, проверенное восстановление, правовой и эксплуатационный контур пилота |
 | Экономика | Модель измерения и формулы согласуются с [планом спринта](https://github.com/Ivan-Cupermush/FinTech/blob/codex/team-sync/docs/SPRINT2-PLAN.md) | Источники объёма заявок, затрат времени и стоимости часа. Три сценария, срок окупаемости и чувствительность |
