@@ -496,7 +496,7 @@ export interface AttachmentRow {
 
 export const ATT_COLS = `a.id, a.company_id, a.uploaded_by, a.owner_type, a.owner_id, a.position, a.kind, a.name, a.mime, a.size, a.storage_key, a.thumb_key, a.width, a.height, a.duration, a.waveform, a.created_at`;
 
-/** Вложение для ответа API: ссылка на оригинал подписана для этого человека. */
+/** Вложение для ответа API: оригинал и превью подписаны для этого человека. */
 export function serializeAttachment(store: MediaStore, row: AttachmentRow, viewerId: string, nowMs: number): Attachment {
   return {
     id: row.id,
@@ -509,7 +509,7 @@ export function serializeAttachment(store: MediaStore, row: AttachmentRow, viewe
     duration: row.duration === null ? null : round2(Number(row.duration)),
     waveform: row.waveform,
     url: store.sign(row.id, viewerId, nowMs),
-    thumb_url: row.thumb_key ? `/api/v1/files/${row.thumb_key}` : null,
+    thumb_url: row.thumb_key ? `${store.sign(row.id, viewerId, nowMs)}&preview=1` : null,
     uploaded_by: row.uploaded_by,
     created_at: row.created_at,
   };

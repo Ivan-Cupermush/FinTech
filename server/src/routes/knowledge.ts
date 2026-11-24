@@ -200,7 +200,14 @@ export function knowledgeRouter(db: Db, media: MediaCtx, kb: KnowledgeService, o
         [actor.company_id, goalIds],
       ),
       db.query<{ n: number | string }>(`SELECT count(*) AS n FROM notes WHERE company_id = $1 AND (goal_id IS NULL OR goal_id = ANY($2::uuid[]))`, [actor.company_id, goalIds]),
-      db.query<{ n: number | string }>(`SELECT count(*) AS n FROM knowledge_chunks WHERE company_id = $1`, [actor.company_id]),
+      db.query<{ n: number | string }>(
+        `SELECT count(*) AS n FROM knowledge_chunks c
+           LEFT JOIN notes n ON n.id = c.note_id
+           LEFT JOIN knowledge_docs d ON d.id = c.doc_id
+          WHERE c.company_id = $1 AND (c.note_id IS NOT NULL OR d.status = 'ready')
+            AND (COALESCE(n.goal_id, d.goal_id) IS NULL OR COALESCE(n.goal_id, d.goal_id) = ANY($2::uuid[]))`,
+        [actor.company_id, goalIds],
+      ),
     ]);
     const count = (s: string[]) => docs.rows.filter((x) => s.includes(x.status)).reduce((a, x) => a + Number(x.n), 0);
     const p = kb.provider;

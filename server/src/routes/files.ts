@@ -95,7 +95,7 @@ export function sendBlob(req: Request, res: Response, blob: NonNullable<ReturnTy
   const etag = `"${blob.id}"`;
   res.setHeader('Content-Type', type);
   // no-transform: сжатие (compression) не трогает ответ, иначе куски по Range не сойдутся с размером.
-  res.setHeader('Cache-Control', 'private, max-age=600, no-transform');
+  res.setHeader('Cache-Control', 'private, no-cache, no-transform');
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('ETag', etag);
   if (req.headers['if-none-match'] === etag) {
@@ -129,15 +129,15 @@ export function sendBlob(req: Request, res: Response, blob: NonNullable<ReturnTy
 
 /**
  * Отдача файлов без заголовка Authorization — `<img>` и `<video>` его не
- * шлют. Превью и аватары — по случайному имени; оригиналы — по подписанной
- * ссылке на 10–20 минут, пока человек активен. Отдаём с запретом исполнять
+ * шлют. Аватары — по случайному имени; оригиналы и превью — по подписанной
+ * ссылке на 10–20 минут с проверкой текущего доступа. Отдаём с запретом исполнять
  * что-либо (CSP sandbox, nosniff): даже если внутри окажется страница,
  * браузер её не запустит.
  */
 export function filesPublicRouter(db: Db, store: MediaStore, now: () => Date): Router {
   const r = Router();
 
-  const sendPublic = (dir: 'thumbs' | 'avatars') => async (req: Request<{ name: string }>, res: import('express').Response) => {
+  const sendPublic = (dir: 'avatars') => async (req: Request<{ name: string }>, res: import('express').Response) => {
     const name = String(req.params.name);
     const p = SAFE_NAME.test(name) ? store.pathOf(`${dir}/${name}`) : null;
     if (!p || !existsSync(p)) throw notFound('Файл не найден');
@@ -145,29 +145,39 @@ export function filesPublicRouter(db: Db, store: MediaStore, now: () => Date): R
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.sendFile(p, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=31536000, immutable' }, dotfiles: 'deny' });
   };
-  r.get('/thumbs/:name', sendPublic('thumbs'));
+  // Старые URL превью всегда закрыты, даже когда пользователь авторизован.
+  r.get('/thumbs/:name', () => { throw notFound('Файл не найден'); });
   r.get('/avatars/:name', sendPublic('avatars'));
 
   r.get('/:id/raw', async (req, res) => {
     const id = idParam(req.params.id);
     const { e, u, s } = req.query;
     if (!store.verify(id, e, u, s, now().getTime())) throw new ApiError('FORBIDDEN', 'Ссылка на файл устарела — откройте файл ещё раз');
-    const { rows } = await db.query<AttachmentRow & { active: boolean }>(
-      `SELECT ${ATT_COLS}, usr.active FROM attachments a JOIN company_members cm ON cm.company_id = a.company_id AND cm.user_id = $2 JOIN users usr ON usr.id = cm.user_id WHERE a.id = $1`,
+    const { rows } = await db.query<AttachmentRow & { active: boolean; viewer_role: AuthedActor['role']; viewer_name: string }>(
+      `SELECT ${ATT_COLS}, usr.active, cm.role AS viewer_role, usr.display_name AS viewer_name
+         FROM attachments a JOIN company_members cm ON cm.company_id = a.company_id AND cm.user_id = $2
+         JOIN users usr ON usr.id = cm.user_id WHERE a.id = $1`,
       [id, u],
     );
     const a = rows[0];
     if (!a || !a.active) throw notFound('Файл не найден');
-    const blob = store.openBlob(a.storage_key);
-    const p = blob ? null : store.pathOf(a.storage_key);
+    // Подпись разрешает использовать URL, а доступ к документу мог измениться после выдачи.
+    const viewer: AuthedActor = { id: u as string, company_id: a.company_id, role: a.viewer_role, display_name: a.viewer_name };
+    if (!(await canViewAttachment(db, viewer, a))) throw notFound('Файл не найден');
+    const preview = req.query.preview === '1';
+    const key = preview ? a.thumb_key : a.storage_key;
+    if (!key) throw notFound('Файл не найден');
+    const blob = store.openBlob(key);
+    const p = blob ? null : store.pathOf(key);
     if (!blob && (!p || !existsSync(p))) throw notFound('Файл не найден');
-    const inline = inlineMime(a.mime) && req.query.download !== '1';
-    const type = inline ? a.mime : 'application/octet-stream';
+    const mime = preview ? 'image/jpeg' : a.mime;
+    const inline = inlineMime(mime) && req.query.download !== '1';
+    const type = inline ? mime : 'application/octet-stream';
     res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Content-Disposition', contentDisposition(inline ? 'inline' : 'attachment', a.name));
     if (!blob) {
-      res.sendFile(p!, { headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=600, no-transform' }, dotfiles: 'deny', acceptRanges: true });
+      res.sendFile(p!, { headers: { 'Content-Type': type, 'Cache-Control': 'private, no-cache, no-transform' }, dotfiles: 'deny', acceptRanges: true });
       return;
     }
     sendBlob(req, res, blob, type);

@@ -76,7 +76,7 @@ describe('загрузка файлов', () => {
   it('фото: размеры, превью и подписанная ссылка', async () => {
     const a = await uploaded('anna', await png(640, 480), 'снимок.png', 'image/png');
     expect(a).toMatchObject({ kind: 'photo', width: 640, height: 480, uploaded_by: id('anna') });
-    expect(a.thumb_url).toMatch(/^\/api\/v1\/files\/thumbs\/[0-9a-f]{32}\.jpg$/);
+    expect(a.thumb_url).toBe(a.url + '&preview=1');
     expect(a.url).toMatch(new RegExp(`^/api/v1/files/${a.id}/raw\\?e=\\d+&u=${id('anna')}&s=`));
     const thumb = await raw(a.thumb_url!);
     expect(thumb.status).toBe(200);
@@ -174,6 +174,31 @@ describe('загрузка файлов', () => {
 });
 
 describe('подписанные ссылки', () => {
+  it('после исключения из чата прежняя подписанная ссылка и Range-запрос закрыты', async () => {
+    const created = await (await ctx.as('anna')).post(`${API}/chats`, { name: 'Проверка доступа', member_ids: [id('igor')] });
+    expect(created.status).toBe(201);
+    const chat = created.body.data.id as string;
+    const file = await uploaded('anna', await png(), 'private.png', 'image/png');
+    await send('anna', chat, { attachment_ids: [file.id] });
+    const visible = await (await ctx.as('igor')).get(`${API}/files/${file.id}`);
+    const url = visible.body.data.url as string;
+    const thumbnail = visible.body.data.thumb_url as string;
+    expect((await raw(thumbnail)).status).toBe(200);
+    const legacy = (await ctx.db.query<{ thumb_key: string }>('SELECT thumb_key FROM attachments WHERE id = $1', [file.id])).rows[0]!.thumb_key;
+    expect((await raw(`${API}/files/${legacy}`)).status).toBe(404);
+    const original = await raw(url);
+    expect(original.status).toBe(200);
+    expect(original.headers['cache-control']).toBe('private, no-cache, no-transform');
+    const removed = await (await ctx.as('anna')).delete(`${API}/chats/${chat}/members/${id('igor')}`);
+    expect(removed.status).toBe(204);
+    expect((await (await ctx.as('igor')).get(`${API}/files/${file.id}`)).status).toBe(404);
+    expect((await raw(url)).status).toBe(404);
+    expect((await raw(thumbnail)).status).toBe(404);
+    expect((await request(ctx.app).get(url).set('Range', 'bytes=0-20')).status).toBe(404);
+    expect((await request(ctx.app).head(url)).status).toBe(404);
+    expect((await request(ctx.app).get(url).set('If-None-Match', original.headers.etag ?? '"old"')).status).toBe(404);
+  });
+
   let a: Attachment;
   beforeAll(async () => {
     a = await uploaded('anna', reportPdf(), 'plan.pdf', 'application/pdf');
@@ -296,9 +321,11 @@ describe('медиа в чате', () => {
     const m = await sent('anna', chat, { attachment_ids: [a.id] });
     expect((await (await ctx.as('maria')).get(`${API}/files/${a.id}`)).status).toBe(404);
     expect((await (await ctx.as('igor')).get(`${API}/files/${a.id}`)).status).toBe(200);
+    const previousUrl = (await (await ctx.as('igor')).get(`${API}/files/${a.id}`)).body.data.url as string;
     // Удалил «у себя» — сам больше не видит, остальные видят.
     await (await ctx.as('igor')).delete(`${API}/messages/${m.id}`);
     expect((await (await ctx.as('igor')).get(`${API}/files/${a.id}`)).status).toBe(404);
+    expect((await raw(previousUrl)).status).toBe(404);
     expect((await (await ctx.as('olga')).get(`${API}/files/${a.id}`)).status).toBe(200);
     const { storage_key } = await diskOf(a);
     expect((await (await ctx.as('anna')).delete(`${API}/messages/${m.id}?for=all`)).status).toBe(204);
