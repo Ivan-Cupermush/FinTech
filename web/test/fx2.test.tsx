@@ -213,7 +213,19 @@ describe('капиллярная карта цели', () => {
     mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap({ tasks: [], edges: [], critical_path: [], direct_task_ids: [], subgoals: [] }) });
     renderApp('/app/goals/g1');
     await screen.findByRole('tab', { name: 'Карта' });
+    expect(screen.getByText('Плана пока нет')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Капиллярная карта цели' })).toBeNull();
+  });
+
+  it('у задачи и цели без дат подписи карты показывают отсутствие срока', async () => {
+    const r = roadmap();
+    r.goal.due_at = null;
+    r.tasks = [task('t1', { title: 'Проверить заявку', start_at: null, due_at: null })];
+    mockApi({ ...base, 'GET /goals/g1/roadmap': r });
+    renderApp('/app/goals/g1');
+    const map = within(await screen.findByRole('region', { name: 'Капиллярная карта цели' }));
+    expect(map.getByRole('button', { name: /Задача «Проверить заявку».*без срока/ })).toBeInTheDocument();
+    expect(map.getByRole('button', { name: /Цель «.*без срока/ })).toBeInTheDocument();
   });
 
   it('карточка цели на Пульсе — Risk Radar с одометром', async () => {

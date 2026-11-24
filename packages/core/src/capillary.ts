@@ -34,6 +34,8 @@ export interface CapNode {
   critical: boolean;
   /** Дата, по которой узел стоит на шкале (YYYY-MM-DD). */
   date: string;
+  /** Фактическая дата для подписи. Условная позиция на шкале сюда не попадает. */
+  labelDate: string | null;
   /** Доля пройденных контрольных точек, 0…100; null — точек нет. */
   progress: number | null;
 }
@@ -161,12 +163,14 @@ export function layoutCapillary(input: CapInput): CapLayout {
 
   // Дата узла: выполненная — когда сделали, остальные — срок, потом начало.
   // Без дат — сразу после самой поздней из предшествующих (или сегодня).
+  const labelDate = (t: CapTaskInput) =>
+    (t.status === 'done' && t.done_at ? t.done_at.slice(0, 10) : null) ?? t.due_at ?? t.start_at;
   const dates = new Map<string, string>();
   const dateOf = (id: string, seen = new Set<string>()): string => {
     const known = dates.get(id);
     if (known) return known;
     const t = byId.get(id)!;
-    let d = (t.status === 'done' && t.done_at ? t.done_at.slice(0, 10) : null) ?? t.due_at ?? t.start_at;
+    let d = labelDate(t);
     if (!d) {
       seen.add(id);
       const before = (preds.get(id) ?? []).filter((p) => !seen.has(p)).map((p) => dateOf(p, seen));
@@ -231,6 +235,7 @@ export function layoutCapillary(input: CapInput): CapLayout {
       state: capNodeState(t, input.today),
       critical: critical.has(t.id),
       date: dates.get(t.id)!,
+      labelDate: labelDate(t),
       progress: t.status === 'done' ? 100 : cps.length ? Math.round((cps.filter((c) => c.status === 'done').length / cps.length) * 100) : null,
     };
   });
@@ -246,6 +251,7 @@ export function layoutCapillary(input: CapInput): CapLayout {
     state: nodes.length && nodes.every((n) => n.state === 'done') ? 'done' : anyLate ? 'overdue' : 'planned',
     critical: critical.size > 0,
     date: goalDate,
+    labelDate: input.goal.due_at,
     progress: nodes.length ? Math.round((nodes.filter((n) => n.state === 'done').length / nodes.length) * 100) : null,
   });
 

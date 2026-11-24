@@ -142,7 +142,8 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
           {layout.nodes.map((n) => {
             const p = at.get(n.id)!;
             const goalNode = n.kind === 'goal';
-            const meta = goalNode ? (goal.due_at ? `цель · ${formatDate(goal.due_at, { short: true })}` : 'цель') : `${STATE_LABEL[n.state]} · ${formatDate(n.date, { short: true })}`;
+            const dateLabel = n.labelDate ? formatDate(n.labelDate, { short: true }) : 'без срока';
+            const meta = `${goalNode ? 'цель' : STATE_LABEL[n.state]} · ${dateLabel}`;
             return (
               <button
                 key={n.id}

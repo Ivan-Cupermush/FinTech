@@ -126,7 +126,8 @@ export function CapillaryMap({ roadmap }: { roadmap: Roadmap }) {
             const key = isGoal ? goalTone : late ? (n.critical ? 'critical' : 'late') : n.state;
             const [c1, c2, halo] = ORB_COLORS[key]!;
             const size = isGoal ? 50 : ORB;
-            const meta = isGoal ? (goal.due_at ? `цель · ${formatDate(goal.due_at, { short: true })}` : 'цель') : `${STATE[n.state]} · ${formatDate(n.date, { short: true })}`;
+            const dateLabel = n.labelDate ? formatDate(n.labelDate, { short: true }) : 'без срока';
+            const meta = `${isGoal ? 'цель' : STATE[n.state]} · ${dateLabel}`;
             return (
               <View key={n.id} style={{ position: 'absolute', left: p.x, top: p.y }}>
                 {!reduce && ((late && n.critical) || (isGoal && goalTone === 'critical')) && <Ring size={size + 16} loop color="rgba(255,90,120,0.7)" />}
