@@ -49,7 +49,9 @@ export function ImportDialog({ goalId, metrics, onClose }: { goalId: string; met
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [readingFile, setReadingFile] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fileReadVersion = useRef(0);
   const invalidate = useInvalidateWork();
   const toast = useToast();
 
@@ -78,12 +80,23 @@ export function ImportDialog({ goalId, metrics, onClose }: { goalId: string; met
   };
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    setFileName(file.name);
-    onText(await readTextFile(file));
+    const version = ++fileReadVersion.current;
+    setReadingFile(true);
+    setError(null);
+    try {
+      const content = await readTextFile(file);
+      if (version !== fileReadVersion.current) return;
+      setFileName(file.name);
+      onText(content);
+    } catch {
+      if (version === fileReadVersion.current) setError('Не удалось прочитать CSV-файл. Выберите его ещё раз.');
+    } finally {
+      if (version === fileReadVersion.current) setReadingFile(false);
+    }
   };
 
   const submit = async () => {
-    if (!plan || plan.counts.ok === 0) return;
+    if (readingFile || !plan || plan.counts.ok === 0) return;
     setSaving(true);
     setError(null);
     try {
@@ -118,7 +131,7 @@ export function ImportDialog({ goalId, metrics, onClose }: { goalId: string; met
           <Button variant="ghost" icon={<Download size={14} />} onClick={() => downloadTemplate(unit.short)} style={{ marginRight: 'auto' }}>
             Скачать шаблон
           </Button>
-          <Button variant="primary" loading={saving} disabled={!plan || plan.counts.ok === 0} onClick={submit}>
+          <Button variant="primary" loading={saving} disabled={readingFile || !plan || plan.counts.ok === 0} onClick={submit}>
             {plan && plan.counts.ok > 0 ? `Добавить ${plan.counts.ok} ${plural(plan.counts.ok, OBS_FORMS)}` : 'Добавить замеры'}
           </Button>
         </>
@@ -150,6 +163,8 @@ export function ImportDialog({ goalId, metrics, onClose }: { goalId: string; met
             placeholder={'Дата\tЗначение\n01.10.2026\t40\n08.10.2026\t38,5'}
             value={text}
             onChange={(e) => {
+              fileReadVersion.current++;
+              setReadingFile(false);
               setFileName(null);
               onText(e.target.value);
             }}
