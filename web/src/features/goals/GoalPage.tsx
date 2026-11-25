@@ -6,7 +6,7 @@ import { gradientForKpi, type GradientVariant } from '../../ui/fx/gradients';
 import { Odometer } from '../../ui/fx/Odometer';
 import { RiskBadge } from '../../ui/fx/RiskCard';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { formatDate, formatNumber, GOAL_TYPE_LABELS, KPI_STATE_LABELS, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type Risk, type RiskTone } from '@offix/core';
+import { formatDate, formatNumber, GOAL_TYPE_LABELS, KPI_STATE_LABELS, observationDay, OBSERVATION_SOURCE_LABELS, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type Risk, type RiskTone } from '@offix/core';
 import { api, ApiError } from '../../lib/api';
 import { useInvalidateWork, useMe, useRoadmap } from '../../lib/queries';
 import type { GoalCard, Roadmap } from '../../lib/types';
@@ -137,7 +137,13 @@ export function GoalPage() {
                 <KpiTrack baseline={primary.baseline} target={primary.target} current={primary.current_value} unit={primary.unit} progress={primary.progress} name={primary.name} size="lg" />
                 <div className="spread" style={{ fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
                   <span className="faint">
-                    {primary.last_observed_at ? `Замер ${formatDate(primary.last_observed_at.slice(0, 10), { today: r.timeline.today })} · ${KPI_STATE_LABELS[primary.progress.state]}` : 'Фактических замеров ещё не было'}
+                    {primary.last_observed_at ? (
+                      <>
+                        Замер {formatDate(observationDay(primary.last_observed_at), { today: r.timeline.today })}
+                        {primary.last_observed_source && ` · ${OBSERVATION_SOURCE_LABELS[primary.last_observed_source]}`}
+                        {' · '}{KPI_STATE_LABELS[primary.progress.state]}
+                      </>
+                    ) : 'Фактических замеров ещё не было'}
                   </span>
                   {g.permissions.record && g.status !== 'draft' && (
                     <span className="row wrap" style={{ gap: 6 }}>

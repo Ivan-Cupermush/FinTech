@@ -1,4 +1,4 @@
-import { checkUnitRange, type UnitId } from './units';
+import { checkUnitRange, UNITS, type UnitId } from './units';
 
 /**
  * Импорт замеров KPI из таблиц: вставка из Excel или Google Таблиц, CSV.
@@ -302,6 +302,10 @@ export function planImport(table: Pick<ParsedTable, 'rows' | 'lines'>, dateCol: 
     if (!date) return void (row.reason = `Не похоже на дату: «${rawDate}»`);
     if (!rawValue) return void (row.reason = 'Нет значения');
     if (value === null) return void (row.reason = `Не число: «${rawValue}»`);
+    if (rawValue.endsWith('%') && opts.unit !== 'percent') {
+      row.reason = `Проценты не подходят для показателя в единицах «${UNITS[opts.unit].short}»`;
+      return;
+    }
     // Дата без времени за сегодня — замер «сейчас», а не в будущий полдень.
     const at = !date.timeGiven && date.day === today && Date.parse(date.at) > nowMs ? opts.now.toISOString() : date.at;
     Object.assign(row, { day: date.day, at, value });

@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, View } from 'react-native';
-import { BLOCKER_LABELS, checkUnitRange, formatDate, formatDuration, formatNumber, GOAL_STATUS_LABELS, KPI_STATE_LABELS, parseNumber, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type BlockerReason, type Metric, type Risk } from '@offix/core';
+import { BLOCKER_LABELS, checkUnitRange, formatDate, formatDuration, formatNumber, GOAL_STATUS_LABELS, KPI_STATE_LABELS, observationDay, OBSERVATION_SOURCE_LABELS, parseNumber, RISK_GRADE, RISK_TONE_LABELS, riskLevelOf, riskTone, UNITS, type BlockerReason, type Metric, type Risk } from '@offix/core';
 import { dueText } from '../../lib/logic';
 import { useInvalidateWork, useRoadmap } from '../../lib/queries';
 import { api } from '../../lib/session';
@@ -133,7 +133,13 @@ export default function GoalScreen() {
                   <KpiTrack baseline={m.baseline} target={m.target} current={m.current_value} unit={m.unit} progress={m.progress} size="lg" />
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <Text variant="caption" tone="faint" style={{ flex: 1 }}>
-                      {m.last_observed_at ? `Замер ${formatDate(m.last_observed_at.slice(0, 10), { today })} · ${KPI_STATE_LABELS[m.progress.state]}` : 'Замеров ещё не было'}
+                      {m.last_observed_at ? (
+                        <>
+                          Замер {formatDate(observationDay(m.last_observed_at), { today })}
+                          {m.last_observed_source && ` · ${OBSERVATION_SOURCE_LABELS[m.last_observed_source]}`}
+                          {' · '}{KPI_STATE_LABELS[m.progress.state]}
+                        </>
+                      ) : 'Замеров ещё не было'}
                     </Text>
                     {g.permissions.record && g.status !== 'draft' && <Button title="Внести" variant="accent" onPress={() => setObserve(m)} style={{ minHeight: 38 }} />}
                   </View>

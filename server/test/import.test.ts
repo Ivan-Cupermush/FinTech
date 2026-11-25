@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { setup, validGoal, type Ctx } from './helpers';
+import { observationDay, parseTable, planImport } from '@offix/core';
+import { NOW, setup, validGoal, type Ctx } from './helpers';
 
 let ctx: Ctx;
 beforeAll(async () => {
@@ -153,5 +155,50 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     const after = (await director.get('/api/v1/metrics')).body.data;
     expect(after.freshness.stale.map((s: { id: string }) => s.id)).not.toContain(ctx.demo.goals.onboarding);
     expect(after.freshness.fresh).toBe(before.freshness.fresh + 1);
+  });
+
+  it('решение по задержке и контрольный импорт согласованы в карточке, тренде и отчёте', async () => {
+    const director = await ctx.as('director');
+    const goalId = ctx.demo.goals.main;
+    const goalPath = `/api/v1/goals/${goalId}`;
+    const roadmap = (await director.get(`${goalPath}/roadmap`)).body.data;
+    const proposal = roadmap.risks.find((risk: { kind: string }) => risk.kind === 'dependency_delay').proposals[0];
+    expect(proposal).toBeDefined();
+    const change = { task_id: proposal.task_id, start_at: proposal.to_start, due_at: proposal.to_due };
+    expect((await director.post(`${goalPath}/reschedule`, { changes: [change] })).status).toBe(200);
+    const updated = (await director.get(`${goalPath}/roadmap`)).body.data;
+    expect(updated.tasks.find((task: { id: string }) => task.id === change.task_id)).toMatchObject({ due_at: change.due_at });
+
+    const metric = updated.goal.metrics[0];
+    expect(metric).toMatchObject({ current_value: 36.5, last_observed_source: 'manual' });
+    const observations = `${goalPath}/metrics/${metric.id}/observations`;
+    const before = (await director.get(observations)).body.data as { observed_at: string }[];
+    const control = readFileSync(new URL('../../docs/sprint2/kpi-import-control.csv', import.meta.url), 'utf8');
+    const table = parseTable(control);
+    const preview = (history: { observed_at: string }[]) => planImport(table, table.dateCol!, table.valueCol!, {
+      unit: 'minutes', now: NOW, existingDays: history.map((item) => observationDay(item.observed_at)),
+    });
+    const first = preview(before);
+    expect(first.counts).toEqual({ ok: 1, duplicate: 1, error: 1 });
+    expect(first.rows[1]).toMatchObject({ line: 3, status: 'error', reason: expect.stringContaining('Проценты не подходят') });
+    expect(first.latest?.value).toBe(34);
+
+    const imported = await director.post(`${observations}/import`, { rows: first.observations });
+    expect(imported.status).toBe(201);
+    expect(imported.body.data.metric).toMatchObject({ current_value: 34, last_observed_source: 'import', last_observed_at: first.latest?.at });
+    const card = (await director.get(goalPath)).body.data;
+    expect(card.metrics[0]).toMatchObject({ current_value: 34, last_observed_source: 'import', progress: { raw: 60 } });
+    const list = (await director.get('/api/v1/goals?scope=top')).body.data;
+    const summary = list.find((goal: { id: string }) => goal.id === goalId);
+    expect(summary.primary_metric.trend.at(-1)).toBe(34);
+    const report = (await director.get('/api/v1/report?days=30')).body.data;
+    expect(report.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({ current: 34, progress: 60 });
+
+    const history = (await director.get(observations)).body.data;
+    expect(history).toHaveLength(before.length + 1);
+    expect(preview(history).counts).toEqual({ ok: 0, duplicate: 2, error: 1 });
+    const repeat = await director.post(`${observations}/import`, { rows: first.observations });
+    expect(repeat.body.data).toMatchObject({ imported: 0, skipped: 1, metric: { current_value: 34 } });
+    expect((await director.get(observations)).body.data).toHaveLength(history.length);
   });
 });

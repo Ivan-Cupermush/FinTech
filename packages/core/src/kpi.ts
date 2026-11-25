@@ -9,6 +9,14 @@ export const DIRECTION_LABELS: Record<Direction, string> = {
   maintain: 'Удерживать в диапазоне',
 };
 
+export type ObservationSource = 'manual' | 'import' | 'integration';
+
+export const OBSERVATION_SOURCE_LABELS: Record<ObservationSource, string> = {
+  manual: 'Вручную',
+  import: 'Из таблицы',
+  integration: 'Из интеграции',
+};
+
 export interface MetricInput {
   name: string;
   unit: UnitId;
