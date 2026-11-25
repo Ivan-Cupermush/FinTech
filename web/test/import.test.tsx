@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readTextFile } from '../src/features/goals/ImportDialog';
@@ -65,6 +65,41 @@ describe('импорт замеров из таблицы', () => {
     mockApi({ ...base, 'GET /goals/g1/metrics/m1/observations': EXISTING });
     const dialog = await openImport();
     await paste(dialog, '18.10.2026;34');
+    expect(await within(dialog).findByText(/Текущее значение станет 34 мин/)).toBeInTheDocument();
+  });
+
+  it('медленное чтение CSV не перезаписывает данные, вставленные позже', async () => {
+    mockApi({ ...base, 'GET /goals/g1/metrics/m1/observations': [] });
+    const dialog = await openImport();
+    await paste(dialog, '18.10.2026;36');
+    const file = new File(['18.10.2026;40'], 'slow.csv', { type: 'text/csv' });
+    let finishRead!: (value: ArrayBuffer) => void;
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: () => new Promise<ArrayBuffer>((resolve) => { finishRead = resolve; }),
+    });
+    await userEvent.upload(within(dialog).getByLabelText('CSV-файл с замерами'), file);
+    expect(within(dialog).getByRole('button', { name: 'Добавить 1 замер' })).toBeDisabled();
+    const textarea = within(dialog).getByLabelText('Вставьте ячейки из Excel или Google Таблиц');
+    await userEvent.clear(textarea);
+    await paste(dialog, '18.10.2026;34');
+    await act(async () => { finishRead(new TextEncoder().encode('18.10.2026;40').buffer); });
+    expect(textarea).toHaveValue('18.10.2026;34');
+    expect(within(dialog).getByRole('button', { name: 'Добавить 1 замер' })).toBeEnabled();
+  });
+
+  it('показывает ошибку чтения CSV и позволяет выбрать файл повторно', async () => {
+    mockApi({ ...base, 'GET /goals/g1/metrics/m1/observations': [] });
+    const dialog = await openImport();
+    const input = within(dialog).getByLabelText('CSV-файл с замерами');
+    const file = new File(['18.10.2026;34'], 'measure.csv', { type: 'text/csv' });
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: vi.fn()
+        .mockRejectedValueOnce(new Error('read failed'))
+        .mockResolvedValue(new TextEncoder().encode('18.10.2026;34').buffer),
+    });
+    await userEvent.upload(input, file);
+    expect(await within(dialog).findByText(/Не удалось прочитать CSV-файл/)).toBeInTheDocument();
+    await userEvent.upload(input, file);
     expect(await within(dialog).findByText(/Текущее значение станет 34 мин/)).toBeInTheDocument();
   });
 

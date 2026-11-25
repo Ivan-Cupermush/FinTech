@@ -65,6 +65,8 @@ NODE_ENV=production npm start -w server   # сайт и API на одном по
 
 ## Проверки
 
+Материалы второго спринта и ссылки на сценарии проверки собраны в [разборе Q&A](docs/sprint2/QA-360.md).
+
 ```bash
 npm run typecheck && npm test          # ядро, сервер, сайт
 npm run mobile:typecheck && npm run mobile:test
