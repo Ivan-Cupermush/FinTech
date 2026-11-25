@@ -65,6 +65,11 @@ describe('parseLooseDate', () => {
     expect(parseLooseDate('2026-10-19T10:30:00Z')).toEqual({ day: '2026-10-19', at: '2026-10-19T10:30:00.000Z', timeGiven: true });
     expect(parseLooseDate('2026-10-19T10:30:00.123Z')?.at).toBe('2026-10-19T10:30:00.000Z');
     expect(parseLooseDate('2026-10-19T10:30:00+05:00')?.at).toBe('2026-10-19T05:30:00.000Z');
+    expect(parseLooseDate('2026-10-19T10:30:00-0330')?.at).toBe('2026-10-19T14:00:00.000Z');
+  });
+
+  it.each(['+24:00', '-00:60', '+9959'])('отклоняет недопустимое смещение %s', (zone) => {
+    expect(parseLooseDate(`2026-10-19T10:30:00${zone}`)).toBeNull();
   });
 
   it('день считается по Москве: поздний вечер по UTC — уже следующий день', () => {

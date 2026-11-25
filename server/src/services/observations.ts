@@ -6,6 +6,18 @@ import { notify } from './notify';
 
 type MetricRow = Awaited<ReturnType<typeof loadMetrics>>[number];
 
+/** Date.parse принимает некоторые невозможные даты, перенося их на следующий месяц. */
+export function parseObservationTimestamp(raw: string): number {
+  const timestamp = Date.parse(raw);
+  if (!Number.isFinite(timestamp)) return NaN;
+  const calendarDate = /^(\d{4}-\d{2}-\d{2})(?!\d)/.exec(raw.trim())?.[1];
+  if (calendarDate) {
+    const midnight = new Date(`${calendarDate}T00:00:00.000Z`);
+    if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== calendarDate) return NaN;
+  }
+  return timestamp;
+}
+
 /** Общая блокировка для ручных замеров, импорта и синхронизации. */
 export async function lockObservationMetric(q: Queryable, goalId: string, metricId: string): Promise<boolean> {
   const { rows } = await q.query(`SELECT id FROM goal_metrics WHERE goal_id = $1 AND id = $2 FOR UPDATE`, [goalId, metricId]);

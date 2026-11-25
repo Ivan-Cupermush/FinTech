@@ -108,6 +108,7 @@ export function parseLooseDate(raw: string | null | undefined): LooseDate | null
   let t: number;
   if (zone) {
     const offsetMin = zone.toUpperCase() === 'Z' ? 0 : zoneMinutes(zone);
+    if (offsetMin === null) return null;
     t = Date.UTC(y, mo - 1, d, hh, mm, ss) - offsetMin * 60_000;
   } else {
     t = Date.UTC(y, mo - 1, d, hh, mm, ss) - MOSCOW_OFFSET_MS;
@@ -116,9 +117,12 @@ export function parseLooseDate(raw: string | null | undefined): LooseDate | null
   return { day: observationDay(at), at, timeGiven };
 }
 
-function zoneMinutes(zone: string): number {
+function zoneMinutes(zone: string): number | null {
   const m = /^([+-])(\d{2}):?(\d{2})$/.exec(zone)!;
-  const v = Number(m[2]) * 60 + Number(m[3]);
+  const hours = Number(m[2]);
+  const minutes = Number(m[3]);
+  if (hours > 23 || minutes > 59) return null;
+  const v = hours * 60 + minutes;
   return m[1] === '-' ? -v : v;
 }
 

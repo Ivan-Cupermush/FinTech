@@ -98,9 +98,9 @@ export async function blobBytes(store: MediaStore, key: string): Promise<Buffer>
 }
 
 export async function setup(
-  opts: { integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date; ai?: AiProvider; blobs?: 'fs' | 'kusok' } = {},
+  opts: { db?: Db; integrationFetch?: FetchLike; realtime?: Realtime; maxUploadBytes?: number; ffmpeg?: boolean; now?: () => Date; ai?: AiProvider; blobs?: 'fs' | 'kusok' } = {},
 ): Promise<Ctx> {
-  const db = await createPgliteDb();
+  const db = opts.db ?? (await createPgliteDb());
   await migrate(db);
   const demo = await seedDemo(db, { now: NOW });
   const now = opts.now ?? (() => NOW);

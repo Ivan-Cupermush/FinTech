@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { observationDay, parseTable, planImport } from '@offix/core';
+import { createPgDb } from '../src/db/pg';
 import { NOW, setup, validGoal, type Ctx } from './helpers';
 
+const databaseUrl = process.env.OFFIX_TEST_KPI_DATABASE_URL;
+const database = databaseUrl ? createPgDb(databaseUrl) : undefined;
 let ctx: Ctx;
 beforeAll(async () => {
-  ctx = await setup();
+  if (database) {
+    const { rows } = await database.query<{ initialized: boolean }>(
+      `SELECT to_regclass('schema_migrations') IS NOT NULL OR to_regclass('companies') IS NOT NULL AS initialized`,
+    );
+    if (rows[0]?.initialized) throw new Error('Для OFFIX_TEST_KPI_DATABASE_URL нужна отдельная пустая база');
+  }
+  ctx = await setup({ db: database });
 });
+afterAll(() => database?.close());
 
 /** Новая цель Ольги с KPI «Время» 40 → 30 мин. */
 const newGoal = async () => {
@@ -116,6 +126,18 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     expect(r.status).toBe(422);
     expect(r.body.error.fields['rows.3.observed_at']).toBe('Строка 4: измерение не может быть из будущего');
     expect(r.body.error.message).toMatch(/Строка 4/);
+    expect((await olga.get(url)).body.data).toHaveLength(0);
+  });
+
+  it('несуществующий день не переносится на следующий месяц при ручном вводе и импорте', async () => {
+    const { olga, url } = await newGoal();
+    const impossible = { observed_at: '2026-02-30T09:00:00.000Z', value: 35 };
+    const manual = await olga.post(url, impossible);
+    expect(manual.status).toBe(422);
+    expect(manual.body.error.fields.observed_at).toMatch(/Некорректная дата/);
+    const batch = await olga.post(`${url}/import`, { rows: [ROWS[0]!, impossible] });
+    expect(batch.status).toBe(422);
+    expect(batch.body.error.fields['rows.1.observed_at']).toMatch(/некорректная дата/);
     expect((await olga.get(url)).body.data).toHaveLength(0);
   });
 

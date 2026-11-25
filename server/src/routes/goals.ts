@@ -43,7 +43,7 @@ import { allowedByFunction } from '../services/functions';
 import { withIdempotency } from '../services/idempotency';
 import { goalRisks } from './roadmap';
 import { notify } from '../services/notify';
-import { addObservations, lockObservationDays, lockObservationMetric } from '../services/observations';
+import { addObservations, lockObservationDays, lockObservationMetric, parseObservationTimestamp } from '../services/observations';
 import { loadOrg } from '../services/org';
 
 const metricSchema = z.object({
@@ -447,7 +447,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
       }
       let observedAt = now().toISOString();
       if (body.observed_at) {
-        const t = Date.parse(body.observed_at);
+        const t = parseObservationTimestamp(body.observed_at);
         if (Number.isNaN(t)) errors.observed_at = 'Некорректная дата измерения';
         else if (t > now().getTime() + 60_000) errors.observed_at = 'Измерение не может быть из будущего';
         else observedAt = new Date(t).toISOString();
@@ -498,7 +498,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
         const rows: { at: string; value: number }[] = [];
         body.rows.forEach((row, i) => {
           const label = `Строка ${i + 1}`;
-          const t = Date.parse(row.observed_at);
+          const t = parseObservationTimestamp(row.observed_at);
           if (!Number.isFinite(row.value)) errors[`rows.${i}.value`] = `${label}: укажите числовое значение`;
           else {
             const e = checkUnitRange(m.unit, row.value);
