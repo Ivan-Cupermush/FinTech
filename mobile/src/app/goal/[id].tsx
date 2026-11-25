@@ -39,9 +39,11 @@ export default function GoalScreen() {
   const due = dueText(g.due_at, today);
   const tone = riskTone({ risk_level: g.status === 'active' ? riskLevelOf(r.risks) : undefined, kpi: m?.progress.state ?? null, status: g.status });
   const byId = new Map(r.tasks.map((t) => [t.id, t]));
+  const visibleTasks = (ids: string[]) => ids.map((id) => byId.get(id)).filter((task) => !!task && task.status !== 'cancelled');
+  const directTasks = visibleTasks(r.direct_task_ids);
   const groups = [
-    ...r.subgoals.map((s) => ({ id: s.id, title: s.title, owner: s.owner?.display_name, tasks: s.task_ids.map((t) => byId.get(t)).filter((t) => !!t && t.status !== 'cancelled') })),
-    ...(r.direct_task_ids.length ? [{ id: 'direct', title: 'Задачи цели', owner: undefined, tasks: r.direct_task_ids.map((t) => byId.get(t)).filter((t) => !!t && t.status !== 'cancelled') }] : []),
+    ...r.subgoals.map((s) => ({ id: s.id, title: s.title, owner: s.owner?.display_name, tasks: visibleTasks(s.task_ids) })),
+    ...(directTasks.length ? [{ id: 'direct', title: 'Задачи цели', owner: undefined, tasks: directTasks }] : []),
   ];
   const ready = g.checklist.every((c) => c.done);
   const noMapTasks = !r.tasks.some((task) => task.status !== 'cancelled');
@@ -96,7 +98,7 @@ export default function GoalScreen() {
               ))}
             </View>
             <Text variant="h2">{g.title}</Text>
-            {g.owner && (
+            {g.owner ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Avatar name={g.owner.display_name} id={g.owner.id} size={22} />
                 <Text variant="small" style={{ flex: 1 }}>
@@ -107,6 +109,8 @@ export default function GoalScreen() {
                   </Text>
                 </Text>
               </View>
+            ) : (
+              <Text variant="small" tone={due.overdue ? 'bad' : 'faint'}>{due.text}</Text>
             )}
           </View>
 

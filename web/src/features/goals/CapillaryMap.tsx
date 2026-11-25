@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowUpRight, Check, Flag, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { capillaryFocus, capillaryPath, downstream, needsBow, formatDate, layoutCapillary, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode } from '@offix/core';
+import { BLOCKER_LABELS, capillaryFocus, capillaryNextTasks, capillaryPath, downstream, needsBow, formatDate, layoutCapillary, riskLevelOf, riskTone, TASK_STATUS_LABELS, type CapNode } from '@offix/core';
 import type { Roadmap } from '../../lib/types';
 import { Avatar } from '../../ui/Avatar';
 import { Button } from '../../ui/Button';
@@ -142,7 +142,8 @@ export function CapillaryMap({ roadmap, onTask }: { roadmap: Roadmap; onTask: (i
           {layout.nodes.map((n) => {
             const p = at.get(n.id)!;
             const goalNode = n.kind === 'goal';
-            const meta = goalNode ? (goal.due_at ? `цель · ${formatDate(goal.due_at, { short: true })}` : 'цель') : `${STATE_LABEL[n.state]} · ${formatDate(n.date, { short: true })}`;
+            const dateLabel = n.labelDate ? formatDate(n.labelDate, { short: true }) : 'без срока';
+            const meta = `${goalNode ? 'цель' : STATE_LABEL[n.state]} · ${dateLabel}`;
             return (
               <button
                 key={n.id}
@@ -222,6 +223,7 @@ function Detail({
   const task = roadmap.tasks.find((t) => t.id === node.id);
   const isGoal = node.kind === 'goal';
   const waiting = task ? downstream(roadmap.edges, task.id).filter((id) => roadmap.tasks.some((t) => t.id === id && t.status !== 'cancelled' && t.status !== 'done')).length : 0;
+  const nextTasks = task ? capillaryNextTasks(roadmap.tasks, roadmap.edges, task.id) : [];
   const cps = task?.checkpoints ?? [];
   const progress = isGoal ? node.progress : task?.status === 'done' ? 100 : cps.length ? Math.round((cps.filter((c) => c.status === 'done').length / cps.length) * 100) : null;
   const open = roadmap.tasks.filter((t) => t.status !== 'cancelled');
@@ -235,7 +237,7 @@ function Detail({
     const right = at.x + 46 + PW < W - 8;
     const left = right ? at.x + 46 : Math.max(8, at.x - 46 - PW);
     const top = Math.min(Math.max(8, at.y - PH - 18), Math.max(8, H - PH - 50));
-    style = { left, top, width: PW, transformOrigin: `${at.x - left}px ${at.y - top}px` };
+    style = { left, top, width: PW, maxHeight: H - top - 12, transformOrigin: `${at.x - left}px ${at.y - top}px` };
     const ex = right ? left + 18 : left + PW - 18;
     const ey = top + PH - 22;
     neck = `M${at.x} ${at.y} C${at.x} ${(at.y + ey) / 2} ${ex} ${ey + (at.y - ey) * 0.25} ${ex} ${ey}`;
@@ -260,6 +262,15 @@ function Detail({
           </button>
         </div>
         <div className="cap-detail-title">{node.title}</div>
+        {task && (
+          <div className="cap-detail-info">
+            <p>Исполнитель: {task.assignee?.display_name ?? 'не назначен'}</p>
+            {task.blocker && (
+              <p>Причина блокировки: {BLOCKER_LABELS[task.blocker.reason]}{task.blocker.note && ` · ${task.blocker.note}`}</p>
+            )}
+            {task.blocker?.next_step && <p>Следующий шаг: {task.blocker.next_step}</p>}
+          </div>
+        )}
         <div className={`cap-detail-bar ${node.state}`} aria-hidden>
           <span style={{ width: `${progress ?? 0}%` }} />
         </div>
@@ -287,6 +298,16 @@ function Detail({
           <Button size="sm" variant="primary" icon={<ArrowUpRight size={15} />} onClick={() => onTask(task.id)}>
             Открыть задачу
           </Button>
+        )}
+        {nextTasks.length > 0 && (
+          <div className="cap-detail-info">
+            <strong>{nextTasks.length === 1 ? 'Ближайшая зависимая задача' : 'Ближайшие зависимые задачи'}</strong>
+            <ul className="cap-detail-deps">
+              {nextTasks.map((next) => (
+                <li key={next.id}><button type="button" onClick={() => onTask(next.id)}>{next.title}</button></li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </>

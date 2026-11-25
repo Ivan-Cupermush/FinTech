@@ -449,6 +449,7 @@
     0 24px 50px -20px rgba(4, 6, 30, 0.8);
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  overflow-y: auto;
   animation: cap-detail-in 460ms cubic-bezier(0.2, 1.2, 0.3, 1) both;
   animation-delay: 120ms;
 }
@@ -481,6 +482,29 @@
   font-size: 17px;
   font-weight: 650;
   line-height: 1.25;
+}
+.cap-detail-info {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.cap-detail-info p {
+  margin: 0;
+}
+.cap-detail-info p + p {
+  margin-top: 4px;
+}
+.cap-detail-deps {
+  margin: 4px 0 0;
+  padding-inline-start: 16px;
+}
+.cap-detail-deps button {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .cap-detail-close {
   display: grid;

@@ -1,6 +1,6 @@
 import { addDays, diffDays } from './dates';
-import { downstream } from './schedule';
-import type { TaskStatus } from './task';
+import { downstream, type Dependency } from './schedule';
+import { isClosed, type TaskStatus } from './task';
 
 /**
  * Капиллярная карта цели: задачи — узлы на оси времени, зависимости —
@@ -34,6 +34,8 @@ export interface CapNode {
   critical: boolean;
   /** Дата, по которой узел стоит на шкале (YYYY-MM-DD). */
   date: string;
+  /** Фактическая дата для подписи. Условная позиция на шкале сюда не попадает. */
+  labelDate: string | null;
   /** Доля пройденных контрольных точек, 0…100; null — точек нет. */
   progress: number | null;
 }
@@ -53,6 +55,19 @@ export function capillaryFocus(links: readonly CapLink[], selected: string): Rea
   const incoming = new Set([selected, ...downstream(links.map(({ from, to }) => ({ from: to, to: from })), selected)]);
   const outgoing = new Set([selected, ...downstream(links, selected)]);
   return new Set(links.filter(({ from, to }) => (incoming.has(from) && incoming.has(to)) || (outgoing.has(from) && outgoing.has(to))));
+}
+
+/** Открытые прямые зависимости из видимых задач карты, сначала ближайшие по плану. */
+export function capillaryNextTasks<T extends Pick<CapTaskInput, 'id' | 'title' | 'status' | 'start_at' | 'due_at'>>(
+  tasks: readonly T[],
+  edges: readonly Dependency[],
+  selected: string,
+): T[] {
+  const ids = new Set(edges.filter(({ from }) => from === selected).map(({ to }) => to));
+  const date = (task: T) => task.start_at ?? task.due_at ?? '9999';
+  return tasks
+    .filter((task) => ids.has(task.id) && !isClosed(task))
+    .sort((a, b) => date(a).localeCompare(date(b)) || a.title.localeCompare(b.title, 'ru'));
 }
 
 export interface CapLayout {
@@ -148,12 +163,14 @@ export function layoutCapillary(input: CapInput): CapLayout {
 
   // Дата узла: выполненная — когда сделали, остальные — срок, потом начало.
   // Без дат — сразу после самой поздней из предшествующих (или сегодня).
+  const labelDate = (t: CapTaskInput) =>
+    (t.status === 'done' && t.done_at ? t.done_at.slice(0, 10) : null) ?? t.due_at ?? t.start_at;
   const dates = new Map<string, string>();
   const dateOf = (id: string, seen = new Set<string>()): string => {
     const known = dates.get(id);
     if (known) return known;
     const t = byId.get(id)!;
-    let d = (t.status === 'done' && t.done_at ? t.done_at.slice(0, 10) : null) ?? t.due_at ?? t.start_at;
+    let d = labelDate(t);
     if (!d) {
       seen.add(id);
       const before = (preds.get(id) ?? []).filter((p) => !seen.has(p)).map((p) => dateOf(p, seen));
@@ -218,6 +235,7 @@ export function layoutCapillary(input: CapInput): CapLayout {
       state: capNodeState(t, input.today),
       critical: critical.has(t.id),
       date: dates.get(t.id)!,
+      labelDate: labelDate(t),
       progress: t.status === 'done' ? 100 : cps.length ? Math.round((cps.filter((c) => c.status === 'done').length / cps.length) * 100) : null,
     };
   });
@@ -233,6 +251,7 @@ export function layoutCapillary(input: CapInput): CapLayout {
     state: nodes.length && nodes.every((n) => n.state === 'done') ? 'done' : anyLate ? 'overdue' : 'planned',
     critical: critical.size > 0,
     date: goalDate,
+    labelDate: input.goal.due_at,
     progress: nodes.length ? Math.round((nodes.filter((n) => n.state === 'done').length / nodes.length) * 100) : null,
   });
 

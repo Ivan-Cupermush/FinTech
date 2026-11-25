@@ -50,9 +50,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const [t, s] = await Promise.all([store.get(TOKEN), store.get(SERVER)]);
-      current = { token: t, server: s ?? DEFAULT_SERVER };
-      setToken(t);
+      try {
+        const [t, s] = await Promise.all([store.get(TOKEN), store.get(SERVER)]);
+        current = { token: t, server: s ?? DEFAULT_SERVER };
+      } catch {
+        current = { token: null, server: DEFAULT_SERVER };
+      }
+      setToken(current.token);
       setServer(current.server);
       setReady(true);
     })();
@@ -87,7 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({ ready, token, server, login, logout, applyToken }), [ready, token, server, login, logout, applyToken]);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={value}>{ready ? children : null}</Ctx.Provider>;
 }
 
 export function useSession(): Session {

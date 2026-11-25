@@ -117,8 +117,9 @@ describe('layoutCapillary', () => {
   it('задачи без дат встают сразу после предшественников', () => {
     const r = layoutCapillary({ tasks: [task('P', { due_at: '2026-11-20' }), task('Q')], edges: [{ from: 'P', to: 'Q' }], critical_path: [], today: TODAY, goal: { ...goal, due_at: null } });
     const q = r.nodes.find((x) => x.id === 'Q')!;
-    expect(q.date).toBe('2026-11-23');
-    expect(r.nodes.find((x) => x.kind === 'goal')!.date).toBe('2026-11-30');
+    expect(q).toMatchObject({ date: '2026-11-23', labelDate: null });
+    expect(r.nodes.find((x) => x.id === 'P')!.labelDate).toBe('2026-11-20');
+    expect(r.nodes.find((x) => x.kind === 'goal')).toMatchObject({ date: '2026-11-30', labelDate: null });
   });
 
   it('много задач в один день — разные ряды, не больше заданного, и без наложений', () => {
