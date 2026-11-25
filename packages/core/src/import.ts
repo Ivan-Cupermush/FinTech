@@ -130,10 +130,39 @@ export type Separator = '\t' | ';' | ',';
  * числах она десятичная.
  */
 export function detectSeparator(text: string): Separator {
-  const sample = stripBom(text).split(/\r\n|\n|\r/).filter((l) => l.trim()).slice(0, 20);
-  if (sample.some((l) => l.includes('\t'))) return '\t';
-  if (sample.some((l) => l.includes(';'))) return ';';
-  return ',';
+  const sample = stripBom(text);
+  let separator: Separator = ',';
+  let quoted = false;
+  let fieldStart = true;
+  let records = 0;
+  let hasContent = false;
+  for (let i = 0; i < sample.length && records < 20; i++) {
+    const ch = sample[i]!;
+    if (quoted) {
+      if (ch === '"' && sample[i + 1] === '"') i++;
+      else if (ch === '"') quoted = false;
+      continue;
+    }
+    if (ch === '"' && fieldStart) {
+      quoted = true;
+      fieldStart = false;
+      hasContent = true;
+    } else if (ch === '\r' || ch === '\n') {
+      if (hasContent) records++;
+      hasContent = false;
+      fieldStart = true;
+    } else if (ch === '\t') {
+      return '\t';
+    } else if (ch === ';' || ch === ',') {
+      if (ch === ';') separator = ';';
+      fieldStart = true;
+      hasContent = true;
+    } else if (ch.trim()) {
+      fieldStart = false;
+      hasContent = true;
+    }
+  }
+  return separator;
 }
 
 export interface ParsedTable {
@@ -182,7 +211,7 @@ function splitRecords(text: string, sep: Separator): { cells: string[]; line: nu
           i++;
         } else quoted = false;
       } else {
-        if (ch === '\n') line++;
+        if (ch === '\n' || (ch === '\r' && text[i + 1] !== '\n')) line++;
         cell += ch;
       }
       continue;

@@ -100,6 +100,16 @@ describe('detectSeparator', () => {
 });
 
 describe('parseTable', () => {
+  it.each([
+    { separator: ',', comment: 'сказал ""да""; затем\tушёл' },
+    { separator: ';', comment: 'сказал ""да""\tи ушёл' },
+  ])('не считает символы в кавычках разделителями ($separator)', ({ separator, comment }) => {
+    const t = parseTable(`Дата${separator}Значение${separator}Комментарий\r\n01.10.2026${separator}34${separator}"${comment}\rи вернулся"\r02.10.2026${separator}35`);
+    expect(t.separator).toBe(separator);
+    expect(t.rows[0]).toEqual(['01.10.2026', '34', comment.replace('""да""', '"да"') + '\rи вернулся']);
+    expect(t.lines).toEqual([2, 4]);
+  });
+
   it('вставка из Excel: таб, шапка, колонки даты и значения', () => {
     const t = parseTable('Дата\tВремя обработки, мин\n01.10.2026\t40\n08.10.2026\t38,5\n');
     expect(t.separator).toBe('\t');
