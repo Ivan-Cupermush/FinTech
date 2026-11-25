@@ -190,6 +190,60 @@ describe('вход на сайт по QR', () => {
   const browser = () => request(ctx.app).post(`${API}/auth/qr`).set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36');
   const poll = (token: string, secret: string) => request(ctx.app).post(`${API}/auth/qr/poll`).send({ token, secret });
 
+  it('выход со всех устройств отзывает подтверждённые и отсканированные QR-запросы', async () => {
+    const u = await hire('QR Выход', 'qr-logout@offix.demo');
+    const phone = withToken(u.token);
+    const approved = (await browser()).body.data;
+    const scanned = (await browser()).body.data;
+    await phone.get(`${API}/account/qr/${approved.token}`);
+    expect((await phone.post(`${API}/account/qr/${approved.token}/approve`)).status).toBe(200);
+    expect((await phone.get(`${API}/account/qr/${scanned.token}`)).status).toBe(200);
+    expect((await phone.post(`${API}/account/logout-all`, { keep_current: false })).status).toBe(200);
+    expect((await poll(approved.token, approved.secret)).body.data.status).toBe('expired');
+    expect((await poll(scanned.token, scanned.secret)).body.data.status).toBe('expired');
+    expect((await phone.post(`${API}/account/qr/${scanned.token}/approve`)).status).toBe(401);
+  });
+
+  it('сброс пароля администратором отзывает ожидающий QR сотрудника и не влияет на чужой', async () => {
+    const first = await hire('QR Сброс', 'qr-reset@offix.demo');
+    const second = await hire('QR Коллега', 'qr-other@offix.demo');
+    const a = (await browser()).body.data;
+    const b = (await browser()).body.data;
+    expect((await withToken(first.token).post(`${API}/account/qr/${a.token}/approve`)).status).toBe(200);
+    expect((await withToken(second.token).post(`${API}/account/qr/${b.token}/approve`)).status).toBe(200);
+    const director = await ctx.as('director');
+    expect((await director.post(`${API}/users/${first.id}/reset-password`, { password: 'fresh-qrcode-pass-50' })).status).toBe(200);
+    expect((await poll(a.token, a.secret)).body.data.status).toBe('expired');
+    expect((await poll(b.token, b.secret)).body.data.status).toBe('approved');
+  });
+
+  it('смена своего пароля отзывает ожидающий QR и оставляет доступ по новому токену', async () => {
+    const u = await hire('QR Пароль', 'qr-password@offix.demo');
+    const phone = withToken(u.token);
+    const qr = (await browser()).body.data;
+    expect((await phone.post(`${API}/account/qr/${qr.token}/approve`)).status).toBe(200);
+    const change = await phone.post(`${API}/account/password`, { current_password: u.password, new_password: 'fresh-pass-qr-2026' });
+    expect(change.status).toBe(200);
+    expect((await poll(qr.token, qr.secret)).body.data.status).toBe('expired');
+    expect((await withToken(change.body.data.token).get(`${API}/account`)).status).toBe(200);
+  });
+
+  it('одновременный выход и получение QR не оставляют действующий токен старой сессии', async () => {
+    const u = await hire('QR Гонка', 'qr-race@offix.demo');
+    const phone = withToken(u.token);
+    const qr = (await browser()).body.data;
+    expect((await phone.post(`${API}/account/qr/${qr.token}/approve`)).status).toBe(200);
+    const [received, logout] = await Promise.all([
+      poll(qr.token, qr.secret),
+      phone.post(`${API}/account/logout-all`, { keep_current: false }),
+    ]);
+    expect(logout.status).toBe(200);
+    expect(['expired', 'approved']).toContain(received.body.data.status);
+    if (received.body.data.status === 'approved') {
+      expect((await withToken(received.body.data.token).get(`${API}/account`)).status).toBe(401);
+    }
+  });
+
   it('полный путь: код → скан → подтверждение → сайт получает вход ровно один раз', async () => {
     const c = await browser();
     expect(c.status).toBe(201);

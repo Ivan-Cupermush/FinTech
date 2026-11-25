@@ -47,6 +47,8 @@ export function qrPublicRouter(db: Db, secret: string, now: () => Date, opts: { 
     else if (row.status === 'approved') {
       // Забрать вход можно ровно один раз и только пока код жив.
       const claimed = await db.tx(async (q) => {
+        // Тот же порядок блокировок, что при отзыве сессий: пользователь, затем QR.
+        await q.query(`SELECT id FROM users WHERE id = $1 FOR UPDATE`, [row.user_id]);
         const c = await q.query<{ id: string }>(`UPDATE qr_logins SET status = 'used' WHERE id = $1 AND status = 'approved' AND expires_at > $2 RETURNING id`, [row.id, at.toISOString()]);
         if (!c.rows.length) return null;
         const { rows } = await q.query<{ id: string; display_name: string; role: string; company_id: string; company_name: string }>(

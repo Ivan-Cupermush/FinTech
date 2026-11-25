@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { displayNameError, passwordError, type AccountProfile } from '@offix/core';
-import { actorOf, checkPassword, hashPassword, issueToken, revokeSessions } from '../auth/auth';
+import { actorOf, checkPassword, hashPassword, issueToken, revokeSessions, verifyToken } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
 import { ApiError, forbidden, invalid } from '../http/errors';
 import { parseBody } from '../http/validate';
@@ -32,6 +32,14 @@ async function loadProfile(q: Queryable, userId: string, companyId: string): Pro
  */
 export function accountRouter(db: Db, secret: string, now: () => Date, rt: Realtime): Router {
   const r = Router();
+
+  // Сериализуем подтверждение QR с отзывом сессий: сначала блокируется пользователь, затем QR.
+  async function lockQrActor(q: Queryable, actor: ReturnType<typeof actorOf>, authorization: string | undefined) {
+    await q.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [actor.id]);
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
+    const verified = await verifyToken(q, secret, token);
+    if (!verified || verified.id !== actor.id || verified.company_id !== actor.company_id) throw new ApiError('UNAUTHORIZED', 'Сессия завершена — войдите снова');
+  }
 
   r.get('/', async (req, res) => {
     const actor = actorOf(req);
@@ -115,6 +123,7 @@ export function accountRouter(db: Db, secret: string, now: () => Date, rt: Realt
     const actor = actorOf(req);
     const at = now();
     const row = await db.tx(async (q) => {
+      await lockQrActor(q, actor, req.headers.authorization);
       const row = await qrForPhone(q, String(req.params.token), true);
       if (row.status === 'pending' && !isExpired(row, at)) {
         await q.query(`UPDATE qr_logins SET status = 'scanned', user_id = $2, company_id = $3 WHERE id = $1`, [row.id, actor.id, actor.company_id]);
@@ -130,6 +139,7 @@ export function accountRouter(db: Db, secret: string, now: () => Date, rt: Realt
     const actor = actorOf(req);
     const at = now();
     const row = await db.tx(async (q) => {
+      await lockQrActor(q, actor, req.headers.authorization);
       const row = await qrForPhone(q, String(req.params.token), true);
       if (row.user_id && row.user_id !== actor.id) throw forbidden('Этот код уже отсканировал другой человек');
       if (isExpired(row, at) || (row.status !== 'pending' && row.status !== 'scanned')) throw new ApiError('CONFLICT', 'Код уже недействителен. Обновите страницу на компьютере и отсканируйте новый код');
@@ -144,6 +154,7 @@ export function accountRouter(db: Db, secret: string, now: () => Date, rt: Realt
     const actor = actorOf(req);
     const at = now();
     const row = await db.tx(async (q) => {
+      await lockQrActor(q, actor, req.headers.authorization);
       const row = await qrForPhone(q, String(req.params.token), true);
       if (row.user_id && row.user_id !== actor.id) throw forbidden('Этот код уже отсканировал другой человек');
       if (row.status === 'pending' || row.status === 'scanned') {
