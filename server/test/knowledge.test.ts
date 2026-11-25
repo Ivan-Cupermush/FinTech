@@ -230,6 +230,48 @@ describe('база знаний с ИИ: вопросы и ответы', () => 
     const hist = (await (await ctx.as('igor')).get(`${API}/sessions/${r.session.id}`)).body.data;
     const src = hist.messages[1].sources[0];
     expect(src).toMatchObject({ id: '', title: 'Источник недоступен', excerpt: '' });
+    expect(hist.messages[1].content).toBe('Ответ скрыт: один из источников недоступен.');
+    expect(hist.session.last_answer).toBe('Ответ скрыт: один из источников недоступен.');
+    const list = (await (await ctx.as('igor')).get(`${API}/sessions`)).body.data;
+    expect(list.find((s: { id: string }) => s.id === r.session.id).last_answer).toBe('Ответ скрыт: один из источников недоступен.');
+    const feedback = await (await ctx.as('igor')).put(`${API}/messages/${r.answer.id}/feedback`, { feedback: 'up' });
+    expect(feedback.body.data.content).toBe('Ответ скрыт: один из источников недоступен.');
+  });
+
+  it('после отзыва доступа к цели скрывает текст старого ответа и превью диалога', async () => {
+    const goal = ctx.demo.goals.onboarding!;
+    await ctx.db.query(`INSERT INTO goal_participants (goal_id, user_id, role) VALUES ($1, $2, 'viewer')`, [goal, ctx.demo.users.dima]);
+    try {
+      const doc = await upload(ctx, 'elena', Buffer.from('Секретный код архива: фламинго-тысяча-пятьсот.'), 'archive.txt', { goal_id: goal });
+      expect(doc.status).toBe(201);
+      await ctx.knowledge.idle();
+      const result = (await ask(ctx, 'dima', 'Какой секретный код архива?')).body.data as KnowledgeAskResult;
+      expect(result.answer.sources.map((s) => s.id)).toContain(doc.body.data.id);
+      expect(result.answer.content).toContain('фламинго');
+      await ctx.db.query(`DELETE FROM goal_participants WHERE goal_id = $1 AND user_id = $2`, [goal, ctx.demo.users.dima]);
+      const history = (await (await ctx.as('dima')).get(`${API}/sessions/${result.session.id}`)).body.data;
+      expect(JSON.stringify(history)).not.toContain('фламинго');
+      expect(history.session.last_answer).toBe('Ответ скрыт: один из источников недоступен.');
+      expect(history.messages[1].content).toBe('Ответ скрыт: один из источников недоступен.');
+      const list = (await (await ctx.as('dima')).get(`${API}/sessions`)).body.data;
+      expect(list.find((s: { id: string }) => s.id === result.session.id).last_answer).toBe('Ответ скрыт: один из источников недоступен.');
+    } finally {
+      await ctx.db.query(`DELETE FROM goal_participants WHERE goal_id = $1 AND user_id = $2`, [goal, ctx.demo.users.dima]);
+    }
+  });
+
+  it('сотрудник двух организаций не открывает диалог другой организации по идентификатору', async () => {
+    const { issueToken } = await import('../src/auth/auth');
+    const { SECRET } = await import('./helpers');
+    const first = (await ask(ctx, 'sergey', 'Сколько суточные в командировке?')).body.data as KnowledgeAskResult;
+    const company = (await ctx.db.query<{ id: string }>(`INSERT INTO companies (name, setup_mode) VALUES ('Другая организация', 'quick') RETURNING id`)).rows[0]!.id;
+    await ctx.db.query(`INSERT INTO company_members (company_id, user_id, role) VALUES ($1, $2, 'member')`, [company, ctx.demo.users.sergey]);
+    const token = await issueToken(ctx.db, SECRET, ctx.demo.users.sergey, company);
+    const auth = { Authorization: `Bearer ${token}` };
+    expect((await request(ctx.app).get(`${API}/sessions/${first.session.id}`).set(auth)).status).toBe(404);
+    expect((await request(ctx.app).post(`${API}/ask`).set(auth).send({ question: 'Ещё?', session_id: first.session.id })).status).toBe(404);
+    expect((await request(ctx.app).put(`${API}/messages/${first.answer.id}/feedback`).set(auth).send({ feedback: 'up' })).status).toBe(404);
+    expect((await request(ctx.app).delete(`${API}/sessions/${first.session.id}`).set(auth)).status).toBe(404);
   });
 
   it('проверка вопроса', async () => {

@@ -81,22 +81,28 @@ interface SessionRow {
   created_at: string;
   updated_at: string;
   last_answer: string | null;
+  last_answer_id: string | null;
+  last_sources: MessageRow['sources'] | null;
   questions: number | string;
 }
 
 const SESSION_SELECT = `SELECT s.id, s.title, s.created_at, s.updated_at,
                                (SELECT left(m.content, 200) FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_answer,
+                               (SELECT m.id FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_answer_id,
+                               (SELECT m.sources FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_sources,
                                (SELECT count(*) FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'user') AS questions
                           FROM knowledge_sessions s`;
 
 const toSession = (r: SessionRow): KnowledgeSession => ({ id: r.id, title: r.title, created_at: r.created_at, updated_at: r.updated_at, last_answer: r.last_answer, questions: Number(r.questions) });
 
 const parseSources = (s: MessageRow['sources']): KnowledgeSource[] => (typeof s === 'string' ? (JSON.parse(s) as KnowledgeSource[]) : (s ?? []));
+const HIDDEN_ANSWER = 'Ответ скрыт: один из источников недоступен.';
+const hasHiddenSource = (sources: KnowledgeSource[]) => sources.some((s) => !s.id);
 
 const toMessage = (r: MessageRow, sources = parseSources(r.sources)): KnowledgeMessage => ({
   id: r.id,
   role: r.role,
-  content: r.content,
+  content: r.role === 'assistant' && hasHiddenSource(sources) ? HIDDEN_ANSWER : r.content,
   sources,
   mode: r.mode,
   notice: r.notice,
@@ -108,7 +114,7 @@ const toMessage = (r: MessageRow, sources = parseSources(r.sources)): KnowledgeM
  * Источники старых ответов — только те, что человек видит сейчас: доступ к
  * цели забрали или документ удалили — ссылка гаснет, отрывок скрывается.
  */
-async function redactSources(q: Queryable, actor: AuthedActor, rows: MessageRow[]): Promise<Map<string, KnowledgeSource[]>> {
+async function redactSources(q: Queryable, actor: AuthedActor, rows: Pick<MessageRow, 'id' | 'sources'>[]): Promise<Map<string, KnowledgeSource[]>> {
   const all = rows.map((r) => [r.id, parseSources(r.sources)] as const);
   const noteIds = [...new Set(all.flatMap(([, s]) => s.filter((x) => x.kind === 'note').map((x) => x.id)))].filter(isUuid);
   const docIds = [...new Set(all.flatMap(([, s]) => s.filter((x) => x.kind === 'doc').map((x) => x.id)))].filter(isUuid);
@@ -342,7 +348,7 @@ export function knowledgeRouter(db: Db, media: MediaCtx, kb: KnowledgeService, o
     let context: string | null = null;
     if (body.session_id) {
       if (!isUuid(body.session_id)) throw notFound('Диалог не найден');
-      const s = (await db.query(`SELECT 1 FROM knowledge_sessions WHERE id = $1 AND user_id = $2`, [body.session_id, actor.id])).rows[0];
+      const s = (await db.query(`SELECT 1 FROM knowledge_sessions WHERE id = $1 AND user_id = $2 AND company_id = $3`, [body.session_id, actor.id, actor.company_id])).rows[0];
       if (!s) throw notFound('Диалог не найден');
       context =
         (await db.query<{ content: string }>(`SELECT content FROM knowledge_messages WHERE session_id = $1 AND role = 'user' ORDER BY created_at DESC LIMIT 1`, [body.session_id])).rows[0]
@@ -372,31 +378,41 @@ export function knowledgeRouter(db: Db, media: MediaCtx, kb: KnowledgeService, o
       const s = (await q.query<SessionRow>(`${SESSION_SELECT} WHERE s.id = $1`, [sessionId])).rows[0]!;
       return { session: toSession(s), question: toMessage(qm), answer: toMessage(am) };
     });
+    // Пока формировался ответ, доступ к одному из источников мог измениться.
+    const checked = await redactSources(db, actor, [{ id: data.answer.id, sources: data.answer.sources }]);
+    const safeSources = checked.get(data.answer.id) ?? [];
+    if (hasHiddenSource(safeSources)) {
+      data.answer.content = HIDDEN_ANSWER;
+      data.answer.sources = safeSources;
+      data.session.last_answer = HIDDEN_ANSWER;
+    }
     res.json({ data });
   });
 
   r.get('/sessions', async (req, res) => {
     const actor = actorOf(req);
     const { rows } = await db.query<SessionRow>(`${SESSION_SELECT} WHERE s.user_id = $1 AND s.company_id = $2 ORDER BY s.updated_at DESC LIMIT 100`, [actor.id, actor.company_id]);
-    res.json({ data: rows.map(toSession) });
+    const sourceRows = rows.filter((s) => s.last_answer_id).map((s) => ({ id: s.last_answer_id!, sources: s.last_sources ?? [] }));
+    const sources = await redactSources(db, actor, sourceRows);
+    res.json({ data: rows.map((s) => ({ ...toSession(s), last_answer: s.last_answer_id && hasHiddenSource(sources.get(s.last_answer_id) ?? []) ? HIDDEN_ANSWER : s.last_answer })) });
   });
 
   r.get('/sessions/:id', async (req, res) => {
     const actor = actorOf(req);
     const id = idParam(req.params.id);
-    const s = (await db.query<SessionRow>(`${SESSION_SELECT} WHERE s.id = $1 AND s.user_id = $2`, [id, actor.id])).rows[0];
+    const s = (await db.query<SessionRow>(`${SESSION_SELECT} WHERE s.id = $1 AND s.user_id = $2 AND s.company_id = $3`, [id, actor.id, actor.company_id])).rows[0];
     if (!s) throw notFound('Диалог не найден');
     const { rows } = await db.query<MessageRow>(
       `SELECT id, session_id, role, content, sources, mode, notice, feedback, created_at FROM knowledge_messages WHERE session_id = $1 ORDER BY created_at, role DESC`,
       [id],
     );
     const sources = await redactSources(db, actor, rows);
-    res.json({ data: { session: toSession(s), messages: rows.map((m) => toMessage(m, sources.get(m.id))) } });
+    res.json({ data: { session: { ...toSession(s), last_answer: s.last_answer_id && hasHiddenSource(sources.get(s.last_answer_id) ?? []) ? HIDDEN_ANSWER : s.last_answer }, messages: rows.map((m) => toMessage(m, sources.get(m.id))) } });
   });
 
   r.delete('/sessions/:id', async (req, res) => {
     const actor = actorOf(req);
-    const { rows } = await db.query(`DELETE FROM knowledge_sessions WHERE id = $1 AND user_id = $2 RETURNING id`, [idParam(req.params.id), actor.id]);
+    const { rows } = await db.query(`DELETE FROM knowledge_sessions WHERE id = $1 AND user_id = $2 AND company_id = $3 RETURNING id`, [idParam(req.params.id), actor.id, actor.company_id]);
     if (!rows.length) throw notFound('Диалог не найден');
     res.status(204).end();
   });
@@ -408,9 +424,9 @@ export function knowledgeRouter(db: Db, media: MediaCtx, kb: KnowledgeService, o
     const { rows } = await db.query<MessageRow>(
       `UPDATE knowledge_messages m SET feedback = $3, feedback_comment = $4
          FROM knowledge_sessions s
-        WHERE m.id = $1 AND m.session_id = s.id AND s.user_id = $2 AND m.role = 'assistant'
+        WHERE m.id = $1 AND m.session_id = s.id AND s.user_id = $2 AND m.role = 'assistant' AND s.company_id = $5
         RETURNING m.id, m.session_id, m.role, m.content, m.sources, m.mode, m.notice, m.feedback, m.created_at`,
-      [idParam(req.params.id), actor.id, body.feedback, body.feedback ? body.comment?.trim() || null : null],
+      [idParam(req.params.id), actor.id, body.feedback, body.feedback ? body.comment?.trim() || null : null, actor.company_id],
     );
     const m = rows[0];
     if (!m) throw notFound('Ответ не найден');
