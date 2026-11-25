@@ -100,3 +100,44 @@ export async function openAttachment(a: Pick<Attachment, 'id' | 'url' | 'name' |
   }
   await Linking.openURL(url);
 }
+
+/** Обновляем ограниченную по времени ссылку на превью, пока элемент открыт. */
+export function usePreviewUrl(att: Pick<Attachment, 'id' | 'thumb_url'> | null | undefined): string | undefined {
+  const id = att?.id;
+  const raw = att?.thumb_url;
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!id || !raw) {
+      setUrl(null);
+      return;
+    }
+    let live = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = (value: string) => {
+      if (!live) return;
+      setUrl(value);
+      const signed = parseFileLink(value);
+      if (signed) timer = setTimeout(refresh, Math.max(1000, signed.exp * 1000 - Date.now() - 60_000));
+    };
+    const refresh = () => {
+      void api<Attachment>(`/files/${id}`)
+        .then((next) => {
+          if (!live) return;
+          if (next.thumb_url) schedule(next.thumb_url);
+          else setUrl(null);
+        })
+        .catch(() => {
+          if (!live) return;
+          setUrl(null);
+          timer = setTimeout(refresh, 30_000);
+        });
+    };
+    if (parseFileLink(raw) && fileLinkFresh(raw, Date.now())) schedule(raw);
+    else refresh();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [id, raw]);
+  return url ? absUri(url) : undefined;
+}
