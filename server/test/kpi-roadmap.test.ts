@@ -170,12 +170,34 @@ describe('дорожная карта', () => {
     const anna = await ctx.as('anna');
     const denied = await anna.post(`/api/v1/goals/${ctx.demo.goals.main}/reschedule`, { changes: proposals.map((p: { task_id: string; to_start: string; to_due: string }) => ({ task_id: p.task_id, start_at: p.to_start, due_at: p.to_due })) });
     expect(denied.status).toBe(403);
-    const ok = await olga.post(`/api/v1/goals/${ctx.demo.goals.main}/reschedule`, { changes: proposals.map((p: { task_id: string; to_start: string; to_due: string }) => ({ task_id: p.task_id, start_at: p.to_start, due_at: p.to_due })) });
-    expect(ok.status).toBe(200);
+    const url = `/api/v1/goals/${ctx.demo.goals.main}/reschedule`;
+    const body = { changes: proposals.map((p: { task_id: string; to_start: string; to_due: string }) => ({ task_id: p.task_id, start_at: p.to_start, due_at: p.to_due })) };
+    const replies = await Promise.all([olga.post(url, body), olga.post(url, body)]);
+    expect(replies.map((reply) => reply.status)).toEqual([200, 200]);
+    expect(replies.map((reply) => reply.body.data.updated).sort()).toEqual([0, proposals.length]);
     const after = (await olga.get(`/api/v1/tasks/${ctx.demo.tasks.pilot}`)).body.data;
     expect(after.due_at).not.toBe(before.due_at);
     const { rows } = await ctx.db.query(`SELECT COUNT(*)::int AS n FROM audit_events WHERE event_type = 'task.rescheduled'`);
     expect(rows[0]!.n).toBe(proposals.length);
+  });
+
+  it('проверяет неизменённое начало и отклоняет пустую дату и повтор задачи', async () => {
+    const olga = await ctx.as('olga');
+    const taskId = ctx.demo.tasks.pilot;
+    const path = `/api/v1/tasks/${taskId}`;
+    const url = `/api/v1/goals/${ctx.demo.goals.main}/reschedule`;
+    const before = (await olga.get(path)).body.data;
+    expect(before.start_at).toBeTruthy();
+    const tooEarly = await olga.post(url, { changes: [{ task_id: taskId, due_at: '2026-09-01' }] });
+    expect(tooEarly.status).toBe(422);
+    expect(tooEarly.body.error.fields.due_at).toMatch(/раньше даты начала/);
+    const empty = await olga.post(url, { changes: [{ task_id: taskId, start_at: '', due_at: '2026-12-01' }] });
+    expect(empty.status).toBe(422);
+    expect(empty.body.error.fields.start_at).toBeDefined();
+    const duplicate = await olga.post(url, { changes: [{ task_id: taskId, due_at: '2026-12-01' }, { task_id: taskId, due_at: '2026-12-02' }] });
+    expect(duplicate.status).toBe(422);
+    expect(duplicate.body.error.fields.task_id).toMatch(/один раз/);
+    expect((await olga.get(path)).body.data).toMatchObject({ start_at: before.start_at, due_at: before.due_at });
   });
 
   it('перенос задачи чужой цели отклоняется', async () => {

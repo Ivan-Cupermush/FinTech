@@ -20,7 +20,7 @@ import {
 import { actorOf, type AuthedActor } from '../auth/auth';
 import type { Db, Queryable } from '../db/db';
 import { forbidden, invalid } from '../http/errors';
-import { idParam, isUuid, parseBody } from '../http/validate';
+import { idParam, parseBody } from '../http/validate';
 import { audit } from '../services/audit';
 import { effectiveAccess, getVisibleGoal, goalCard, loadGoals, loadMetrics, loadTrends, serializeMetric, type LoadedGoal } from '../services/goals';
 import { notify } from '../services/notify';
@@ -51,6 +51,15 @@ function riskTasks(tasks: TaskRow[]) {
     blocked_since: t.blocked_since,
     assignee_name: t.assignee_name,
   }));
+}
+
+/** Одинаковый порядок блокировки для запросов, затрагивающих несколько задач. */
+function lockRescheduleTasks(q: Queryable, companyId: string, taskIds: readonly string[]) {
+  return q.query<Pick<TaskRow, 'id' | 'title' | 'assignee_id' | 'start_at' | 'due_at'>>(
+    `SELECT id, title, assignee_id, start_at, due_at FROM tasks
+      WHERE company_id = $1 AND id = ANY($2::uuid[]) ORDER BY id FOR UPDATE`,
+    [companyId, taskIds],
+  );
 }
 
 export async function goalRisks(q: Queryable, companyId: string, goal: LoadedGoal, today: string) {
@@ -167,19 +176,28 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
       const { goal, org } = await getVisibleGoal(q, actor, id);
       if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'due_at', org)) throw forbidden('Переносить сроки может руководитель цели');
       const { tasks } = await goalRisks(q, actor.company_id, goal, today());
-      const byId = new Map(tasks.map((t) => [t.id, t]));
+      const allowedIds = new Set(tasks.map((task) => task.id));
+      const taskIds = body.changes.map((change) => change.task_id);
+      if (taskIds.some((taskId) => !allowedIds.has(taskId))) throw invalid('Не удалось перенести сроки', { task_id: 'Задача не относится к этой цели' });
+      if (new Set(taskIds).size !== taskIds.length) throw invalid('Не удалось перенести сроки', { task_id: 'Укажите задачу один раз' });
+      const { rows } = await lockRescheduleTasks(q, actor.company_id, taskIds);
+      const byId = new Map(rows.map((task) => [task.id, task]));
+      const applied: { task_id: string; from_due: string | null; to_due: string }[] = [];
       for (const c of body.changes) {
-        const task = isUuid(c.task_id) ? byId.get(c.task_id) : undefined;
+        const task = byId.get(c.task_id);
         if (!task) throw invalid('Не удалось перенести сроки', { task_id: 'Задача не относится к этой цели' });
-        if (!isValidIsoDate(c.due_at) || (c.start_at && !isValidIsoDate(c.start_at))) throw invalid('Не удалось перенести сроки', { due_at: 'Укажите дату в формате ГГГГ-ММ-ДД' });
-        if (c.start_at && c.start_at > c.due_at) throw invalid('Не удалось перенести сроки', { due_at: 'Срок не может быть раньше даты начала' });
         const start = c.start_at === undefined ? task.start_at : c.start_at;
+        if (start !== null && !isValidIsoDate(start)) throw invalid('Не удалось перенести сроки', { start_at: 'Укажите дату в формате ГГГГ-ММ-ДД' });
+        if (!isValidIsoDate(c.due_at)) throw invalid('Не удалось перенести сроки', { due_at: 'Укажите дату в формате ГГГГ-ММ-ДД' });
+        if (start && start > c.due_at) throw invalid('Не удалось перенести сроки', { due_at: 'Срок не может быть раньше даты начала' });
+        if (start === task.start_at && c.due_at === task.due_at) continue;
         await q.query(`UPDATE tasks SET start_at = $2, due_at = $3, updated_at = NOW() WHERE id = $1`, [task.id, start, c.due_at]);
         await audit(q, { company_id: actor.company_id, entity_type: 'task', entity_id: task.id, goal_id: id, actor_id: actor.id, event_type: 'task.rescheduled', old_values: { start_at: task.start_at, due_at: task.due_at }, new_values: { start_at: start, due_at: c.due_at } });
         if (task.assignee_id) await notify(q, { company_id: actor.company_id, user_id: task.assignee_id, kind: 'reschedule', title: `Новый срок задачи «${task.title}»`, body: `Срок перенесён на ${formatDate(c.due_at, { today: today() })}`, task_id: task.id, goal_id: id }, actor.id);
+        applied.push({ task_id: task.id, from_due: task.due_at, to_due: c.due_at });
       }
-      await decideProposals(q, actor.company_id, id, body.changes.map((c) => ({ task_id: c.task_id, from_due: byId.get(c.task_id)!.due_at, to_due: c.due_at })), 'accepted', now().toISOString());
-      return { updated: body.changes.length };
+      await decideProposals(q, actor.company_id, id, applied, 'accepted', now().toISOString());
+      return { updated: applied.length };
     });
     res.json({ data });
   });
@@ -197,11 +215,15 @@ export function roadmapRouter(db: Db, now: () => Date): Router {
       if (!canEditGoal(actor, await effectiveAccess(q, actor.company_id, goal), 'due_at', org)) throw forbidden('Решать о переносе сроков может руководитель цели');
       const { risks } = await goalRisks(q, actor.company_id, goal, today());
       const offered = new Map(risks.flatMap((x) => x.proposals ?? []).map((p) => [p.task_id, p]));
-      const decided = body.task_ids.flatMap((t) => {
+      const decided = [...new Set(body.task_ids)].flatMap((t) => {
         const p = offered.get(t);
         return p ? [{ task_id: t, from_due: p.from_due, to_due: p.to_due }] : [];
       });
-      return { dismissed: await decideProposals(q, actor.company_id, id, decided, 'dismissed', now().toISOString()) };
+      if (!decided.length) return { dismissed: 0 };
+      const { rows } = await lockRescheduleTasks(q, actor.company_id, decided.map((proposal) => proposal.task_id));
+      const currentDue = new Map(rows.map((task) => [task.id, task.due_at]));
+      const current = decided.filter((proposal) => currentDue.get(proposal.task_id) === proposal.from_due);
+      return { dismissed: await decideProposals(q, actor.company_id, id, current, 'dismissed', now().toISOString()) };
     });
     res.json({ data });
   });
