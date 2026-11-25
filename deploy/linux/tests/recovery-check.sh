@@ -52,13 +52,18 @@ printf 'Backup, full repository check and isolated restore completed in %s secon
 
 # Actual app API, still entirely synthetic and offline. Its two node processes
 # close PGlite and the file store before backup and after validation.
-mkdir -p "$work/app-data" "$work/app-restore"
-export RESTIC_REPOSITORY="$work/app-repository"
-restic init >/dev/null
-"$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" create "$work/app-data"
-started=$SECONDS
-bash "$here/../backup-pglite.sh" synthetic.service "$work/app-data"
-restic check --read-data >/dev/null
-restic restore latest --tag offix-pglite-offline --target "$work/app-restore" >/dev/null
-"$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" verify "$work/app-restore$work/app-data"
-printf 'App snapshot, repository check, restore and verification: %s seconds.\n' "$((SECONDS - started))"
+for RECOVERY_STORE in fs kusok; do
+  export RECOVERY_STORE
+  data="$work/app-data-$RECOVERY_STORE"
+  target="$work/app-restore-$RECOVERY_STORE"
+  mkdir -p "$data" "$target"
+  export RESTIC_REPOSITORY="$work/app-repository-$RECOVERY_STORE"
+  restic init >/dev/null
+  "$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" create "$data"
+  started=$SECONDS
+  bash "$here/../backup-pglite.sh" synthetic.service "$data"
+  restic check --read-data >/dev/null
+  restic restore latest --tag offix-pglite-offline --target "$target" >/dev/null
+  "$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" verify "$target$data"
+  printf 'App %s snapshot, repository check, restore and verification: %s seconds.\n' "$RECOVERY_STORE" "$((SECONDS - started))"
+done

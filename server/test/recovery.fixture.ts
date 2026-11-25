@@ -17,9 +17,10 @@ if (!dir || (mode !== 'create' && mode !== 'verify')) throw new Error('create|ve
 const now = new Date('2026-10-19T12:00:00Z');
 const secret = 'synthetic-recovery-secret-for-tests-only';
 const contents = 'Synthetic offix recovery attachment\n';
+const storage = process.env.RECOVERY_STORE === 'kusok' ? 'kusok' : 'fs';
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 const db = await createPgliteDb(join(dir, 'pgdata'));
-const store = createMediaStore({ dir: join(dir, 'uploads'), maxBytes: 1024 * 1024, store: 'fs', ffmpegDir: null }, secret);
+const store = createMediaStore({ dir: join(dir, 'uploads'), maxBytes: 1024 * 1024, store: storage, ffmpegDir: null }, secret);
 try {
   if (mode === 'create') {
     await migrate(db);
@@ -50,6 +51,15 @@ try {
     await writeFile(join(dir, 'fixture.json'), JSON.stringify({ meetingId: meeting.body.data.id, fileId: file.body.data.id }));
   } else {
     const { meetingId, fileId } = JSON.parse(await readFile(join(dir, 'fixture.json'), 'utf8')) as { meetingId: string; fileId: string };
+    const stored = await db.query<{ storage_key: string }>('SELECT storage_key FROM attachments WHERE id = $1', [fileId]);
+    assert.equal(stored.rows[0]?.storage_key.startsWith('kusok:'), storage === 'kusok');
+    if (storage === 'kusok') {
+      assert.ok(store.kusok);
+      const check = await store.kusok.fsck();
+      assert.equal(check.brokenFiles, 0);
+      assert.equal(check.badRecords, 0);
+      assert.equal(check.missingManifests, 0);
+    }
     const visible = await request(app).get('/api/v1/meetings').set(auth(anna)).expect(200);
     assert.ok(visible.body.data.upcoming.some((m: { id: string; title: string }) => m.id === meetingId && m.title === 'Synthetic recovery meeting'));
     const hidden = await request(app).get('/api/v1/meetings').set(auth(dima)).expect(200);
@@ -58,7 +68,7 @@ try {
     const file = await request(app).get(`/api/v1/files/${fileId}`).set(auth(olga)).expect(200);
     const raw = await request(app).get(file.body.data.url).expect(200);
     assert.equal(sha256(raw.text), sha256(contents));
-    console.log(`Verified restored meeting, two users' access and attachment SHA-256 ${sha256(contents)}`);
+    console.log(`Verified ${storage} restore: meeting, two users' access and attachment SHA-256 ${sha256(contents)}`);
   }
 } finally {
   store.close();
