@@ -33,6 +33,8 @@ export async function issueToken(q: Queryable, secret: string, userId: string, c
 /** Все выданные раньше токены человека перестают работать. */
 export async function revokeSessions(q: Queryable, userId: string): Promise<void> {
   await q.query(`UPDATE users SET token_version = token_version + 1 WHERE id = $1`, [userId]);
+  // Подтверждённый, но ещё не забранный QR тоже может выдать новый токен.
+  await q.query(`UPDATE qr_logins SET status = 'used' WHERE user_id = $1 AND status IN ('scanned', 'approved')`, [userId]);
 }
 
 export interface TokenUser {
