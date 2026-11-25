@@ -14,6 +14,7 @@ import {
   plural,
   reportCsv,
   reportFileName,
+  reportObservationLabel,
   reportPeriodText,
   reportText,
   type Report,
@@ -238,6 +239,7 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
 
 function GoalRow({ g, today, inDecisions }: { g: ReportGoal; today: string; inDecisions: boolean }) {
   const k = g.kpi;
+  const observation = reportObservationLabel(k, today);
   const meta = [g.owner, g.health === 'done' && g.completed_at ? `завершена ${formatDate(g.completed_at, { today })}` : g.due_at ? `срок ${formatDate(g.due_at, { today })}` : null].filter(Boolean).join(' · ');
   return (
     <div className="report-goal">
@@ -261,6 +263,7 @@ function GoalRow({ g, today, inDecisions }: { g: ReportGoal; today: string; inDe
                 {k.delta !== null && <span className={`num report-delta ${k.delta > 0 ? 'good' : k.delta < 0 ? 'bad' : ''}`}>{formatDelta(k.delta)} за период</span>}
                 {k.current === null && <span>Замеров ещё нет</span>}
               </div>
+              {observation && <div className="faint report-meta">{observation}</div>}
             </>
           ) : (
             <span className="faint">Без KPI: эффект не измерить</span>

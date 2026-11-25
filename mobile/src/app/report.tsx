@@ -11,6 +11,7 @@ import {
   formatHours,
   kpiLine,
   plural,
+  reportObservationLabel,
   reportPeriodText,
   reportText,
   type Report,
@@ -126,24 +127,28 @@ function Body({ r }: { r: Report }) {
 
           <SectionTitle title="Цели" />
           <Card style={{ gap: 0, paddingVertical: 4 }}>
-            {r.goals.map((g, k) => (
-              <Pressable key={g.id} accessibilityRole="button" onPress={() => router.push(`/goal/${g.id}`)} style={{ paddingVertical: 14, gap: 6, borderTopWidth: k ? 1 : 0, borderTopColor: p.line }}>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-                  <Text style={{ flex: 1, fontFamily: font.medium }}>{g.title}</Text>
-                  <Pill tone={HEALTH_TONES[g.health]} dot>
-                    {HEALTH_LABELS[g.health]}
-                  </Pill>
-                </View>
-                <Text variant="small" tone="muted">
-                  {g.kpi ? `${g.kpi.name}: ${kpiLine(g.kpi)}` : 'Без KPI'}
-                </Text>
-                {g.kpi?.delta != null && (
-                  <Text variant="caption" tone={g.kpi.delta > 0 ? 'good' : g.kpi.delta < 0 ? 'bad' : 'faint'}>
-                    {formatDelta(g.kpi.delta)} за период{g.kpi.progress !== null ? ` · ${g.kpi.progress} % пути` : ''}
+            {r.goals.map((g, k) => {
+              const observation = reportObservationLabel(g.kpi, r.at);
+              return (
+                <Pressable key={g.id} accessibilityRole="button" onPress={() => router.push(`/goal/${g.id}`)} style={{ paddingVertical: 14, gap: 6, borderTopWidth: k ? 1 : 0, borderTopColor: p.line }}>
+                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                    <Text style={{ flex: 1, fontFamily: font.medium }}>{g.title}</Text>
+                    <Pill tone={HEALTH_TONES[g.health]} dot>
+                      {HEALTH_LABELS[g.health]}
+                    </Pill>
+                  </View>
+                  <Text variant="small" tone="muted">
+                    {g.kpi ? `${g.kpi.name}: ${kpiLine(g.kpi)}` : 'Без KPI'}
                   </Text>
-                )}
-              </Pressable>
-            ))}
+                  {observation && <Text variant="caption" tone="faint">{observation}</Text>}
+                  {g.kpi?.delta != null && (
+                    <Text variant="caption" tone={g.kpi.delta > 0 ? 'good' : g.kpi.delta < 0 ? 'bad' : 'faint'}>
+                      {formatDelta(g.kpi.delta)} за период{g.kpi.progress !== null ? ` · ${g.kpi.progress} % пути` : ''}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
           </Card>
         </>
       )}

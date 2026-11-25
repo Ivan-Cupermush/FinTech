@@ -243,7 +243,9 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     const summary = list.find((goal: { id: string }) => goal.id === goalId);
     expect(summary.primary_metric.trend.at(-1)).toBe(34);
     const report = (await director.get('/api/v1/report?days=30')).body.data;
-    expect(report.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({ current: 34, progress: 60 });
+    expect(report.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({
+      current: 34, progress: 60, last_observed_at: first.latest?.at, last_observed_source: 'import',
+    });
 
     const history = (await director.get(observations)).body.data;
     expect(history).toHaveLength(before.length + 1);
@@ -251,5 +253,16 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     const repeat = await director.post(`${observations}/import`, { rows: first.observations });
     expect(repeat.body.data).toMatchObject({ imported: 0, skipped: 1, metric: { current_value: 34 } });
     expect((await director.get(observations)).body.data).toHaveLength(history.length);
+
+    // При совпадении времени замера текущим становится последний внесённый.
+    expect((await director.post(observations, { observed_at: first.latest?.at, value: 33 })).status).toBe(201);
+    const corrected = (await director.get(goalPath)).body.data;
+    expect(corrected.metrics[0]).toMatchObject({ current_value: 33, last_observed_source: 'manual' });
+    const correctedList = (await director.get('/api/v1/goals?scope=top')).body.data;
+    expect(correctedList.find((goal: { id: string }) => goal.id === goalId).primary_metric.trend.at(-1)).toBe(33);
+    const correctedReport = (await director.get('/api/v1/report?days=30')).body.data;
+    expect(correctedReport.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({
+      current: 33, last_observed_at: first.latest?.at, last_observed_source: 'manual',
+    });
   });
 });

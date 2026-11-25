@@ -1,6 +1,6 @@
 import { formatDate } from './format';
 import { formatHours } from './metrics';
-import { HEALTH_LABELS, REPORT_PERIOD_LABELS, kpiLine, reportPeriodText, type GoalHealth, type Report, type ReportPeriod } from './report';
+import { HEALTH_LABELS, REPORT_PERIOD_LABELS, kpiLine, reportObservationLabel, reportPeriodText, type GoalHealth, type Report, type ReportPeriod } from './report';
 import { plural } from './units';
 
 /**
@@ -193,12 +193,14 @@ export function reportMailHtml(r: Report, opts: { appUrl?: string } = {}): strin
       const title = base ? `<a href="${e(`${base}/app/goals/${encodeURIComponent(g.id)}`)}" style="color:${C.ink};text-decoration:none">${e(g.title)}</a>` : e(g.title);
       const meta = [g.owner, g.health === 'done' && g.completed_at ? `завершена ${formatDate(g.completed_at, { today: r.at })}` : g.due_at ? `срок ${formatDate(g.due_at, { today: r.at })}` : null].filter(Boolean).join(' · ');
       const kpi = g.kpi ? `${g.kpi.name}: ${kpiLine(g.kpi)}${g.kpi.progress !== null && g.kpi.direction !== 'maintain' ? ` · ${g.kpi.progress} % пути` : ''}` : 'Без KPI: эффект не измерить';
+      const observation = reportObservationLabel(g.kpi, r.at);
       p.push(
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${C.line}"><tr>`,
         `<td style="padding:12px 0">`,
         `<div style="font-size:15px;line-height:21px;font-weight:600;color:${C.ink}">${title}</div>`,
         meta ? `<div style="font-size:13px;line-height:18px;color:${C.ink3}">${e(meta)}</div>` : '',
         `<div style="margin-top:4px;font-size:14px;line-height:20px;color:${C.ink2}">${e(kpi)}</div>`,
+        observation ? `<div style="font-size:13px;line-height:18px;color:${C.ink3}">${e(observation)}</div>` : '',
         `</td>`,
         `<td align="right" valign="top" style="padding:12px 0 12px 12px;white-space:nowrap;font-size:13px;line-height:21px;font-weight:600;color:${HEALTH_COLOR[g.health]}">${e(HEALTH_LABELS[g.health])}</td>`,
         `</tr></table>`,

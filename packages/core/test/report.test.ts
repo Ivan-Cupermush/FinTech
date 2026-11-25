@@ -177,6 +177,19 @@ describe('buildReport: KPI за период', () => {
     expect(k.current).toBe(36);
     expect(k.last_observed_at).toBe(ago(10));
   });
+  it('текст и CSV указывают дату и источник того замера, который попал в отчёт', () => {
+    const observedAt = '2026-10-18T22:30:00.000Z';
+    const r = buildReport(input([goal('a', { kpi: {
+      ...kpi([]),
+      observations: [
+        { value: 36, observed_at: observedAt, source: 'import' },
+        { value: 30, observed_at: ago(-1), source: 'integration' },
+      ],
+    } })]));
+    expect(r.goals[0]?.kpi).toMatchObject({ current: 36, last_observed_at: observedAt, last_observed_source: 'import' });
+    expect(reportText(r)).toContain('Замер 19 октября · Из таблицы');
+    expect(reportCsv(r)).toContain(`;${observedAt};Из таблицы\r\n`);
+  });
 });
 
 describe('buildReport: задачи', () => {

@@ -1,6 +1,7 @@
 import { formatDate, formatNumber, formatValue } from './format';
-import { kpiProgress, type KpiState } from './kpi';
-import { formatHours, kpiMovement, shiftIso, valueAt, type KpiSeries, type Movement, type ProductMetrics } from './metrics';
+import { observationDay } from './import';
+import { kpiProgress, OBSERVATION_SOURCE_LABELS, type KpiState, type ObservationSource } from './kpi';
+import { formatHours, kpiMovement, observationAt, shiftIso, valueAt, type KpiSeries, type Movement, type ProductMetrics } from './metrics';
 import type { Risk, Severity } from './risk';
 import { isOverdue, type TaskStatus } from './task';
 import { UNITS, plural, type UnitId } from './units';
@@ -86,6 +87,7 @@ export interface ReportKpi {
   /** Изменение прогресса за период, п.п. */
   delta: number | null;
   last_observed_at: string | null;
+  last_observed_source?: ObservationSource | null;
 }
 
 export interface ReportRisk {
@@ -155,11 +157,10 @@ function healthOf(g: ReportGoalInput): GoalHealth {
 }
 
 function reportKpi(kpi: NonNullable<ReportGoalInput['kpi']>, from: string, at: string): ReportKpi {
-  const current = valueAt(kpi.observations, at);
+  const last = observationAt(kpi.observations, at);
+  const current = last?.value ?? null;
   const p = kpiProgress(kpi, current);
   const { movement, delta } = kpiMovement(kpi, from, at);
-  let last: string | null = null;
-  for (const o of kpi.observations) if (o.observed_at <= at && (!last || o.observed_at > last)) last = o.observed_at;
   return {
     name: kpi.name,
     unit: kpi.unit,
@@ -174,7 +175,8 @@ function reportKpi(kpi: NonNullable<ReportGoalInput['kpi']>, from: string, at: s
     state: p.state,
     movement,
     delta: delta === null ? null : Math.round(delta * 10) / 10,
-    last_observed_at: last,
+    last_observed_at: last?.observed_at ?? null,
+    last_observed_source: last?.source ?? null,
   };
 }
 
@@ -296,6 +298,13 @@ export function kpiLine(k: ReportKpi): string {
   return `${n(k.baseline)} → ${formatValue(k.current, k.unit)}, цель ${n(k.target)}`;
 }
 
+export function reportObservationLabel(kpi: ReportKpi | null, today: string): string | null {
+  if (!kpi?.last_observed_at) return null;
+  const day = formatDate(observationDay(kpi.last_observed_at), { today: observationDay(today) });
+  const source = kpi.last_observed_source && OBSERVATION_SOURCE_LABELS[kpi.last_observed_source];
+  return source ? `Замер ${day} · ${source}` : `Замер ${day}`;
+}
+
 function progressLine(k: ReportKpi): string | null {
   if (k.direction === 'maintain' || k.progress === null) return null;
   const delta = k.delta === null ? '' : `, ${k.delta > 0 ? '+' : k.delta < 0 ? '−' : '±'}${formatNumber(Math.abs(k.delta), 1)} п.п. за период`;
@@ -329,6 +338,8 @@ export function reportText(r: Report): string {
         parts.push(`${g.kpi.name}: ${kpiLine(g.kpi)}`);
         const p = progressLine(g.kpi);
         if (p) parts.push(p);
+        const observation = reportObservationLabel(g.kpi, r.at);
+        if (observation) parts.push(observation);
       } else parts.push('без KPI');
       lines.push(`• ${g.title} — ${parts.join(' · ')}`);
     }
@@ -382,6 +393,8 @@ export const REPORT_CSV_COLUMNS = [
   'Просрочено',
   'Главный риск',
   'Что сделать',
+  'Дата и время замера (UTC)',
+  'Источник замера',
 ] as const;
 
 /**
@@ -412,6 +425,8 @@ export function reportCsv(r: Report): string {
       g.tasks.overdue,
       g.top_risk?.title ?? null,
       g.top_risk?.suggestion ?? null,
+      k?.last_observed_at ?? null,
+      k?.last_observed_source ? OBSERVATION_SOURCE_LABELS[k.last_observed_source] : null,
     ]);
   }
   return `﻿${rows.map((row) => row.map(csvCell).join(';')).join('\r\n')}\r\n`;

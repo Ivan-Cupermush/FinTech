@@ -144,7 +144,7 @@ export async function loadMetrics(q: Queryable, goalIds: string[]): Promise<Metr
             o.value AS current_value, o.observed_at AS last_observed_at, o.source AS last_observed_source
        FROM goal_metrics m
        LEFT JOIN LATERAL (
-         SELECT value, observed_at, source FROM goal_metric_observations WHERE metric_id = m.id ORDER BY observed_at DESC, created_at DESC LIMIT 1
+         SELECT value, observed_at, source FROM goal_metric_observations WHERE metric_id = m.id ORDER BY observed_at DESC, created_at DESC, id DESC LIMIT 1
        ) o ON TRUE
       WHERE m.goal_id = ANY($1::uuid[])
       ORDER BY m.is_primary DESC, m.created_at`,
@@ -159,10 +159,10 @@ export async function loadTrends(q: Queryable, metricIds: string[], n = 12): Pro
   if (!metricIds.length) return out;
   const { rows } = await q.query<{ metric_id: string; value: string | number }>(
     `SELECT metric_id, value FROM (
-       SELECT metric_id, value, observed_at, created_at,
-              ROW_NUMBER() OVER (PARTITION BY metric_id ORDER BY observed_at DESC, created_at DESC) AS rn
+       SELECT metric_id, value, observed_at, created_at, id,
+              ROW_NUMBER() OVER (PARTITION BY metric_id ORDER BY observed_at DESC, created_at DESC, id DESC) AS rn
          FROM goal_metric_observations WHERE metric_id = ANY($1::uuid[])
-     ) x WHERE rn <= $2 ORDER BY metric_id, observed_at, created_at`,
+     ) x WHERE rn <= $2 ORDER BY metric_id, observed_at, created_at, id`,
     [metricIds, n],
   );
   for (const r of rows) out.set(r.metric_id, [...(out.get(r.metric_id) ?? []), Number(r.value)]);
