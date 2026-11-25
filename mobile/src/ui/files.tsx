@@ -1,15 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Paperclip, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { TASK_FILES_MAX, type Attachment, type TaskDetail } from '@offix/core';
-import { dropDraft, absUri, uploadPicked } from '../lib/files';
+import { dropDraft, uploadPicked } from '../lib/files';
 import { checkPicked, isVisual, uploadFields, type PickedFile } from '../lib/media';
 import { useMe } from '../lib/queries';
 import { api } from '../lib/session';
 import { font, usePalette } from '../lib/theme';
 import { pickCamera, pickDocuments, pickGallery } from './attach';
 import { FileRow } from './media';
+import { PreviewImage } from './PreviewImage';
 import { Text } from './primitives';
 import { MediaViewer } from './viewer';
 
@@ -118,7 +119,7 @@ export function AttachmentList({ items, author, canRemove, onRemove, size = 76 }
           {visual.map((a, i) => (
             <View key={a.id}>
               <Pressable accessibilityRole="imagebutton" accessibilityLabel={`${a.kind === 'video' ? 'Видео' : 'Фото'} ${a.name} — открыть`} onPress={() => setView(i)} style={{ width: size, height: size, borderRadius: 14, overflow: 'hidden', backgroundColor: p.surface3 }}>
-                {a.thumb_url && <Image source={{ uri: absUri(a.thumb_url) }} style={StyleSheet.absoluteFill} />}
+                {a.thumb_url && <PreviewImage attachment={a} style={StyleSheet.absoluteFill} />}
               </Pressable>
               {canRemove?.(a) && onRemove && <View style={{ position: 'absolute', top: -6, right: -6 }}>{remove(a)}</View>}
             </View>

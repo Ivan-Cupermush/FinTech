@@ -1,14 +1,15 @@
 import { Download, FileText, Film, MessageCircle, Pause, Play } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
 import { albumLayout, decodeWaveform, fileExtension, formatBytes, formatClock, resample, type Attachment, type ContactCard } from '@offix/core';
-import { fileSrc, freshUrl, openFile, useFileUrl } from '../../lib/files';
+import { fileSrc, freshUrl, openFile, useFileUrl, usePreviewUrl } from '../../lib/files';
+import { PreviewImage } from '../../ui/PreviewImage';
 import { Avatar } from '../../ui/Avatar';
 import './media.css';
 
 /**
  * Вложения в пузыре: альбом из фото и видео по мозаике, файлы строками,
- * голосовое с волной, кружочек и карточка сотрудника. Превью приходят по
- * публичным случайным именам, оригиналы — по подписанным ссылкам.
+ * голосовое с волной, кружочек и карточка сотрудника. Превью и оригиналы
+ * приходят по подписанным ссылкам, которые обновляются при необходимости.
  */
 
 export const isVisual = (a: Attachment) => a.kind === 'photo' || a.kind === 'video';
@@ -20,7 +21,8 @@ const ALBUM_H = 440;
 function useCellSrc(a: Attachment) {
   const gif = a.mime === 'image/gif';
   const full = useFileUrl(a, gif || !a.thumb_url);
-  return gif || !a.thumb_url ? (a.kind === 'photo' ? full : undefined) : fileSrc(a.thumb_url);
+  const preview = usePreviewUrl(a);
+  return gif || !a.thumb_url ? (a.kind === 'photo' ? full : undefined) : preview;
 }
 
 function AlbumCell({ a, style, onOpen, label }: { a: Attachment; style: CSSProperties; onOpen: () => void; label: string }) {
@@ -71,7 +73,7 @@ export function FileRow({ a }: { a: Attachment }) {
   return (
     <div className="file-row">
       <button type="button" className={`file-tile ${a.thumb_url ? 'has-thumb' : ''}`} style={{ '--h': extHue(ext) } as CSSProperties} onClick={download} aria-label={`Скачать ${a.name}`} aria-busy={busy || undefined}>
-        {a.thumb_url ? <img src={fileSrc(a.thumb_url)} alt="" loading="lazy" /> : <span className="file-ext">{ext}</span>}
+        {a.thumb_url ? <PreviewImage attachment={a} alt="" loading="lazy" /> : <span className="file-ext">{ext}</span>}
         <span className="file-tile-dl" aria-hidden>
           <Download size={18} strokeWidth={2.4} />
         </span>
@@ -223,6 +225,7 @@ export function VoicePlayer({ a, listened, mine, onListen }: { a: Attachment; li
 // ---------------------------------------------------------------- кружочек
 
 export function VideoNote({ a, listened, mine, onListen }: { a: Attachment; listened: boolean; mine: boolean; onListen?: () => void }) {
+  const preview = usePreviewUrl(a);
   const video = useRef<HTMLVideoElement>(null);
   const src = useFileUrl(a);
   const [active, setActive] = useState(false);
@@ -269,7 +272,7 @@ export function VideoNote({ a, listened, mine, onListen }: { a: Attachment; list
       <video
         ref={video}
         src={src}
-        poster={fileSrc(a.thumb_url)}
+        poster={preview}
         muted
         loop
         autoPlay

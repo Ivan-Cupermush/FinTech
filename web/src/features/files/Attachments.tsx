@@ -1,7 +1,7 @@
 import { Paperclip, Play, X } from 'lucide-react';
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { formatBytes, formatClock, type Attachment } from '@offix/core';
-import { fileSrc } from '../../lib/files';
+import { PreviewImage } from '../../ui/PreviewImage';
 import type { PendingUpload } from '../../lib/useUploads';
 import { FileRow, isVisual } from '../chats/media';
 import { MediaViewer, type ViewerItem } from '../chats/viewer';
@@ -30,7 +30,7 @@ export function AttachmentList({ items, author, canRemove, onRemove, size = 'md'
           {visual.map((a, i) => (
             <span key={a.id} className="att-thumb-wrap">
               <button type="button" className="att-thumb" onClick={() => setView(i)} aria-label={`${a.kind === 'video' ? 'Видео' : 'Фото'} ${a.name} — открыть`}>
-                {a.thumb_url ? <img src={fileSrc(a.thumb_url)} alt="" loading="lazy" /> : <span className="att-thumb-blank" />}
+                {a.thumb_url ? <PreviewImage attachment={a} alt="" loading="lazy" /> : <span className="att-thumb-blank" />}
                 {a.kind === 'video' && (
                   <span className="album-badge">
                     <Play size={9} fill="currentColor" /> {formatClock(a.duration)}

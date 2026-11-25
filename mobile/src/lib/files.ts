@@ -2,7 +2,7 @@ import { File as FsFile, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
-import { fileLinkFresh, safeFileName, type Attachment } from '@offix/core';
+import { fileLinkFresh, parseFileLink, safeFileName, type Attachment } from '@offix/core';
 import { ApiError } from './client';
 import { fileUri, parseUpload, type PickedFile } from './media';
 import { api, currentSession } from './session';
@@ -105,17 +105,17 @@ export async function openAttachment(a: Pick<Attachment, 'id' | 'url' | 'name' |
 export function usePreviewUrl(att: Pick<Attachment, 'id' | 'thumb_url'> | null | undefined): string | undefined {
   const id = att?.id;
   const raw = att?.thumb_url;
-  const [url, setUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ id: string; source: string; url: string } | null>(null);
   useEffect(() => {
     if (!id || !raw) {
-      setUrl(null);
+      setPreview(null);
       return;
     }
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
     const schedule = (value: string) => {
       if (!live) return;
-      setUrl(value);
+      setPreview({ id: id!, source: raw!, url: value });
       const signed = parseFileLink(value);
       if (signed) timer = setTimeout(refresh, Math.max(1000, signed.exp * 1000 - Date.now() - 60_000));
     };
@@ -124,11 +124,11 @@ export function usePreviewUrl(att: Pick<Attachment, 'id' | 'thumb_url'> | null |
         .then((next) => {
           if (!live) return;
           if (next.thumb_url) schedule(next.thumb_url);
-          else setUrl(null);
+          else setPreview(null);
         })
         .catch(() => {
           if (!live) return;
-          setUrl(null);
+          setPreview(null);
           timer = setTimeout(refresh, 30_000);
         });
     };
@@ -139,5 +139,5 @@ export function usePreviewUrl(att: Pick<Attachment, 'id' | 'thumb_url'> | null |
       clearTimeout(timer);
     };
   }, [id, raw]);
-  return url ? absUri(url) : undefined;
+  return preview && preview.id === id && preview.source === raw ? absUri(preview.url) : undefined;
 }

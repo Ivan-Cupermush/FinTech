@@ -1,7 +1,7 @@
 import { ExternalLink, Film, Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { GALLERY_TABS, GALLERY_TAB_LABELS, formatBytes, groupByDay, plural, formatClock, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
-import { fileSrc } from '../../lib/files';
+import { PreviewImage } from '../../ui/PreviewImage';
 import { Skeleton } from '../../ui/Misc';
 import { useChatStats, useGallery } from './data';
 import { FileRow, VoicePlayer } from './media';
@@ -43,7 +43,7 @@ export function ChatGalleryView({ chatId, onJump }: { chatId: string; onJump: (m
           <div className="gallery-grid">
             {media.map((it, i) => (
               <button key={it.attachment.id} type="button" className="gallery-cell" onClick={() => setView(i)} aria-label={`${it.attachment.kind === 'video' ? 'Видео' : 'Фото'} от ${it.sender_name ?? 'удалённого аккаунта'}`}>
-                {it.attachment.thumb_url ? <img src={fileSrc(it.attachment.thumb_url)} alt="" loading="lazy" /> : <Film size={22} />}
+                {it.attachment.thumb_url ? <PreviewImage attachment={it.attachment} alt="" loading="lazy" /> : <Film size={22} />}
                 {it.attachment.kind === 'video' && (
                   <span className="album-badge">
                     <Play size={10} fill="currentColor" /> {formatClock(it.attachment.duration)}

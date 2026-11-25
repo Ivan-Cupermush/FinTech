@@ -42,7 +42,7 @@ const att = (id: string, over: Partial<Attachment> = {}): Attachment => ({
   duration: null,
   waveform: null,
   url: `/api/v1/files/${id}/raw?e=${LATER}&u=u-dir&s=sig`,
-  thumb_url: `/api/v1/files/thumbs/${id.padEnd(32, '0')}.jpg`,
+  thumb_url: `/api/v1/files/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/raw?e=${LATER}&u=u-dir&s=sig&preview=1`,
   uploaded_by: 'u-anna',
   created_at: at(9),
   ...over,
@@ -163,8 +163,8 @@ describe('медиа в ленте', () => {
     const album = feed.querySelector('#m-m1')!;
     expect(within(album as HTMLElement).getAllByRole('button', { name: /из 3 — открыть/ })).toHaveLength(3);
     expect(within(album as HTMLElement).getByText('0:12')).toBeInTheDocument();
-    // Превью — по публичному имени, не по подписанной ссылке.
-    expect(album.querySelector('img')?.getAttribute('src')).toBe(`/api/v1/files/thumbs/${'a1'.padEnd(32, '0')}.jpg`);
+    // Превью использует временную подписанную ссылку.
+    expect(album.querySelector('img')?.getAttribute('src')).toContain('&preview=1');
     const fileMsg = feed.querySelector('#m-m2') as HTMLElement;
     expect(within(fileMsg).getByRole('button', { name: 'Скачать отчёт.pdf' })).toBeInTheDocument();
     expect(within(fileMsg).getByText('2,3 МБ · PDF')).toBeInTheDocument();

@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ExternalLink, Film, Play } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { formatBytes, formatClock, GALLERY_TAB_LABELS, GALLERY_TABS, groupByDay, plural, moscowTime, type ChatGalleryItem, type GalleryTab } from '@offix/core';
 import { useChatStats, useGallery } from '../../../lib/chats';
-import { absUri } from '../../../lib/files';
+import { PreviewImage } from '../../../ui/PreviewImage';
 import { gridCell, type ViewerItem } from '../../../lib/media';
 import { font, usePalette } from '../../../lib/theme';
 import { LiquidSegmented } from '../../../ui/fx/LiquidSegmented';
@@ -51,7 +51,7 @@ function ChatMediaScreen() {
         <View accessibilityLabel="Медиа" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3, borderRadius: 18, overflow: 'hidden' }}>
           {media.map((it, i) => (
             <Pressable key={it.attachment.id} accessibilityRole="imagebutton" accessibilityLabel={`${it.attachment.kind === 'video' ? 'Видео' : 'Фото'} от ${it.sender_name ?? 'удалённого аккаунта'}`} onPress={() => setView(i)} style={({ pressed }) => ({ width: cell, height: cell, backgroundColor: p.surface3, opacity: pressed ? 0.8 : 1, alignItems: 'center', justifyContent: 'center' })}>
-              {it.attachment.thumb_url ? <Image source={{ uri: absUri(it.attachment.thumb_url) }} style={StyleSheet.absoluteFill} /> : <Film size={22} color={p.ink3} />}
+              {it.attachment.thumb_url ? <PreviewImage attachment={it.attachment} style={StyleSheet.absoluteFill} /> : <Film size={22} color={p.ink3} />}
               {it.attachment.kind === 'video' && (
                 <View style={{ position: 'absolute', left: 5, bottom: 5, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, backgroundColor: 'rgba(8,10,30,0.55)' }}>
                   <Play size={9} color="#fff" fill="#fff" />

@@ -2,7 +2,8 @@ import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { formatBytes, moscowTime, type Attachment } from '@offix/core';
-import { fileSrc, openFile, useFileUrl } from '../../lib/files';
+import { openFile, useFileUrl, usePreviewUrl } from '../../lib/files';
+import { PreviewImage } from '../../ui/PreviewImage';
 import { Avatar } from '../../ui/Avatar';
 
 export interface ViewerItem {
@@ -47,6 +48,7 @@ export function MediaViewer({ items, index: start, onClose, onJump }: { items: V
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const preview = usePreviewUrl(item?.attachment);
   if (!item) return null;
   const a = item.attachment;
   const down = (e: PointerEvent) => (swipe.current = { x: e.clientX, y: e.clientY });
@@ -62,7 +64,7 @@ export function MediaViewer({ items, index: start, onClose, onJump }: { items: V
 
   return createPortal(
     <div className="viewer" role="dialog" aria-modal="true" aria-label={a.kind === 'video' ? 'Просмотр видео' : 'Просмотр фото'}>
-      <div className="viewer-bg" style={a.thumb_url ? { backgroundImage: `url("${fileSrc(a.thumb_url)}")` } : undefined} aria-hidden />
+      <div className="viewer-bg" style={preview ? { backgroundImage: `url("${preview}")` } : undefined} aria-hidden />
       <header className="viewer-top">
         <button
           type="button"
@@ -108,7 +110,7 @@ export function MediaViewer({ items, index: start, onClose, onJump }: { items: V
         <div className="viewer-strip" role="tablist" aria-label="Все снимки">
           {items.map((it, i) => (
             <button key={it.attachment.id} type="button" role="tab" aria-selected={i === index} aria-label={`${i + 1}`} className={i === index ? 'on' : ''} onClick={() => setIndex(i)}>
-              {it.attachment.thumb_url ? <img src={fileSrc(it.attachment.thumb_url)} alt="" loading="lazy" /> : <span />}
+              {it.attachment.thumb_url ? <PreviewImage attachment={it.attachment} alt="" loading="lazy" /> : <span />}
             </button>
           ))}
         </div>
@@ -119,14 +121,15 @@ export function MediaViewer({ items, index: start, onClose, onJump }: { items: V
 }
 
 function Stage({ a }: { a: Attachment }) {
+  const preview = usePreviewUrl(a);
   const src = useFileUrl(a);
   const [loaded, setLoaded] = useState(false);
   const ratio = a.width && a.height ? `${a.width} / ${a.height}` : undefined;
   if (a.kind === 'video')
-    return <video className="viewer-media" src={src} poster={fileSrc(a.thumb_url)} controls autoPlay playsInline style={{ aspectRatio: ratio }} />;
+    return <video className="viewer-media" src={src} poster={preview} controls autoPlay playsInline style={{ aspectRatio: ratio }} />;
   return (
     <span className={`viewer-photo ${loaded ? 'is-loaded' : ''}`} style={{ aspectRatio: ratio }}>
-      {a.thumb_url && !loaded && <img className="viewer-media is-preview" src={fileSrc(a.thumb_url)} alt="" aria-hidden />}
+      {preview && !loaded && <img className="viewer-media is-preview" src={preview} alt="" aria-hidden />}
       {src && <img className="viewer-media" src={src} alt={a.name} onLoad={() => setLoaded(true)} draggable={false} />}
     </span>
   );
