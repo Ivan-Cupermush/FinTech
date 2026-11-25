@@ -49,7 +49,10 @@ export async function recordLogin(
 export async function loginLockout(q: Queryable, userId: string, now: Date) {
   const since = new Date(now.getTime() - LOCKOUT_WINDOW_MIN * 60_000).toISOString();
   const { rows } = await q.query<{ created_at: Date | string; ok: boolean; failure: string | null }>(
-    `SELECT created_at, ok, failure FROM login_events WHERE user_id = $1 AND created_at > $2 ORDER BY created_at`,
+    `SELECT e.created_at, e.ok, e.failure FROM login_events e JOIN users u ON u.id = e.user_id
+      WHERE e.user_id = $1 AND e.created_at > $2
+        AND (u.password_changed_at IS NULL OR e.created_at >= u.password_changed_at)
+      ORDER BY e.created_at`,
     [userId, since],
   );
   const failures = rows.filter((r) => r.failure === 'bad_password').map((r) => new Date(r.created_at));
