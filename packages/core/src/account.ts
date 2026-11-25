@@ -8,6 +8,7 @@ import type { CompanyRole } from './access';
 
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
+export const PASSWORD_MAX_UTF8_BYTES = 72;
 export const DISPLAY_NAME_MAX = 120;
 export const CONTACT_NAME_MAX = 120;
 
@@ -62,6 +63,13 @@ export interface PersonGroup {
 export function passwordError(password: string, ctx: { email?: string | null; name?: string | null } = {}): string | null {
   if (password.length < PASSWORD_MIN) return `Пароль — не короче ${PASSWORD_MIN} символов`;
   if (password.length > PASSWORD_MAX) return `Пароль — не длиннее ${PASSWORD_MAX} символов`;
+  // bcrypt учитывает только первые 72 байта UTF-8; кириллица занимает больше одного байта.
+  let bytes = 0;
+  for (const character of password) {
+    const code = character.codePointAt(0)!;
+    bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+  }
+  if (bytes > PASSWORD_MAX_UTF8_BYTES) return 'Пароль слишком длинный для сохранения: сократите его (кириллица и эмодзи занимают больше места)';
   if (password.trim() !== password) return 'Уберите пробелы в начале и в конце пароля';
   const low = password.toLowerCase();
   if (COMMON.has(low) || /^(.)\1+$/.test(password)) return 'Этот пароль слишком простой — его подберут первым';

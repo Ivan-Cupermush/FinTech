@@ -36,6 +36,15 @@ describe('пароль', () => {
     expect(passwordError('синий-кит-летит', { email: 'anna@offix.demo' })).toBeNull();
   });
 
+  it('не принимает новые пароли длиннее 72 байтов UTF-8', () => {
+    expect(passwordError('a'.repeat(71) + '1')).toBeNull();
+    expect(passwordError('a'.repeat(72) + '1')).toMatch(/слишком длинный/);
+    expect(passwordError('я'.repeat(35) + '12')).toBeNull();
+    expect(passwordError('я'.repeat(36) + '1')).toMatch(/слишком длинный/);
+    expect(passwordError('😀'.repeat(18))).toBeNull();
+    expect(passwordError('😀'.repeat(18) + '1')).toMatch(/слишком длинный/);
+  });
+
   it('надёжность растёт с длиной и разнообразием', () => {
     expect(passwordStrength('1234')).toBe(0);
     expect(passwordStrength('abcdefgh1')).toBe(1);
