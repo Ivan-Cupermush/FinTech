@@ -18,6 +18,11 @@ jobs:
       # kusok (native/kusok, C11): свои тесты на C и привязки к Node, затем сборка аддона для сервера.
       - run: npm run kusok:test
       - run: npm run kusok:build
+      - name: Check isolated PGlite backup and restore
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y restic
+          PGLITE_MODULE="$(node -p "require.resolve('@electric-sql/pglite')")" bash deploy/linux/tests/recovery-check.sh
       - run: npm run typecheck
       - run: npm test
       # Файловые тесты ещё раз — с оригиналами в kusok, а не в папке files/.
