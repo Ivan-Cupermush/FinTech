@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { albumLayout, decodeWaveform, fileExtension, formatBytes, formatClock, resample, waveBars, type Attachment, type ContactCard } from '@offix/core';
-import { absUri, freshUrl, openAttachment, useFileUri } from '../lib/files';
+import { absUri, freshUrl, openAttachment, useFileUri, usePreviewUrl } from '../lib/files';
+import { PreviewImage } from './PreviewImage';
 import { nextRate, progressOf, rateLabel } from '../lib/media';
 import { font } from '../lib/theme';
 import { Avatar, Text } from './primitives';
@@ -17,11 +18,12 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : 'Не полу
 
 // ---------------------------------------------------------------- альбом
 
-/** Превью ячейки: публичная миниатюра; у GIF и снимков без миниатюры — сам файл. */
+/** Превью ячейки: подписанная миниатюра; у GIF и снимков без миниатюры — сам файл. */
 function useCellUri(a: Attachment) {
   const full = a.kind === 'photo' && (!a.thumb_url || a.mime === 'image/gif');
   const uri = useFileUri(a, full);
-  return full ? uri : absUri(a.thumb_url);
+  const preview = usePreviewUrl(a);
+  return full ? uri : preview;
 }
 
 function AlbumCell({ a, style, label, radius, onOpen }: { a: Attachment; style: object; label: string; radius: object; onOpen: () => void }) {
@@ -268,7 +270,7 @@ export function VideoNoteBubble({ a, mine, listened, onListen, onLongPress }: { 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={active ? 'Выключить звук видеосообщения' : 'Смотреть видеосообщение'} onPress={toggle} onLongPress={onLongPress} delayLongPress={320} style={{ width: NOTE, height: NOTE }}>
       <View style={{ width: NOTE, height: NOTE, borderRadius: NOTE / 2, overflow: 'hidden', backgroundColor: '#0d1030' }}>
-        {uri ? <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} /> : a.thumb_url ? <Image source={{ uri: absUri(a.thumb_url) }} style={StyleSheet.absoluteFill} /> : null}
+        {uri ? <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} /> : a.thumb_url ? <PreviewImage attachment={a} style={StyleSheet.absoluteFill} /> : null}
       </View>
       <Svg width={NOTE} height={NOTE} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Circle cx={NOTE / 2} cy={NOTE / 2} r={r} stroke="rgba(255,255,255,0.35)" strokeWidth={active ? 3 : 1.5} fill="none" />

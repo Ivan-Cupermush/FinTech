@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moscowTime, type Attachment } from '@offix/core';
-import { absUri, openAttachment, useFileUri } from '../lib/files';
+import { openAttachment, useFileUri, usePreviewUrl } from '../lib/files';
+import { PreviewImage } from './PreviewImage';
 import type { ViewerItem } from '../lib/media';
 import { font } from '../lib/theme';
 import { Avatar, Text } from './primitives';
 
 function PhotoPage({ a, width, height }: { a: Attachment; width: number; height: number }) {
   const uri = useFileUri(a);
-  const thumb = absUri(a.thumb_url);
+  const thumb = usePreviewUrl(a);
   return (
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {thumb && <Image source={{ uri: thumb }} style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} blurRadius={24} />}
@@ -32,7 +33,7 @@ function VideoPage({ a, width, height, active }: { a: Attachment; width: number;
   }, [active, player]);
   return (
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
-      {active && uri ? <VideoView player={player} style={{ width, height: height * 0.8 }} contentFit="contain" nativeControls /> : a.thumb_url ? <Image source={{ uri: absUri(a.thumb_url) }} style={{ width, height }} resizeMode="contain" /> : <ActivityIndicator color="#fff" />}
+      {active && uri ? <VideoView player={player} style={{ width, height: height * 0.8 }} contentFit="contain" nativeControls /> : a.thumb_url ? <PreviewImage attachment={a} style={{ width, height }} resizeMode="contain" /> : <ActivityIndicator color="#fff" />}
     </View>
   );
 }
@@ -120,7 +121,7 @@ export function MediaViewer({ items, index, onClose }: { items: ViewerItem[]; in
               contentContainerStyle={{ paddingHorizontal: 12, gap: 6 }}
               renderItem={({ item, index: i }) => (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Перейти к ${i + 1}`} onPress={() => go(i)} style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: i === at ? '#fff' : 'transparent', opacity: i === at ? 1 : 0.6, backgroundColor: '#1a1d3a' }}>
-                  {item.attachment.thumb_url && <Image source={{ uri: absUri(item.attachment.thumb_url) }} style={StyleSheet.absoluteFill} />}
+                  {item.attachment.thumb_url && <PreviewImage attachment={item.attachment} style={StyleSheet.absoluteFill} />}
                 </Pressable>
               )}
             />
