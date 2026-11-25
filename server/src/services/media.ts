@@ -244,7 +244,7 @@ export function createMediaStore(cfg: UploadsConfig, secret: string): MediaStore
 
   /** Фото: поворот по EXIF, без метаданных (геометка), не больше 2560 px; превью 960 px. */
   const processPhoto = async (input: UploadInput, name: string): Promise<ProcessedUpload | null> => {
-    let meta: sharp.Metadata;
+    let meta: Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
     try {
       meta = await sharp(input.path, { failOn: 'error' }).metadata();
     } catch {
