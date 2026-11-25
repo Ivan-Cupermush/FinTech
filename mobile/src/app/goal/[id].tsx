@@ -67,16 +67,29 @@ export default function GoalScreen() {
         text: 'Оставить',
         style: 'cancel',
         // Ответ «не переносить» тоже идёт в метрику «Доверие к переносам»; сроки не меняются.
-        onPress: () => void api(`/goals/${g.id}/reschedule/dismiss`, { body: { task_ids: (risk.proposals ?? []).map((x) => x.task_id) } }).catch(() => undefined),
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await api(`/goals/${g.id}/reschedule/dismiss`, { body: { task_ids: (risk.proposals ?? []).map((x) => x.task_id) } });
+            await invalidate();
+          } catch (e) {
+            Alert.alert('Не удалось сохранить решение', (e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        },
       },
       {
         text: 'Перенести',
         onPress: async () => {
+          setBusy(true);
           try {
             await api(`/goals/${g.id}/reschedule`, { body: { changes: (risk.proposals ?? []).map((x) => ({ task_id: x.task_id, start_at: x.to_start, due_at: x.to_due })) } });
             await invalidate();
           } catch (e) {
             Alert.alert('Не удалось перенести', (e as Error).message);
+          } finally {
+            setBusy(false);
           }
         },
       },
@@ -183,7 +196,7 @@ export default function GoalScreen() {
             {r.risks.map((risk) => (
               <View key={risk.id}>
                 <RiskItem risk={risk} onPress={risk.task_ids[0] ? () => router.push(`/task/${risk.task_ids[0]}`) : undefined} />
-                {!!risk.proposals?.length && g.permissions.manage && <Button title="Посмотреть перенос сроков" variant="secondary" onPress={() => reschedule(risk)} style={{ marginLeft: 15, marginBottom: 10, minHeight: 40 }} />}
+                {!!risk.proposals?.length && g.permissions.manage && <Button title="Посмотреть перенос сроков" variant="secondary" disabled={busy} onPress={() => reschedule(risk)} style={{ marginLeft: 15, marginBottom: 10, minHeight: 40 }} />}
               </View>
             ))}
           </Card>

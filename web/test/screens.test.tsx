@@ -188,9 +188,27 @@ describe('Карточка цели', () => {
     renderApp('/app/goals/g1');
     await userEvent.click(await screen.findByRole('button', { name: 'Посмотреть перенос сроков' }));
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Перенести сроки' })).getByRole('button', { name: 'Оставить как есть' }));
-    expect(screen.queryByRole('dialog', { name: 'Перенести сроки' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Перенести сроки' })).not.toBeInTheDocument());
     await waitFor(() => expect(calls.find((c) => c.path === '/goals/g1/reschedule/dismiss')?.body).toEqual({ task_ids: ['t3'] }));
     expect(calls.some((c) => c.path === '/goals/g1/reschedule')).toBe(false);
+  });
+  it('после ошибки сохранения можно повторить отказ от переноса', async () => {
+    let attempts = 0;
+    mockApi({
+      ...base,
+      'GET /goals/g1/roadmap': roadmap(),
+      'POST /goals/g1/reschedule/dismiss': () => ++attempts === 1 ? apiError(500, 'Ошибка сохранения решения') : { dismissed: 1 },
+    });
+    renderApp('/app/goals/g1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Посмотреть перенос сроков' }));
+    const dialog = screen.getByRole('dialog', { name: 'Перенести сроки' });
+    const keep = within(dialog).getByRole('button', { name: 'Оставить как есть' });
+    await userEvent.click(keep);
+    expect(await screen.findByText('Ошибка сохранения решения')).toBeInTheDocument();
+    expect(keep).toBeEnabled();
+    await userEvent.click(keep);
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(attempts).toBe(2);
   });
   it('внесение факта: проверка числа и единиц до отправки', async () => {
     const calls = mockApi({ ...base, 'GET /goals/g1/roadmap': roadmap(), 'POST /goals/g1/metrics/m1/observations': { id: 'o1' } });

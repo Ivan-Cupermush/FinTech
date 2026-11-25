@@ -356,28 +356,30 @@ function CancelDialog({ goal, onClose }: { goal: GoalCard; onClose: () => void }
 /** Перенос сроков применяется только после явного подтверждения руководителя. */
 function RescheduleAction({ goalId, risk, roadmap }: { goalId: string; risk: Risk; roadmap: Roadmap }) {
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState<'apply' | 'keep' | null>(null);
   const invalidate = useInvalidateWork();
   const toast = useToast();
   const titleOf = (id: string) => roadmap.tasks.find((t) => t.id === id)?.title ?? 'Задача';
   const proposals = risk.proposals ?? [];
-  const apply = async () => {
-    setSaving(true);
+  const save = async (decision: 'apply' | 'keep') => {
+    if (pending) return;
+    setPending(decision);
     try {
-      await api(`/goals/${goalId}/reschedule`, { body: { changes: proposals.map((p) => ({ task_id: p.task_id, start_at: p.to_start, due_at: p.to_due })) } });
+      if (decision === 'apply') {
+        const { updated } = await api<{ updated: number }>(`/goals/${goalId}/reschedule`, {
+          body: { changes: proposals.map((p) => ({ task_id: p.task_id, start_at: p.to_start, due_at: p.to_due })) },
+        });
+        toast(updated ? 'Сроки перенесены' : 'Запрошенные сроки уже установлены');
+      } else {
+        await api(`/goals/${goalId}/reschedule/dismiss`, { body: { task_ids: proposals.map((p) => p.task_id) } });
+      }
       await invalidate();
-      toast('Сроки перенесены, исполнители получили уведомления');
       setOpen(false);
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
-      setSaving(false);
+      setPending(null);
     }
-  };
-  // Ответ «не переносить» идёт в метрику «Доверие к переносам»; сроки не меняются.
-  const keep = () => {
-    setOpen(false);
-    void api(`/goals/${goalId}/reschedule/dismiss`, { body: { task_ids: proposals.map((p) => p.task_id) } }).catch(() => undefined);
   };
   return (
     <>
@@ -389,13 +391,13 @@ function RescheduleAction({ goalId, risk, roadmap }: { goalId: string; risk: Ris
       {open && (
         <Dialog
           title="Перенести сроки"
-          onClose={() => setOpen(false)}
+          onClose={() => { if (!pending) setOpen(false); }}
           footer={
             <>
-              <Button variant="ghost" onClick={keep}>
+              <Button variant="ghost" loading={pending === 'keep'} disabled={pending !== null} onClick={() => save('keep')}>
                 Оставить как есть
               </Button>
-              <Button variant="primary" loading={saving} onClick={apply}>
+              <Button variant="primary" loading={pending === 'apply'} disabled={pending !== null} onClick={() => save('apply')}>
                 Применить перенос
               </Button>
             </>

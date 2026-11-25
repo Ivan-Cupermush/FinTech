@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { recordProposals } from '../src/services/reschedule';
 import { setup, type Ctx } from './helpers';
 
 /**
@@ -43,9 +44,13 @@ describe('доверие к переносам', () => {
     const anna = await ctx.as('anna');
     expect((await anna.post(`/api/v1/goals/${ctx.demo.goals.main}/reschedule/dismiss`, { task_ids: [second!.task_id] })).status).toBe(403);
 
-    const no = await olga.post(`/api/v1/goals/${ctx.demo.goals.main}/reschedule/dismiss`, { task_ids: [second!.task_id] });
-    expect(no.status).toBe(200);
-    expect(no.body.data.dismissed).toBe(1);
+    const dismissUrl = `/api/v1/goals/${ctx.demo.goals.main}/reschedule/dismiss`;
+    const responses = await Promise.all([
+      olga.post(dismissUrl, { task_ids: [second!.task_id, second!.task_id] }),
+      olga.post(dismissUrl, { task_ids: [second!.task_id] }),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(responses.map((response) => response.body.data.dismissed).sort()).toEqual([0, 1]);
     // Отказ не меняет сроки.
     expect((await olga.get(`/api/v1/tasks/${second!.task_id}`)).body.data.due_at).toBe(second!.from_due);
 
@@ -82,5 +87,25 @@ describe('доверие к переносам', () => {
     // Если задержка осталась, с новым сроком это уже новое предложение, а не старое.
     expect(mine.filter((r) => r.outcome === null).every((r) => r.from_due === own)).toBe(true);
     expect(saved.some((r) => r.task_id === other.task_id)).toBe(false);
+  });
+
+  it('обновление карты сохраняет решение, принятое после чтения открытых предложений', async () => {
+    const ctx = await setup();
+    const [proposal] = await proposalsOf(ctx);
+    const actor = await ctx.as('olga');
+    const goalId = ctx.demo.goals.main!;
+    const result = await ctx.db.query<{ company_id: string }>('SELECT company_id FROM goals WHERE id = $1', [goalId]);
+    const q = {
+      async query<T>(sql: string, params?: unknown[]) {
+        const current = await ctx.db.query<T>(sql, params);
+        if (sql.includes('SELECT id, task_id, from_due, to_due')) {
+          const response = await actor.post(`/api/v1/goals/${goalId}/reschedule/dismiss`, { task_ids: [proposal!.task_id] });
+          expect(response.body.data.dismissed).toBe(1);
+        }
+        return current;
+      },
+    };
+    await recordProposals(q, result.rows[0]!.company_id, goalId, [], [], '2026-10-19T12:00:00.000Z');
+    expect(await rows(ctx)).toEqual([expect.objectContaining({ task_id: proposal!.task_id, outcome: 'dismissed' })]);
   });
 });
