@@ -1,4 +1,4 @@
-import type { Direction, GoalHistory, StatusEvent, TaskOutcome, UnitId } from '@offix/core';
+import type { Direction, GoalHistory, Observation, StatusEvent, TaskOutcome, UnitId } from '@offix/core';
 import type { AuthedActor } from '../auth/auth';
 import type { Queryable } from '../db/db';
 import { visibleGoals } from '../routes/roadmap';
@@ -50,8 +50,9 @@ export async function loadMetricsInput(q: Queryable, actor: AuthedActor, at: str
       ORDER BY goal_id, is_primary DESC, created_at`,
     [goalIds],
   );
-  const obs = await q.query<{ metric_id: string; value: number; observed_at: string }>(
-    `SELECT metric_id, value, observed_at FROM goal_metric_observations WHERE metric_id = ANY($1::uuid[])`,
+  const obs = await q.query<Observation & { metric_id: string }>(
+    `SELECT metric_id, value, observed_at, source FROM goal_metric_observations
+      WHERE metric_id = ANY($1::uuid[]) ORDER BY observed_at DESC, created_at DESC, id DESC`,
     [metrics.rows.map((m) => m.id)],
   );
 

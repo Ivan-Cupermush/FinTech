@@ -34,7 +34,7 @@ function report(goals?: ReportGoalInput[], days: 7 | 30 | 90 = 30): Report {
       owner_name: 'Ольга Смирнова',
       due_at: '2026-12-31',
       completed_at: null,
-      kpi: { name: 'Среднее время', unit: 'minutes', baseline: 40, target: 30, direction: 'decrease', observations: [{ value: 36.5, observed_at: ago(3) }] },
+      kpi: { name: 'Среднее время', unit: 'minutes', baseline: 40, target: 30, direction: 'decrease', observations: [{ value: 36.5, observed_at: ago(3), source: 'import' }] },
       risks: [blocker, overdue],
       tasks: [
         { id: 't1', status: 'done', due_at: '2026-10-20', done_at: ago(2) },
@@ -87,6 +87,7 @@ describe('отчёт для руководства', () => {
     expect(within(goals).getByText('Под угрозой')).toBeInTheDocument();
     expect(within(goals).getByText('Нет замеров')).toBeInTheDocument();
     expect(within(goals).getByText('Без KPI: эффект не измерить')).toBeInTheDocument();
+    expect(within(goals).getByText('Замер 16 октября · Из таблицы')).toBeInTheDocument();
   });
 
   it('живая шапка — только на экране: на бумагу идёт сам лист', async () => {

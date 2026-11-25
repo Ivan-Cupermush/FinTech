@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { observationDay, parseTable, planImport } from '@offix/core';
+import { createPgDb } from '../src/db/pg';
 import { NOW, setup, validGoal, type Ctx } from './helpers';
 
+const databaseUrl = process.env.OFFIX_TEST_KPI_DATABASE_URL;
+const database = databaseUrl ? createPgDb(databaseUrl) : undefined;
 let ctx: Ctx;
 beforeAll(async () => {
-  ctx = await setup();
+  if (database) {
+    const { rows } = await database.query<{ initialized: boolean }>(
+      `SELECT to_regclass('schema_migrations') IS NOT NULL OR to_regclass('companies') IS NOT NULL AS initialized`,
+    );
+    if (rows[0]?.initialized) throw new Error('Для OFFIX_TEST_KPI_DATABASE_URL нужна отдельная пустая база');
+  }
+  ctx = await setup({ db: database });
 });
+afterAll(() => database?.close());
 
 /** Новая цель Ольги с KPI «Время» 40 → 30 мин. */
 const newGoal = async () => {
@@ -58,6 +68,35 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     expect((await olga.get(url)).body.data).toHaveLength(3);
   });
 
+  it('параллельный импорт одного дня добавляет ровно один замер', async () => {
+    const { olga, url } = await newGoal();
+    const requests = await Promise.all([
+      olga.post(`${url}/import`, { rows: [ROWS[0]!] }),
+      olga.post(`${url}/import`, { rows: [{ ...ROWS[0]!, value: 39 }] }),
+    ]);
+    expect(requests.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect(requests.find((r) => r.status === 200)?.body.data).toMatchObject({ imported: 0, skipped: 1 });
+    expect((await olga.get(url)).body.data).toHaveLength(1);
+  });
+
+  it('параллельные ручной замер и импорт уведомляют о достижении один раз', async () => {
+    const director = await ctx.as('director');
+    const owner = ctx.demo.users.olga;
+    const goal = (await director.post('/api/v1/goals', {
+      ...validGoal(owner),
+      metrics: [{ name: 'Время', unit: 'minutes', baseline: 40, target: 30, direction: 'decrease' }],
+    })).body.data;
+    const url = `/api/v1/goals/${goal.id}/metrics/${goal.metrics[0].id}/observations`;
+    const results = await Promise.all([
+      director.post(url, { observed_at: '2026-10-02T09:00:00Z', value: 29 }),
+      director.post(`${url}/import`, { rows: [{ observed_at: '2026-10-03T09:00:00Z', value: 28 }] }),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+    expect((await director.get(url)).body.data).toHaveLength(2);
+    const { rows } = await ctx.db.query(`SELECT id FROM notifications WHERE user_id = $1 AND goal_id = $2 AND kind = 'kpi_achieved'`, [owner, goal.id]);
+    expect(rows).toHaveLength(1);
+  });
+
   it('день, где замер уже есть (в том числе ручной), пропускается; день считается по Москве', async () => {
     const { olga, url } = await newGoal();
     await olga.post(url, { value: 39, observed_at: '2026-10-01T20:30:00Z' }); // 23:30 по Москве 1 октября
@@ -87,6 +126,18 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     expect(r.status).toBe(422);
     expect(r.body.error.fields['rows.3.observed_at']).toBe('Строка 4: измерение не может быть из будущего');
     expect(r.body.error.message).toMatch(/Строка 4/);
+    expect((await olga.get(url)).body.data).toHaveLength(0);
+  });
+
+  it('несуществующий день не переносится на следующий месяц при ручном вводе и импорте', async () => {
+    const { olga, url } = await newGoal();
+    const impossible = { observed_at: '2026-02-30T09:00:00.000Z', value: 35 };
+    const manual = await olga.post(url, impossible);
+    expect(manual.status).toBe(422);
+    expect(manual.body.error.fields.observed_at).toMatch(/Некорректная дата/);
+    const batch = await olga.post(`${url}/import`, { rows: [ROWS[0]!, impossible] });
+    expect(batch.status).toBe(422);
+    expect(batch.body.error.fields['rows.1.observed_at']).toMatch(/некорректная дата/);
     expect((await olga.get(url)).body.data).toHaveLength(0);
   });
 
@@ -192,7 +243,9 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     const summary = list.find((goal: { id: string }) => goal.id === goalId);
     expect(summary.primary_metric.trend.at(-1)).toBe(34);
     const report = (await director.get('/api/v1/report?days=30')).body.data;
-    expect(report.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({ current: 34, progress: 60 });
+    expect(report.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({
+      current: 34, progress: 60, last_observed_at: first.latest?.at, last_observed_source: 'import',
+    });
 
     const history = (await director.get(observations)).body.data;
     expect(history).toHaveLength(before.length + 1);
@@ -200,5 +253,16 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     const repeat = await director.post(`${observations}/import`, { rows: first.observations });
     expect(repeat.body.data).toMatchObject({ imported: 0, skipped: 1, metric: { current_value: 34 } });
     expect((await director.get(observations)).body.data).toHaveLength(history.length);
+
+    // При совпадении времени замера текущим становится последний внесённый.
+    expect((await director.post(observations, { observed_at: first.latest?.at, value: 33 })).status).toBe(201);
+    const corrected = (await director.get(goalPath)).body.data;
+    expect(corrected.metrics[0]).toMatchObject({ current_value: 33, last_observed_source: 'manual' });
+    const correctedList = (await director.get('/api/v1/goals?scope=top')).body.data;
+    expect(correctedList.find((goal: { id: string }) => goal.id === goalId).primary_metric.trend.at(-1)).toBe(33);
+    const correctedReport = (await director.get('/api/v1/report?days=30')).body.data;
+    expect(correctedReport.goals.find((goal: { id: string }) => goal.id === goalId).kpi).toMatchObject({
+      current: 33, last_observed_at: first.latest?.at, last_observed_source: 'manual',
+    });
   });
 });

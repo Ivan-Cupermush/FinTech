@@ -154,6 +154,7 @@ export const KPI_STATE_LABELS: Record<KpiState, string> = {
 export interface Observation {
   value: number;
   observed_at: string;
+  source?: ObservationSource;
 }
 
 /** Последнее измерение по времени (не по порядку вставки). */

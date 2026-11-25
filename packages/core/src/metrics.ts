@@ -64,14 +64,18 @@ function median(values: readonly number[]): number | null {
 }
 
 /** Значение показателя на момент `at`: последний замер не позже этого момента. */
-export function valueAt(obs: readonly Observation[], at: string): number | null {
+export function observationAt(obs: readonly Observation[], at: string): Observation | null {
   const t = Date.parse(at);
   let best: Observation | null = null;
   for (const o of obs) {
     const ot = Date.parse(o.observed_at);
     if (ot <= t && (!best || ot > Date.parse(best.observed_at))) best = o;
   }
-  return best ? best.value : null;
+  return best;
+}
+
+export function valueAt(obs: readonly Observation[], at: string): number | null {
+  return observationAt(obs, at)?.value ?? null;
 }
 
 export function isActiveAt(g: Pick<GoalHistory, 'activated_at' | 'closed_at'>, at: string): boolean {

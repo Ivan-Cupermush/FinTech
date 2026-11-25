@@ -11,7 +11,6 @@ import {
   GOAL_STATUS_LABELS,
   IMPORT_MAX_ROWS,
   kpiProgress,
-  observationDay,
   riskLevelOf,
   todayIso,
   validateGoal,
@@ -44,7 +43,7 @@ import { allowedByFunction } from '../services/functions';
 import { withIdempotency } from '../services/idempotency';
 import { goalRisks } from './roadmap';
 import { notify } from '../services/notify';
-import { addObservations } from '../services/observations';
+import { addObservations, lockObservationDays, lockObservationMetric, parseObservationTimestamp } from '../services/observations';
 import { loadOrg } from '../services/org';
 
 const metricSchema = z.object({
@@ -437,6 +436,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
       const { goal, org } = await getVisibleGoal(q, actor, id);
       if (!(await canRecordKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для внесения измерений');
       if (goal.row.status === 'cancelled') throw conflict('В отменённую цель нельзя вносить измерения');
+      await lockObservationMetric(q, id, mid);
       const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
       if (!m) throw notFound('KPI не найден');
       const errors: Record<string, string> = {};
@@ -447,7 +447,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
       }
       let observedAt = now().toISOString();
       if (body.observed_at) {
-        const t = Date.parse(body.observed_at);
+        const t = parseObservationTimestamp(body.observed_at);
         if (Number.isNaN(t)) errors.observed_at = 'Некорректная дата измерения';
         else if (t > now().getTime() + 60_000) errors.observed_at = 'Измерение не может быть из будущего';
         else observedAt = new Date(t).toISOString();
@@ -490,14 +490,15 @@ export function goalsRouter(db: Db, now: () => Date): Router {
         const { goal, org } = await getVisibleGoal(q, actor, id);
         if (!(await canRecordKpi(q, actor, goal, org))) throw forbidden('Недостаточно прав для внесения измерений');
         if (goal.row.status === 'cancelled') throw conflict('В отменённую цель нельзя вносить измерения');
+        const days = await lockObservationDays(q, id, mid);
         const [m] = (await loadMetrics(q, [id])).filter((x) => x.id === mid);
         if (!m) throw notFound('KPI не найден');
 
         const errors: Record<string, string> = {};
-        const rows: { at: string; day: string; value: number }[] = [];
+        const rows: { at: string; value: number }[] = [];
         body.rows.forEach((row, i) => {
           const label = `Строка ${i + 1}`;
-          const t = Date.parse(row.observed_at);
+          const t = parseObservationTimestamp(row.observed_at);
           if (!Number.isFinite(row.value)) errors[`rows.${i}.value`] = `${label}: укажите числовое значение`;
           else {
             const e = checkUnitRange(m.unit, row.value);
@@ -505,10 +506,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
           }
           if (Number.isNaN(t)) errors[`rows.${i}.observed_at`] = `${label}: некорректная дата измерения`;
           else if (t > now().getTime() + 60_000) errors[`rows.${i}.observed_at`] = `${label}: измерение не может быть из будущего`;
-          else {
-            const at = new Date(t).toISOString();
-            rows.push({ at, day: observationDay(at), value: row.value });
-          }
+          else rows.push({ at: new Date(t).toISOString(), value: row.value });
         });
         if (Object.keys(errors).length) throw invalid(`Не удалось импортировать замеры: ${Object.values(errors)[0]}`, errors);
 
@@ -517,6 +515,7 @@ export function goalsRouter(db: Db, now: () => Date): Router {
           goalId: id,
           goalOwnerId: goal.row.owner_id,
           metric: m,
+          days,
           rows,
           source: 'import',
           actorId: actor.id,

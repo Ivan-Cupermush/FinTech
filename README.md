@@ -73,3 +73,9 @@ npm run mobile:typecheck && npm run mobile:test
 ```
 
 Тесты сервера идут на настоящей семантике PostgreSQL через PGlite: транзакции, ограничения, триггеры.
+
+Проверки импорта KPI можно также запустить на отдельной пустой базе PostgreSQL. Набор применяет миграции и загружает демоданные.
+
+```bash
+OFFIX_TEST_KPI_DATABASE_URL=postgresql://localhost/offix_kpi_test npm test -w server -- test/import.test.ts
+```
