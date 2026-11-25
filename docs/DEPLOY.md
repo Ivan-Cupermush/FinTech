@@ -200,6 +200,14 @@ powershell -ExecutionPolicy Bypass -File C:\offix\deploy\windows\install-tunnel.
 
 ## 6. Резервные копии
 
+Для встроенной PGlite скрипт PostgreSQL ниже не подходит. Отдельный порядок
+остановки, шифрованного копирования и проверки восстановления описан в
+[PGLITE-RECOVERY.md](PGLITE-RECOVERY.md). Он требует остановить все процессы записи;
+не применяйте его к замороженному стенду жюри.
+
+В процедуре PostgreSQL дамп и файлы kusok копируются в разное время, поэтому её
+нельзя считать проверенной согласованной копией без дополнительной проверки.
+
 ```bash
 sudo bash deploy/linux/backup.sh --backup-dir /var/backups/offix --install-timer
 ```
