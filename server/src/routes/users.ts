@@ -19,7 +19,7 @@ import { promises as fs } from 'node:fs';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 
-export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStore): Router {
+export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStore, now: () => Date = () => new Date()): Router {
   const r = Router();
 
   r.get('/me', async (req, res) => {
@@ -203,7 +203,7 @@ export function usersRouter(db: Db, rt: Realtime = noRealtime, store?: MediaStor
     if (err) throw invalid(MSG, { password: err });
     const hash = await hashPassword(password);
     await db.tx(async (q) => {
-      await q.query(`UPDATE users SET password_hash = $2, password_changed_at = NOW() WHERE id = $1`, [id, hash]);
+      await q.query(`UPDATE users SET password_hash = $2, password_changed_at = $3 WHERE id = $1`, [id, hash, now().toISOString()]);
       await revokeSessions(q, id);
       await audit(q, { company_id: actor.company_id, entity_type: 'member', entity_id: id, actor_id: actor.id, event_type: 'member.password_reset' });
     });

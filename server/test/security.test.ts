@@ -46,6 +46,23 @@ describe('журнал входов', () => {
 });
 
 describe('защита от подбора пароля', () => {
+  it('сброс пароля администратором открывает вход и сохраняет прежние события', async () => {
+    clock = new Date('2026-10-22T09:00:00Z');
+    const oldToken = await ctx.token('maria');
+    clock = minutes(0.1);
+    for (let i = 0; i < LOCKOUT_ATTEMPTS; i++) {
+      expect((await login('maria@offix.demo', 'wrong')).status).toBe(401);
+      clock = minutes(0.1);
+    }
+    expect((await login('maria@offix.demo', DEMO_PASSWORD)).status).toBe(429);
+    const reset = await (await ctx.as('director')).post(`${API}/users/${ctx.demo.users.maria}/reset-password`, { password: 'Secur3-fresh-planet' });
+    expect(reset.status).toBe(200);
+    expect((await request(ctx.app).get(`${API}/users/me`).set('Authorization', `Bearer ${oldToken}`)).status).toBe(401);
+    expect((await login('maria@offix.demo', 'Secur3-fresh-planet')).status).toBe(200);
+    const events = await ctx.db.query(`SELECT 1 FROM login_events WHERE user_id = $1 AND failure = 'bad_password'`, [ctx.demo.users.maria]);
+    expect(events.rows.length).toBeGreaterThanOrEqual(LOCKOUT_ATTEMPTS);
+  });
+
   it(`после ${LOCKOUT_ATTEMPTS} неверных паролей вход закрыт даже с верным, через 15 минут — открыт`, async () => {
     clock = new Date('2026-10-20T09:00:00Z');
     for (let i = 0; i < LOCKOUT_ATTEMPTS; i++) {
@@ -60,7 +77,7 @@ describe('защита от подбора пароля', () => {
     expect((await login('sergey@offix.demo', 'ещё-раз')).status).toBe(429);
     // В журнале администратора — одно событие «вход закрыт».
     const sec = (await (await ctx.as('director')).get(`${API}/security/audit?group=security`)).body.data.events;
-    expect(sec.filter((e: { event_type: string }) => e.event_type === 'login.locked')).toHaveLength(1);
+    expect(sec.filter((e: { event_type: string; entity_id: string }) => e.event_type === 'login.locked' && e.entity_id === ctx.demo.users.sergey)).toHaveLength(1);
     clock = minutes(15);
     expect((await login('sergey@offix.demo', DEMO_PASSWORD)).status).toBe(200);
   });

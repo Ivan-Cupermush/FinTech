@@ -137,7 +137,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   if (config.sandbox) v1.use(sandboxGuard(db));
   const mediaCtx = { store, now };
   v1.use('/files', filesRouter(db, mediaCtx, realtime));
-  v1.use('/users', usersRouter(db, realtime, store));
+  v1.use('/users', usersRouter(db, realtime, store, now));
   v1.use('/security', securityRouter(db, now));
   v1.use('/company', companyRouter(db, realtime));
   v1.use('/functions', functionsRouter(db, realtime));
