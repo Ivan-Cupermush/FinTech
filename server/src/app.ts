@@ -20,6 +20,7 @@ import { authRouter } from './routes/auth';
 import { discussionsRouter } from './routes/discussions';
 import { goalsRouter } from './routes/goals';
 import { integrationsRouter } from './routes/integrations';
+import { meetingsRouter } from './routes/meetings';
 import { metricsRouter } from './routes/metrics';
 import { reportRouter } from './routes/report';
 import { notificationsRouter } from './routes/notifications';
@@ -147,6 +148,7 @@ export function createApp({ db, config, now = () => new Date(), rateLimit, integ
   v1.use('/tasks', tasksRouter(db, now, mediaCtx, realtime));
   v1.use('/notifications', notificationsRouter(db));
   v1.use('/metrics', metricsRouter(db, now));
+  v1.use('/meetings', meetingsRouter(db, now));
   v1.use('/report', reportRouter(db, now, { mailAvailable: !!config.mail?.enabled }));
   v1.use('/push', pushRouter(db));
   v1.use('/templates', templatesRouter(db, now));
