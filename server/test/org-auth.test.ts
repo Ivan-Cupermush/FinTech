@@ -1,5 +1,6 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import bcrypt from 'bcryptjs';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { splitSql } from '../src/db/migrate';
 import { normalizeTimestamp } from '../src/db/db';
 import { setup, type Ctx } from './helpers';
@@ -27,6 +28,25 @@ describe('вход и регистрация', () => {
       await isolated.db.close();
     }
   });
+  it('неизвестный адрес проходит bcrypt, даже если пароль совпал с публичной заглушкой', async () => {
+    const compare = vi.spyOn(bcrypt, 'compare');
+    try {
+      const missing = await request(ctx.app).post('/api/v1/auth/login').send({ email: 'absent@example.com', password: 'offix-missing-account' });
+      expect(missing.status).toBe(401);
+      expect(compare).toHaveBeenCalledTimes(1);
+      const hash = compare.mock.calls[0]![1];
+      expect(bcrypt.getRounds(hash)).toBe(10);
+      compare.mockClear();
+      const existing = await request(ctx.app).post('/api/v1/auth/login').send({ email: 'olga@offix.demo', password: 'wrong' });
+      expect(existing.status).toBe(401);
+      expect(existing.body).toEqual(missing.body);
+      expect(compare).toHaveBeenCalledTimes(1);
+      expect(bcrypt.getRounds(compare.mock.calls[0]![1])).toBe(10);
+    } finally {
+      compare.mockRestore();
+    }
+  });
+
   it('неверный пароль и несуществующая почта — одинаковый ответ', async () => {
     const a = await request(ctx.app).post('/api/v1/auth/login').send({ email: 'olga@offix.demo', password: 'wrong' });
     const b = await request(ctx.app).post('/api/v1/auth/login').send({ email: 'nobody@offix.demo', password: 'wrong' });
