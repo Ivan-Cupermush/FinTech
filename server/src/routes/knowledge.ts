@@ -87,9 +87,9 @@ interface SessionRow {
 }
 
 const SESSION_SELECT = `SELECT s.id, s.title, s.created_at, s.updated_at,
-                               (SELECT left(m.content, 200) FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_answer,
-                               (SELECT m.id FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_answer_id,
-                               (SELECT m.sources FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC LIMIT 1) AS last_sources,
+                               (SELECT left(m.content, 200) FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_answer,
+                               (SELECT m.id FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_answer_id,
+                               (SELECT m.sources FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'assistant' ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS last_sources,
                                (SELECT count(*) FROM knowledge_messages m WHERE m.session_id = s.id AND m.role = 'user') AS questions
                           FROM knowledge_sessions s`;
 
