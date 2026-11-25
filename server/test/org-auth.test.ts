@@ -11,6 +11,23 @@ beforeAll(async () => {
 });
 
 describe('вход и регистрация', () => {
+  it('новый длинный UTF-8 пароль отклоняется, старый bcrypt-пароль остаётся доступен для смены', async () => {
+    const password = 'я'.repeat(36) + '1';
+    const register = await request(ctx.app).post('/api/v1/auth/register').send({ company_name: 'Тест', display_name: 'Пользователь', email: 'utf8@example.org', password, consent: true });
+    expect(register.status).toBe(422);
+    expect(register.body.error.fields.password).toMatch(/слишком длинный/);
+    const isolated = await setup();
+    try {
+      const { hashPassword } = await import('../src/auth/auth');
+      await isolated.db.query('UPDATE users SET password_hash = $2 WHERE id = $1', [isolated.demo.users.elena, await hashPassword(password)]);
+      const login = await request(isolated.app).post('/api/v1/auth/login').send({ email: 'elena@offix.demo', password });
+      expect(login.status).toBe(200);
+      const change = await request(isolated.app).post('/api/v1/account/password').set('Authorization', `Bearer ${login.body.data.token}`).send({ current_password: password, new_password: 'new-safe-password-38' });
+      expect(change.status).toBe(200);
+    } finally {
+      await isolated.db.close();
+    }
+  });
   it('неизвестный адрес проходит bcrypt, даже если пароль совпал с публичной заглушкой', async () => {
     const compare = vi.spyOn(bcrypt, 'compare');
     try {
