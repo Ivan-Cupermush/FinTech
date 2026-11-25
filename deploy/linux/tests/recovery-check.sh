@@ -62,8 +62,36 @@ for RECOVERY_STORE in fs kusok; do
   "$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" create "$data"
   started=$SECONDS
   bash "$here/../backup-pglite.sh" synthetic.service "$data"
+  if [[ "$RECOVERY_STORE" = fs ]]; then
+    # This is an ephemeral repository with one synthetic key, never production.
+    openssl rand -hex 32 > "$work/rotated-password"
+    restic key passwd --new-password-file "$work/rotated-password" >/dev/null
+    if restic snapshots >/dev/null 2>&1; then
+      echo 'The previous password still opens the rotated test repository' >&2; exit 1
+    fi
+    export RESTIC_PASSWORD_FILE="$work/rotated-password"
+    restic snapshots --tag offix-pglite-offline >/dev/null
+  fi
   restic check --read-data >/dev/null
   restic restore latest --tag offix-pglite-offline --target "$target" >/dev/null
   "$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" verify "$target$data"
   printf 'App %s snapshot, repository check, restore and verification: %s seconds.\n' "$RECOVERY_STORE" "$((SECONDS - started))"
+  if [[ "$RECOVERY_STORE" = fs ]]; then
+    # A new repository has a new master key; copy and verify the test snapshot.
+    source_repo="$RESTIC_REPOSITORY"
+    source_password="$RESTIC_PASSWORD_FILE"
+    openssl rand -hex 32 > "$work/fresh-password"
+    export RESTIC_REPOSITORY="$work/fresh-repository"
+    export RESTIC_PASSWORD_FILE="$work/fresh-password"
+    restic init >/dev/null
+    restic copy --from-repo "$source_repo" --from-password-file "$source_password" >/dev/null
+    if RESTIC_PASSWORD_FILE="$source_password" restic snapshots >/dev/null 2>&1; then
+      echo 'The old repository password opened the new repository' >&2; exit 1
+    fi
+    restic check --read-data >/dev/null
+    mkdir -p "$work/fresh-restore"
+    restic restore latest --tag offix-pglite-offline --target "$work/fresh-restore" >/dev/null
+    "$project/node_modules/.bin/tsx" "$project/server/test/recovery.fixture.ts" verify "$work/fresh-restore$data"
+    printf 'Verified copied snapshot in a new encrypted repository.\n'
+  fi
 done
