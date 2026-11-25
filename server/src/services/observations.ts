@@ -6,13 +6,19 @@ import { notify } from './notify';
 
 type MetricRow = Awaited<ReturnType<typeof loadMetrics>>[number];
 
+/** Общая блокировка для ручных замеров, импорта и синхронизации. */
+export async function lockObservationMetric(q: Queryable, goalId: string, metricId: string): Promise<boolean> {
+  const { rows } = await q.query(`SELECT id FROM goal_metrics WHERE goal_id = $1 AND id = $2 FOR UPDATE`, [goalId, metricId]);
+  return rows.length > 0;
+}
+
 /**
  * Дни (по Москве), за которые у KPI уже есть замер. KPI блокируется до конца
  * транзакции, чтобы параллельный импорт или синхронизация не добавили тот же
  * день дважды.
  */
-export async function lockObservationDays(q: Queryable, metricId: string): Promise<Set<string>> {
-  await q.query(`SELECT id FROM goal_metrics WHERE id = $1 FOR UPDATE`, [metricId]);
+export async function lockObservationDays(q: Queryable, goalId: string, metricId: string): Promise<Set<string>> {
+  if (!(await lockObservationMetric(q, goalId, metricId))) return new Set();
   const { rows } = await q.query<{ observed_at: Date | string }>(`SELECT observed_at FROM goal_metric_observations WHERE metric_id = $1`, [metricId]);
   return new Set(rows.map((r) => observationDay(new Date(r.observed_at))));
 }
@@ -27,7 +33,7 @@ export interface AddObservations {
   /** Кто внёс. У синхронизации по расписанию — никто. */
   actorId: string | null;
   note: string | null;
-  /** Уже заблокированные дни из lockObservationDays; иначе загрузим сами. */
+  /** Дни из lockObservationDays. Если переданы, metric прочитан после блокировки. */
   days?: Set<string>;
   /** Что добавить в запись журнала: например, какая интеграция. */
   auditExtra?: Record<string, unknown>;
@@ -39,7 +45,8 @@ export interface AddObservations {
  * впервые достиг цели, уведомляет владельца цели.
  */
 export async function addObservations(q: Queryable, o: AddObservations) {
-  const days = o.days ?? (await lockObservationDays(q, o.metric.id));
+  const days = o.days ?? (await lockObservationDays(q, o.goalId, o.metric.id));
+  const m = o.days ? o.metric : (await loadMetrics(q, [o.goalId])).find((metric) => metric.id === o.metric.id)!;
   const fresh = o.rows.filter((r) => {
     const day = observationDay(r.at);
     return days.has(day) ? false : (days.add(day), true);
@@ -55,7 +62,6 @@ export async function addObservations(q: Queryable, o: AddObservations) {
     ]);
   }
   const skipped = o.rows.length - fresh.length;
-  const m = o.metric;
   const before = kpiProgress({ baseline: m.baseline, target: m.target_value, direction: m.direction, range_min: m.range_min, range_max: m.range_max }, m.current_value);
   const [reloaded] = (await loadMetrics(q, [o.goalId])).filter((x) => x.id === m.id);
   const metric = serializeMetric(reloaded!);

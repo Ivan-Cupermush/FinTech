@@ -58,6 +58,35 @@ describe('POST /goals/:id/metrics/:mid/observations/import', () => {
     expect((await olga.get(url)).body.data).toHaveLength(3);
   });
 
+  it('параллельный импорт одного дня добавляет ровно один замер', async () => {
+    const { olga, url } = await newGoal();
+    const requests = await Promise.all([
+      olga.post(`${url}/import`, { rows: [ROWS[0]!] }),
+      olga.post(`${url}/import`, { rows: [{ ...ROWS[0]!, value: 39 }] }),
+    ]);
+    expect(requests.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect(requests.find((r) => r.status === 200)?.body.data).toMatchObject({ imported: 0, skipped: 1 });
+    expect((await olga.get(url)).body.data).toHaveLength(1);
+  });
+
+  it('параллельные ручной замер и импорт уведомляют о достижении один раз', async () => {
+    const director = await ctx.as('director');
+    const owner = ctx.demo.users.olga;
+    const goal = (await director.post('/api/v1/goals', {
+      ...validGoal(owner),
+      metrics: [{ name: 'Время', unit: 'minutes', baseline: 40, target: 30, direction: 'decrease' }],
+    })).body.data;
+    const url = `/api/v1/goals/${goal.id}/metrics/${goal.metrics[0].id}/observations`;
+    const results = await Promise.all([
+      director.post(url, { observed_at: '2026-10-02T09:00:00Z', value: 29 }),
+      director.post(`${url}/import`, { rows: [{ observed_at: '2026-10-03T09:00:00Z', value: 28 }] }),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+    expect((await director.get(url)).body.data).toHaveLength(2);
+    const { rows } = await ctx.db.query(`SELECT id FROM notifications WHERE user_id = $1 AND goal_id = $2 AND kind = 'kpi_achieved'`, [owner, goal.id]);
+    expect(rows).toHaveLength(1);
+  });
+
   it('день, где замер уже есть (в том числе ручной), пропускается; день считается по Москве', async () => {
     const { olga, url } = await newGoal();
     await olga.post(url, { value: 39, observed_at: '2026-10-01T20:30:00Z' }); // 23:30 по Москве 1 октября

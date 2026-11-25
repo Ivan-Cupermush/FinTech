@@ -231,9 +231,9 @@ export async function syncIntegration(
   }
 
   await db.tx(async (q) => {
+    const days = await lockObservationDays(q, i.goal_id, i.metric_id);
     const [metric] = (await loadMetrics(q, [i.goal_id])).filter((m) => m.id === i.metric_id);
-    const days = await lockObservationDays(q, i.metric_id);
-    const plan = planSync(fetched.points, { unit: i.metric_unit, now: opts.now, existingDays: days });
+    const plan = planSync(fetched.points, { unit: metric!.unit, now: opts.now, existingDays: days });
     const r = await addObservations(q, {
       companyId,
       goalId: i.goal_id,
